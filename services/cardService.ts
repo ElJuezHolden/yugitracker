@@ -57,6 +57,14 @@ async function request(params: string, signal?: AbortSignal): Promise<ApiCard[]>
  * nombre contenga todas las demás.
  */
 export const searchCards = async (query: string, signal?: AbortSignal): Promise<ApiCard[]> => {
+  // El número de la carta (passcode, abajo a la izquierda) es igual en todos los
+  // idiomas: es la forma de encontrar una carta en español, ya que la API no
+  // tiene nombres en español.
+  const passcode = query.replace(/\s/g, '');
+  if (/^\d{5,9}$/.test(passcode)) {
+    return request(`id=${Number(passcode)}&misc=yes`, signal);
+  }
+
   const tokens = normalizeStr(query)
     .split(' ')
     .filter((t) => t.length > 0);
