@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type PointerEvent } from 'react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import type { CardSet } from '../types';
 import { useCardmarketPrices, usePrices } from '../context/PricesContext';
-import { loadHistory, printingKey, printingsFromApi, versionPrice, type PricePoint } from '../services/prices';
+import { conditionFactor, loadHistory, printingKey, printingsFromApi, versionPrice, type PricePoint } from '../services/prices';
 import { formatMoney, getRarityColor } from '../utils';
 
 interface Props {
@@ -14,6 +14,8 @@ interface Props {
   onSelect?: (set: CardSet) => void;
   /** Lo que se pagó por esta copia, si se apuntó (0 si no). Solo se enseña aquí. */
   paid?: number;
+  /** Estado de la copia (MT, NM, EX…), para estimar lo que vale. Sin él, como NM. */
+  condition?: string;
 }
 
 const RANGOS = [
@@ -38,7 +40,7 @@ const esMisma = (a: CardSet | null, code: string, rarity: string) => !!a && a.se
  * apunta cada día (ver services/prices.ts). Si una versión no está en
  * Cardmarket se usa TCGplayer y se marca con un asterisco.
  */
-export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0 }: Props) {
+export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, condition }: Props) {
   const { rate } = usePrices();
   const [historial, setHistorial] = useState<PricePoint[]>([]);
   const [rango, setRango] = useState<Rango>('30D');
@@ -85,6 +87,9 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0 }: 
   if (versiones.length === 0) return null;
 
   const precio = actual?.eur ?? null;
+  // Lo que vale TU copia: el precio de la versión ajustado por su estado (estimación).
+  const factor = conditionFactor(condition);
+  const valorCopia = precio != null ? precio * factor : null;
   const cambio = serie.length >= 2 ? serie[serie.length - 1]!.eur - serie[0]!.eur : null;
   const cambioPct = cambio != null && serie[0]!.eur > 0 ? (cambio / serie[0]!.eur) * 100 : null;
   const sube = (cambio ?? 0) >= 0;
@@ -143,13 +148,21 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0 }: 
           )}
         </div>
 
-        {paid > 0 && precio != null && (
+        {factor < 1 && valorCopia != null && (
+          <div className="text-sm text-muted" title="Cardmarket no da precios por estado: es una estimación sobre el precio en NM">
+            Tu copia en <span className="font-bold text-main">{condition}</span> ≈{' '}
+            <span className="font-bold text-main">{formatMoney(valorCopia)}</span>{' '}
+            <span className="text-xs text-sub">({Math.round(factor * 100)} % del precio, estimado)</span>
+          </div>
+        )}
+
+        {paid > 0 && valorCopia != null && (
           <div className="text-xs text-muted">
             Pagaste <span className="font-bold text-main">{formatMoney(paid)}</span> ·{' '}
-            <span className={`font-bold ${precio >= paid ? 'text-emerald-400' : 'text-red-400'}`}>
-              {precio >= paid ? '+' : '−'}
-              {formatMoney(Math.abs(precio - paid))} ({precio >= paid ? '+' : '−'}
-              {Math.abs(((precio - paid) / paid) * 100).toFixed(0)} %)
+            <span className={`font-bold ${valorCopia >= paid ? 'text-emerald-400' : 'text-red-400'}`}>
+              {valorCopia >= paid ? '+' : '−'}
+              {formatMoney(Math.abs(valorCopia - paid))} ({valorCopia >= paid ? '+' : '−'}
+              {Math.abs(((valorCopia - paid) / paid) * 100).toFixed(0)} %)
             </span>{' '}
             desde entonces
           </div>

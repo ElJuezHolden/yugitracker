@@ -17,7 +17,9 @@ Los datos de las cartas vienen de la API pública de [YGOPRODeck](https://ygopro
 - **Precios de Cardmarket**: valor aproximado de la colección, de cada carpeta y de cada carta,
   y en la ficha de una carta el precio de todas sus versiones y una gráfica de su evolución.
   Cardmarket da un precio por versión que mezcla idiomas y estados. Si una versión no está en
-  Cardmarket se usa el de TCGplayer (vía YGOPRODeck) pasado a euros, y se indica.
+  Cardmarket se usa el de TCGplayer (vía YGOPRODeck) pasado a euros, y se indica. Las copias que
+  no están en MT o NM se valoran con un descuento estimado por estado (EX 85 %, GD 75 %, LP 60 %,
+  PL 40 %, PO 25 %): Cardmarket no publica precios por estado.
 - **Subidas y bajadas**: un panel (icono de tendencia en la cabecera) con las cartas de tu
   colección que más han subido o bajado en 7 días, 30, 90 o un año, filtrando por cambio mínimo.
 - **Lo pagado**, opcional y por carta: solo se ve en la ficha de esa carta, comparado con su

@@ -3,6 +3,7 @@ import type { Card } from '../types';
 import { useStore } from './StoreContext';
 import {
   PRICE_TTL_MS,
+  conditionFactor,
   fetchPrices,
   findPrinting,
   forgetMarketData,
@@ -17,7 +18,12 @@ import {
 
 /** Precio de una copia y de dónde sale. */
 export interface CopyPrice {
+  /** Lo que vale la copia: el de mercado ajustado por su estado. */
   eur: number;
+  /** Precio de mercado de la versión (como NM), sin ajustar. */
+  mercado: number;
+  /** Factor aplicado por el estado (1 en MT y NM). */
+  factor: number;
   /** Cardmarket casi siempre; TCGplayer si la versión no está en Cardmarket. */
   fuente: 'cardmarket' | 'tcgplayer';
 }
@@ -148,10 +154,11 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const impresion = info ? findPrinting(info.printings, card.setCode, card.rarity, card.rarityCode) : null;
       const cm = mercado.porCarta.get(card.apiId);
       const clave = impresion ? printingKey(impresion.code, impresion.rarity) : printingKey(card.setCode, card.rarity);
-      const eur = cm?.[clave];
-      if (eur != null) return { eur, fuente: 'cardmarket' };
-      if (impresion?.usd != null && rate) return { eur: impresion.usd * rate.usdToEur, fuente: 'tcgplayer' };
-      return null;
+      const factor = conditionFactor(card.condition);
+      const deCardmarket = cm?.[clave];
+      const deMercado = deCardmarket ?? (impresion?.usd != null && rate ? impresion.usd * rate.usdToEur : null);
+      if (deMercado == null) return null;
+      return { eur: deMercado * factor, mercado: deMercado, factor, fuente: deCardmarket != null ? 'cardmarket' : 'tcgplayer' };
     },
     [prices, rate, mercado],
   );

@@ -38,7 +38,8 @@ export function CollectionValue({ cards, titulo }: Props) {
     'Precios de Cardmarket de cada versión concreta, actualizados cada día. Si una versión no está en Cardmarket se usa' +
     ' el de TCGplayer (EE. UU.) pasado a euros' +
     (rate && !rate.fallback && rate.date ? ` al cambio del BCE (1 $ = ${rate.usdToEur.toFixed(4)} €).` : ' con un cambio aproximado.') +
-    ' Son orientativos: mezclan idiomas y estados de conservación.';
+    ' Las copias que no están en MT o NM se valoran con un descuento estimado por su estado (EX 85 %, GD 75 %, LP 60 %, PL 40 %, PO 25 %).' +
+    ' Son orientativos: no distinguen idioma.';
 
   return (
     <div className="mb-5 flex flex-wrap items-baseline gap-x-5 gap-y-1.5 rounded-xl bg-bg-surface border border-border-base px-4 py-3">

@@ -663,6 +663,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                 sets={apiData.card_sets}
                                 selected={selectedSet}
                                 paid={formData.isWanted ? 0 : parseFloat(formData.paid) || 0}
+                                condition={formData.isWanted ? undefined : formData.condition}
                                 onSelect={(set) => { setSelectedSet(set); setManualRarity(''); }}
                             />
                         </div>

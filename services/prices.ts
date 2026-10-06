@@ -198,6 +198,23 @@ function pedir<T extends { v: number }>(archivo: string): Promise<T | null> {
 }
 
 /**
+ * Parte del precio de mercado que vale una copia según su estado. Cardmarket
+ * da un precio por versión que mezcla estados y en la práctica se parece al de
+ * una NM; para el resto se aplica este descuento, que es una ESTIMACIÓN (no
+ * hay precios públicos por estado).
+ */
+export const CONDITION_FACTOR: Record<string, number> = {
+  MT: 1,
+  NM: 1,
+  EX: 0.85,
+  GD: 0.75,
+  LP: 0.6,
+  PL: 0.4,
+  PO: 0.25,
+};
+export const conditionFactor = (condition: string | undefined) => CONDITION_FACTOR[condition ?? 'NM'] ?? 1;
+
+/**
  * Precio de una versión en euros: el de Cardmarket si lo hay; si no, el de
  * TCGplayer pasado a euros (y se dice). Lo usan todas las pantallas, para que
  * la misma versión no salga con dos precios distintos.
