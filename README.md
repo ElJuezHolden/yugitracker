@@ -14,6 +14,11 @@ Los datos de las cartas vienen de la API pública de [YGOPRODeck](https://ygopro
 - **Cuatro vistas**: cuadrícula, lista, álbum (a modo de carpeta de fundas, con páginas que
   pasan) y display, que enseña solo las imágenes.
 - **Brillos por rareza**: cada rareza brilla donde brilla en la carta real (ver abajo).
+- **Precios**: valor aproximado de la colección, de cada carpeta y de cada carta, y en la
+  ficha de una carta el precio de todas sus versiones y una gráfica de su evolución. Salen
+  del precio de TCGplayer de cada impresión que da YGOPRODeck, pasado a euros al cambio del
+  BCE; no distinguen idioma, edición ni estado. La API no da historial, así que la app apunta
+  el precio una vez al día y la gráfica se va llenando con el uso.
 - **Cartas buscadas**: márcalas como *wanted* para llevar la lista de lo que te falta.
 - **Filtros** por tipo de carta, tipo de monstruo, propiedad de mágica o trampa, set y rareza.
 - **Temas**: acento y fondo a elegir, con claro y oscuro automáticos, y colores propios guardados.

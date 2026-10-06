@@ -4,6 +4,7 @@ import { useStore } from '../context/StoreContext';
 import { formatMoney, ID_ALL, CARD_BACK_IMG } from '../utils';
 import { Settings, CheckCircle2, Circle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { usePrices } from '../context/PricesContext';
 
 interface Props {
   folder: Folder;
@@ -21,7 +22,18 @@ export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMod
   const isManualSort = state.ui.sortFolders === 'manual';
 
   const cards = state.db.cards.filter(c => isSystem ? true : c.folderId === folder.id);
-  const totalValue = cards.reduce((sum, c) => sum + c.paid, 0);
+  /*
+   * "Valor total" sumaba lo PAGADO. Ahora es el valor de mercado de las
+   * cartas con precio; lo pagado y las que no tienen precio van en la ayuda.
+   */
+  const resumen = usePrices().summarize(cards);
+  const textoValor = resumen.priced > 0 ? `≈ ${formatMoney(resumen.eur)}` : '—';
+  const ayudaValor =
+    resumen.priced > 0
+      ? `Valor de mercado aproximado de ${resumen.priced} cartas` +
+        (resumen.unpriced ? ` (${resumen.unpriced} sin precio)` : '') +
+        ` · pagado ${formatMoney(resumen.paid)}`
+      : 'Todavía no hay precios para estas cartas';
 
   const handleClick = () => {
       if (isSelectionMode) {
@@ -149,7 +161,7 @@ export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMod
             {/* ITEMS: text-muted */}
             <div className="text-sm text-muted whitespace-nowrap">{cards.length} items</div>
             {/* PRICE: text-primary */}
-            <div className="text-sm font-bold text-primary w-24 text-right whitespace-nowrap">{formatMoney(totalValue)}</div>
+            <div className="text-sm font-bold text-primary w-24 text-right whitespace-nowrap" title={ayudaValor}>{textoValor}</div>
             
             {!isSelectionMode && (
                 <button 
@@ -224,9 +236,9 @@ export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMod
              </div>
              
              <div className="mt-auto pt-2 flex justify-between items-end border-t border-border-base">
-                <span className="text-xs text-muted font-medium">Valor total</span>
+                <span className="text-xs text-muted font-medium">Valor</span>
                 {/* VALUE: text-primary */}
-                <span className="text-primary font-bold text-sm">{formatMoney(totalValue)}</span>
+                <span className="text-primary font-bold text-sm" title={ayudaValor}>{textoValor}</span>
              </div>
         </div>
 

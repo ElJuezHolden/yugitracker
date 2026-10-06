@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { StoreProvider } from './context/StoreContext';
 import { BackupProvider } from './context/BackupContext';
+import { PricesProvider } from './context/PricesContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 
@@ -23,7 +24,9 @@ ReactDOM.createRoot(rootElement).render(
     <ErrorBoundary>
       <StoreProvider>
         <BackupProvider>
-          <App />
+          <PricesProvider>
+            <App />
+          </PricesProvider>
         </BackupProvider>
       </StoreProvider>
     </ErrorBoundary>

@@ -6,6 +6,7 @@ import { formatMoney, getConditionMeta, getRarityColor, ID_ALL, onCardImageError
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquareText, FolderOpen, CheckCircle2, Circle } from 'lucide-react';
 import CardFoilOverlay from './CardFoilOverlay';
+import { usePrices } from '../context/PricesContext';
 import { useCardPointer } from './useCardPointer';
 
 interface Props {
@@ -33,6 +34,11 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
 
   const rarityColor = getRarityColor(card.rarity);
   const conditionMeta = getConditionMeta(card.condition);
+  // Valor de mercado de ESTA impresión (set y rareza), en euros; null si no hay precio.
+  const valor = usePrices().valueOf(card);
+  const tituloValor = valor == null
+    ? 'Sin precio de mercado para esta versión'
+    : `Valor de mercado aproximado de esta versión (${card.setCode} · ${card.rarity})`;
 
   const folder = state.db.folders.find(f => f.id === card.folderId);
   const showFolderBadge = state.ui.activeFolderId === ID_ALL && folder && folder.id !== ID_ALL;
@@ -267,7 +273,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 <div className="absolute inset-0 flex items-end justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
                      <div className="w-full bg-black/80 backdrop-blur-md p-[2cqw] text-center border-t border-white/10">
                          <div className="text-white truncate px-1" style={{ fontSize: '9cqw', fontWeight: 700 }}>{card.name}</div>
-                         {!card.isWanted && <div className="text-primary font-mono" style={{ fontSize: '8cqw' }}>{formatMoney(card.paid)}</div>}
+                         {!card.isWanted && <div className="text-primary font-mono" style={{ fontSize: '8cqw' }} title={tituloValor}>{valor != null ? `≈ ${formatMoney(valor)}` : formatMoney(card.paid)}</div>}
                      </div>
                 </div>
             )}
@@ -394,7 +400,14 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 </div>
 
                 <div className="flex flex-col items-end gap-1 h-full justify-center z-30 pointer-events-none">
-                    {!card.isWanted && <div className="text-xl font-black text-main tracking-tight">{formatMoney(card.paid)}</div>}
+                    {!card.isWanted && (
+                        <div className="text-right" title={tituloValor}>
+                            <div className="text-xl font-black text-main tracking-tight">
+                                {valor != null ? `≈ ${formatMoney(valor)}` : <span className="text-muted">—</span>}
+                            </div>
+                            {card.paid > 0 && <div className="text-xs text-muted">pagado {formatMoney(card.paid)}</div>}
+                        </div>
+                    )}
                     {!isSelectionMode && <div className="text-muted opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-full">✏️</div>}
                 </div>
             </motion.div>
@@ -546,9 +559,14 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                             <span style={{ color: rarityColor }} className="font-bold truncate flex-1 drop-shadow-sm">{card.rarity || 'Common'}</span>
                             <span className="text-muted ml-2">{card.setCode}</span>
                         </div>
-                        <div className="flex justify-between items-center text-xs">
-                            <span className="font-bold text-muted" title={card.lang}>{card.lang}</span>
-                            <span className="font-black text-main">{formatMoney(card.paid)}</span>
+                        <div className="flex justify-between items-center text-xs gap-2">
+                            <span className="text-muted truncate">
+                                <span className="font-bold" title={card.lang}>{card.lang}</span>
+                                {card.paid > 0 && <span title="Lo que pagaste"> · {formatMoney(card.paid)}</span>}
+                            </span>
+                            <span className="font-black text-main whitespace-nowrap" title={tituloValor}>
+                                {valor != null ? `≈ ${formatMoney(valor)}` : <span className="text-muted font-bold">—</span>}
+                            </span>
                         </div>
                     </div>
                 )}

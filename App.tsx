@@ -11,6 +11,8 @@ import { ThemeModal } from './components/Modals/ThemeModal';
 import { BackupModal } from './components/Modals/BackupModal';
 import { useBackup } from './context/BackupContext';
 import { FoilFilters } from './components/FoilFilters';
+import { CollectionValue } from './components/CollectionValue';
+import { usePrices } from './context/PricesContext';
 import { CardFilter } from './components/CardFilter';
 import { ToastContainer } from './components/Toast';
 import { ID_ALL, getTypeWeight, getRarityWeight, normalizeStr, analyzeCardType } from './utils';
@@ -27,6 +29,7 @@ const getSetPrefix = (code: string) => {
 function App() {
   const { state, dispatch, toast } = useStore();
   const backup = useBackup();
+  const { valueOf } = usePrices();
   const { activeFolderId, view, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, showWantedCards } = state.ui;
 
   // Modals State
@@ -320,8 +323,10 @@ function App() {
              */
             const valuePerFolder = new Map<string, number>();
             if (sortFolders === 'value') {
+                // Valor de mercado (las buscadas no cuentan: no se tienen).
                 for (const card of state.db.cards) {
-                    valuePerFolder.set(card.folderId, (valuePerFolder.get(card.folderId) ?? 0) + card.paid);
+                    if (card.isWanted) continue;
+                    valuePerFolder.set(card.folderId, (valuePerFolder.get(card.folderId) ?? 0) + (valueOf(card) ?? 0));
                 }
             }
 
@@ -399,7 +404,8 @@ function App() {
                     return a.paid - b.paid;
                 }
                 if (sortCards === 'price') {
-                    const priceDiff = (b.paid - a.paid) * dir;
+                    // Por valor de mercado. Sin precio cuenta como -1 para que quede al final.
+                    const priceDiff = ((valueOf(b) ?? -1) - (valueOf(a) ?? -1)) * dir;
                     if (priceDiff !== 0) return priceDiff;
                     const tA = getTypeWeight(a.type);
                     const tB = getTypeWeight(b.type);
@@ -436,7 +442,7 @@ function App() {
         }
         return list;
     }
-  }, [baseData, isHome, sortFolders, sortFoldersDir, sortCards, sortCardsDir, filters, state.db.cards, showWantedCards]);
+  }, [baseData, isHome, sortFolders, sortFoldersDir, sortCards, sortCardsDir, filters, state.db.cards, showWantedCards, valueOf]);
 
   // Derived Values for Selection UI
   const totalSelectable = isHome 
@@ -514,6 +520,12 @@ function App() {
       )}
 
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6">
+        {/* Valor de mercado: de toda la colección en la portada, de la carpeta dentro de ella. */}
+        <CollectionValue
+          titulo={isHome || activeFolderId === ID_ALL ? 'Tu colección' : 'Esta carpeta'}
+          cards={isHome || activeFolderId === ID_ALL ? state.db.cards : state.db.cards.filter(c => c.folderId === activeFolderId)}
+        />
+
         {/* FILTERS (Only visible in Card View) */}
         {!isHome && (
             <CardFilter 

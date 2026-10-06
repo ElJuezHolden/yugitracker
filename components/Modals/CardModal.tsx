@@ -2,8 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../context/StoreContext';
 import type { ApiCard, Card, CardSet, CardCondition } from '../../types';
-import { generateId, getCardMarketLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
+import { formatMoney, generateId, getCardMarketLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
 import { getCardDetails } from '../../services/cardService';
+import { CardMarketValue } from '../CardMarketValue';
+import { usePrices } from '../../context/PricesContext';
 import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles } from 'lucide-react';
 
 interface Props {
@@ -47,6 +49,12 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   const [customImg, setCustomImg] = useState('');
   const [selectedSet, setSelectedSet] = useState<CardSet | null>(null);
   const [manualRarity, setManualRarity] = useState<string>(''); // For Manual Override
+  const { rate } = usePrices();
+  /** Precio en euros de una impresión, o null si no tiene. */
+  const eurDe = (set: CardSet) => {
+    const usd = Number.parseFloat(set.set_price);
+    return rate && Number.isFinite(usd) && usd > 0 ? usd * rate.usdToEur : null;
+  };
 
   const [formData, setFormData] = useState({
     paid: '',
@@ -295,7 +303,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
       <motion.div 
         initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -381,7 +389,18 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                     </div>
 
                     {/* Right Column: Details */}
-                    <div className="space-y-5">
+                    <div className="space-y-5 min-w-0">
+
+                        {/* Valor de mercado y precio de sus versiones (también para las buscadas) */}
+                        {apiData && (
+                            <CardMarketValue
+                                cardId={apiData.id}
+                                cardName={apiData.name}
+                                sets={apiData.card_sets}
+                                selected={selectedSet}
+                                onSelect={(set) => { setSelectedSet(set); setManualRarity(''); }}
+                            />
+                        )}
                         
                         {/* Location & Type */}
                         <div className="bg-bg-panel p-3 rounded-lg border border-border-base space-y-3">
@@ -451,6 +470,9 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                     <div className="font-bold text-xs text-main">{set.set_code}</div>
                                                     <div className="text-[10px]" style={{ color: getRarityColor(set.set_rarity) }}>
                                                         {set.set_rarity}
+                                                    </div>
+                                                    <div className="text-[10px] text-muted font-semibold mt-0.5">
+                                                        {eurDe(set) != null ? `≈ ${formatMoney(eurDe(set)!)}` : '—'}
                                                     </div>
                                                 </div>
                                             )) : (
@@ -625,7 +647,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border-base bg-bg-panel flex justify-between gap-3 rounded-b-2xl">
+        <div className="p-3 sm:p-4 border-t border-border-base bg-bg-panel flex justify-between gap-2 sm:gap-3 rounded-b-2xl">
              {existingCard ? (
                  showDeleteConfirm ? (
                     <div className="flex items-center gap-2 animate-fadeIn">
@@ -641,12 +663,12 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                     </button>
                  )
             ) : <div />}
-            <div className="flex gap-3">
+            <div className="flex gap-2 sm:gap-3">
                 <button onClick={onClose} className="px-4 py-2 rounded-lg bg-bg-surface hover:bg-main/10 text-main text-sm font-semibold transition-colors border border-border-base">Cancelar</button>
                 <button 
                     onClick={handleSave} 
                     disabled={isSubmitting}
-                    className="px-6 py-2 rounded-lg bg-primary hover:brightness-110 disabled:brightness-75 disabled:cursor-not-allowed text-black text-sm font-bold transition-transform active:scale-95 shadow-lg shadow-primary/20 flex items-center gap-2"
+                    className="px-4 sm:px-6 py-2 rounded-lg bg-primary hover:brightness-110 disabled:brightness-75 disabled:cursor-not-allowed text-black text-sm font-bold transition-transform active:scale-95 shadow-lg shadow-primary/20 flex items-center gap-2"
                 >
                     {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} 
                     Confirmar

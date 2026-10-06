@@ -98,7 +98,7 @@ export const BackupModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-start sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
+      className="fixed inset-0 z-[130] flex items-start sm:items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto"
       onClick={onClose}
     >
       <motion.div
