@@ -5,6 +5,7 @@ import type { ApiCard, Card, CardSet, CardCondition } from '../../types';
 import { formatMoney, normalizeStr, generateId, getCardMarketLink, getCardMarketProductLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
 import { getCardDetails, getYugipediaPrintings } from '../../services/cardService';
 import { CardMarketValue } from '../CardMarketValue';
+import { IDIOMAS, LanguageFlag } from '../LanguageFlag';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
 import { leftoverFor, printingKey, versionPrice } from '../../services/prices';
@@ -700,15 +701,29 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="text-xs font-medium text-muted block mb-1">Idioma</label>
-                                            <select 
-                                                value={formData.lang}
-                                                onChange={e => setFormData({...formData, lang: e.target.value})}
-                                                className="w-full bg-bg-panel border border-border-base text-main rounded p-2 text-sm focus:border-primary outline-none"
-                                            >
-                                                <option value="ES">Español</option>
-                                                <option value="EN">Inglés</option>
-                                                <option value="JP">Japonés</option>
-                                            </select>
+                                            {/* Un clic por idioma, con su bandera */}
+                                            <div className="grid grid-cols-3 gap-1.5">
+                                                {IDIOMAS.map(idioma => {
+                                                    const elegido = formData.lang === idioma.id;
+                                                    return (
+                                                        <button
+                                                            key={idioma.id}
+                                                            type="button"
+                                                            onClick={() => setFormData({ ...formData, lang: idioma.id })}
+                                                            title={idioma.nombre}
+                                                            aria-pressed={elegido}
+                                                            className={`flex items-center justify-center gap-1.5 py-2 rounded-lg border text-xs font-bold transition-all ${
+                                                                elegido
+                                                                    ? 'bg-primary/15 border-primary text-main'
+                                                                    : 'bg-bg-panel border-transparent text-muted hover:bg-main/5 hover:text-main'
+                                                            }`}
+                                                        >
+                                                            <LanguageFlag lang={idioma.id} size={14} />
+                                                            {idioma.id}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="text-xs font-medium text-muted block mb-1">Lo que pagaste (opcional)</label>

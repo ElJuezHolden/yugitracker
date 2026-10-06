@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquareText, FolderOpen, CheckCircle2, Circle } from 'lucide-react';
 import CardFoilOverlay from './CardFoilOverlay';
 import CardWear from './CardWear';
+import { LanguageFlag, nombreIdioma } from './LanguageFlag';
 import { useCardName } from './useCardName';
 import { usePrices } from '../context/PricesContext';
 import { useCardPointer } from './useCardPointer';
@@ -434,7 +435,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 <div className="flex flex-col gap-2 min-w-0 border-l border-border-base pl-3 md:pl-4 h-full justify-center z-30 pointer-events-none">
                     {!card.isWanted && (
                         <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm">
-                            <span className="font-bold text-muted text-sm md:text-lg" title={card.lang}>{card.lang}</span>
+                            <span className="flex items-center" title={nombreIdioma(card.lang)}><LanguageFlag lang={card.lang} size={16} /></span>
                             <EtiquetasCopia card={card} edicion={false} estado={showConditionFlags} />
                         </div>
                     )}
@@ -582,17 +583,25 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                           Con la carta pequeña (la ficha mide menos de ~210 px) la rareza pasa a
                           su abreviatura y las etiquetas bajan de línea en vez de cortarse.
                         */}
-                        <div className="flex flex-wrap justify-between items-center text-xs gap-x-2">
+                        {/*
+                          Disposición FIJA según el ancho de la ficha (nada de "partir donde
+                          quepa", que dejaba unas fichas en una línea y otras en dos):
+                          - ancha: rareza completa y código en una línea;
+                          - menos de 210 px: rareza abreviada y código más pequeño, en una línea;
+                          - menos de 150 px: rareza en una línea y código en la siguiente.
+                          El precio va siempre en su propia línea a la derecha en las pequeñas.
+                        */}
+                        <div className="flex items-center justify-between text-xs gap-2 @max-[150px]:flex-col @max-[150px]:items-start @max-[150px]:gap-0">
                             <span style={{ color: rarityColor }} className="font-bold truncate flex-1 drop-shadow-sm @max-[210px]:hidden" title={card.rarity}>{card.rarity || 'Common'}</span>
                             <span style={{ color: rarityColor }} className="font-bold drop-shadow-sm hidden @max-[210px]:inline shrink-0" title={card.rarity}>{abreviarRareza(card.rarity, card.rarityCode)}</span>
-                            <span className="text-muted whitespace-nowrap ml-auto">{card.setCode}</span>
+                            <span className="text-muted whitespace-nowrap @max-[210px]:text-[10px]">{card.setCode}</span>
                         </div>
-                        <div className="flex flex-wrap justify-between items-center text-xs gap-x-2 gap-y-1">
-                            <span className="text-muted flex flex-wrap items-center gap-1 min-w-0">
-                                <span className="font-bold" title={card.lang}>{card.lang}</span>
+                        <div className="flex items-center justify-between text-xs gap-2 @max-[210px]:flex-col @max-[210px]:items-stretch @max-[210px]:gap-1">
+                            <span className="text-muted flex items-center gap-1 min-w-0">
+                                <span className="flex items-center" title={nombreIdioma(card.lang)}><LanguageFlag lang={card.lang} size={12} /></span>
                                 {!isSelectionMode && <EtiquetasCopia card={card} edicion={showEditionFlags} estado={showConditionFlags} />}
                             </span>
-                            <span className="font-black text-main whitespace-nowrap ml-auto" title={tituloValor}>
+                            <span className="font-black text-main whitespace-nowrap @max-[210px]:self-end" title={tituloValor}>
                                 {valor != null ? `≈ ${formatMoney(valor)}` : <span className="text-muted font-bold">—</span>}
                             </span>
                         </div>

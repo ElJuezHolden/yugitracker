@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import type { MainCardType, MonsterType, CardProperty } from '../types';
 import { X, Filter, ChevronDown, ChevronUp, Layers, Diamond, Tag, Languages } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
+import { IDIOMAS, LanguageFlag } from './LanguageFlag';
 
 interface FilterState {
     cardTypes: MainCardType[];
@@ -25,12 +26,7 @@ interface Props {
 const MONSTER_TYPES: MonsterType[] = ['Normal', 'Effect', 'Fusion', 'Ritual', 'Synchro', 'XYZ', 'Link', 'Pendulum'];
 const SPELL_PROPS: CardProperty[] = ['Normal', 'Continuous', 'Field', 'Quick-Play', 'Equip', 'Ritual'];
 const TRAP_PROPS: CardProperty[] = ['Normal', 'Continuous', 'Counter'];
-/** Idiomas de las copias (los mismos que se eligen en la ficha). */
-const IDIOMAS: { id: string; nombre: string }[] = [
-    { id: 'ES', nombre: 'Español' },
-    { id: 'EN', nombre: 'Inglés' },
-    { id: 'JP', nombre: 'Japonés' },
-];
+
 
 export const CardFilter: React.FC<Props> = ({ filters, onChange, isOpen, availableSets, availableRarities }) => {
     const { state } = useStore();
@@ -228,6 +224,7 @@ export const CardFilter: React.FC<Props> = ({ filters, onChange, isOpen, availab
                                             onClick={() => handleLangToggle(idioma.id)}
                                             className={getItemClass(filters.langs?.includes(idioma.id) ?? false, false)}
                                         >
+                                            <LanguageFlag lang={idioma.id} size={13} />
                                             {idioma.nombre}
                                         </button>
                                     ))}
