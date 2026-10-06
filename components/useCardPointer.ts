@@ -50,9 +50,15 @@ export function useCardPointer(enabled = true) {
       el.style.setProperty('--background-x', `${x * 100}%`);
       el.style.setProperty('--background-y', `${y * 100}%`);
       el.style.setProperty('--pointer-from-center', distancia.toFixed(3));
-      // Signo invertido: al llevar el cursor arriba, la carta se inclina hacia atrás.
-      el.style.setProperty('--rotate-x', `${(-dx * 13).toFixed(2)}deg`);
-      el.style.setProperty('--rotate-y', `${(dy * 13).toFixed(2)}deg`);
+      /*
+       * La carta SE HUNDE DONDE ESTÁ EL CURSOR, como si se empujara con el dedo:
+       * cursor arriba → el borde de arriba se aleja; cursor a la derecha → se
+       * aleja el de la derecha. Antes era al revés (el borde bajo el cursor se
+       * acercaba) y resultaba extraño. Van los dos ejes con el mismo criterio:
+       * si no, en las esquinas la carta se retorcería.
+       */
+      el.style.setProperty('--rotate-x', `${(dx * 13).toFixed(2)}deg`);
+      el.style.setProperty('--rotate-y', `${(-dy * 13).toFixed(2)}deg`);
     };
 
     const onMove = (e: PointerEvent) => {
