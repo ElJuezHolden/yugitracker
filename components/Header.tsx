@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../context/StoreContext';
+import { NAME_MODES, setNameMode, useNameMode } from './useCardName';
 import { ID_ALL, CARD_BACK_IMG } from '../utils';
 import { useBackup } from '../context/BackupContext';
-import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp } from 'lucide-react';
+import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp, Languages } from 'lucide-react';
 import { TagsPanel } from './TagsPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FolderSort, CardSort } from '../types';
@@ -34,6 +35,7 @@ export const Header: React.FC<Props> = ({
     activeFilterCount
 }) => {
   const { state, dispatch } = useStore();
+  const modoNombres = useNameMode();
   const backup = useBackup();
   const { view, activeFolderId, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, isTagsPanelOpen, showFoils, showConditionFlags, showEditionFlags, showWantedCards } = state.ui;
   const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -249,6 +251,20 @@ export const Header: React.FC<Props> = ({
                     <Palette size={16} />
                 </button>
             </div>
+
+            {/* Idioma de los nombres: según cada copia, todo en español o todo en inglés */}
+            <button
+                onClick={() => {
+                    const i = NAME_MODES.findIndex(m => m.id === modoNombres);
+                    setNameMode(NAME_MODES[(i + 1) % NAME_MODES.length]!.id);
+                }}
+                className="flex items-center gap-1 px-2 py-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
+                title={`Nombres: ${NAME_MODES.find(m => m.id === modoNombres)!.etiqueta}. Pulsa para cambiar.`}
+                aria-label="Idioma de los nombres de las cartas"
+            >
+                <Languages size={16} />
+                <span className="text-[11px] font-bold w-7 text-left">{NAME_MODES.find(m => m.id === modoNombres)!.corto}</span>
+            </button>
 
             {/* Subidas y bajadas de precio de la colección */}
             <button

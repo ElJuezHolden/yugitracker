@@ -5,7 +5,7 @@ import type { ApiCard, Card, CardSet, CardCondition } from '../../types';
 import { formatMoney, normalizeStr, generateId, getCardMarketLink, getCardMarketProductLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
 import { getCardDetails } from '../../services/cardService';
 import { CardMarketValue } from '../CardMarketValue';
-import { useSpanishNames } from '../useCardName';
+import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
 import { printingKey, versionPrice } from '../../services/prices';
 import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search } from 'lucide-react';
@@ -42,6 +42,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   const [apiData, setApiData] = useState<ApiCard | null>(null);
   const preciosCardmarket = useCardmarketPrices(apiData?.id);
   const nombresEs = useSpanishNames();
+  const modoNombres = useNameMode();
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
@@ -310,6 +311,10 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
     ? preciosCardmarket.productos[printingKey(selectedSet.set_code, selectedSet.set_rarity)] ?? null
     : null;
 
+  const nombreFicha = apiData
+    ? displayName({ apiId: apiData.id, name: apiData.name, lang: formData.lang }, nombresEs, modoNombres)
+    : null;
+
   // Extract Misc Info for Beta/Dates
   const misc = apiData?.misc_info?.[0];
   const isBeta = misc?.beta_id != null;
@@ -331,10 +336,10 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         <div className="p-4 border-b border-border-base flex justify-between items-center bg-bg-panel rounded-t-2xl">
             <div className="flex flex-col min-w-0">
                 <h3 className="font-bold text-lg text-main truncate pr-4">
-                    {/* En el idioma elegido para la copia: español si es ES. */}
-                    {apiData ? (formData.lang === 'ES' ? (nombresEs?.get(apiData.id) ?? apiData.name) : apiData.name) : 'Carta'}
+                    {/* Según el modo de nombres (en "según la copia", el idioma elegido aquí). */}
+                    {nombreFicha ?? 'Carta'}
                 </h3>
-                {apiData && formData.lang === 'ES' && nombresEs?.get(apiData.id) && nombresEs.get(apiData.id) !== apiData.name && (
+                {apiData && nombreFicha !== apiData.name && (
                     <span className="text-xs text-muted truncate pr-4">{apiData.name}</span>
                 )}
                 {isBeta && <span className="text-[10px] text-orange-400 font-bold uppercase tracking-wider flex items-center gap-1"><Info size={10}/> BETA / UNSTABLE DATA</span>}
