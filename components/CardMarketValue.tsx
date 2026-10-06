@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState, type PointerEvent } from 'react';
-import { ExternalLink, TrendingDown, TrendingUp } from 'lucide-react';
+import { TrendingDown, TrendingUp } from 'lucide-react';
 import type { CardSet } from '../types';
-import { usePrices } from '../context/PricesContext';
-import { loadHistory, loadMarketPrices, printingKey, printingsFromApi, type PricePoint } from '../services/prices';
-import { formatMoney, getCardMarketLink, getRarityColor } from '../utils';
+import { useCardmarketPrices, usePrices } from '../context/PricesContext';
+import { loadHistory, printingKey, printingsFromApi, versionPrice, type PricePoint } from '../services/prices';
+import { formatMoney, getRarityColor } from '../utils';
 
 interface Props {
   cardId: number;
-  cardName: string;
   sets: CardSet[] | undefined;
   /** La versión elegida en el formulario. */
   selected: CardSet | null;
@@ -29,7 +28,6 @@ type Rango = (typeof RANGOS)[number]['id'];
 const DIA_MS = 24 * 60 * 60 * 1000;
 const fechaCorta = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' });
 const esMisma = (a: CardSet | null, code: string, rarity: string) => !!a && a.set_code === code && a.set_rarity === rarity;
-const tcgplayerLink = (name: string) => `https://www.tcgplayer.com/search/yugioh/product?q=${encodeURIComponent(name)}`;
 
 /**
  * Valor de mercado de una carta, al estilo de las webs de precios: el precio de
@@ -40,10 +38,9 @@ const tcgplayerLink = (name: string) => `https://www.tcgplayer.com/search/yugioh
  * apunta cada día (ver services/prices.ts). Si una versión no está en
  * Cardmarket se usa TCGplayer y se marca con un asterisco.
  */
-export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, paid = 0 }: Props) {
+export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0 }: Props) {
   const { rate } = usePrices();
   const [historial, setHistorial] = useState<PricePoint[]>([]);
-  const [cardmarket, setCardmarket] = useState<Record<string, number>>({});
   const [rango, setRango] = useState<Rango>('30D');
 
   useEffect(() => {
@@ -51,19 +48,16 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
     loadHistory(cardId).then((h) => {
       if (vivo) setHistorial(h);
     });
-    loadMarketPrices([cardId]).then((m) => {
-      if (vivo) setCardmarket(m.porCarta.get(cardId) ?? {});
-    });
     return () => {
       vivo = false;
     };
   }, [cardId]);
 
+  const cardmarket = useCardmarketPrices(cardId);
   const versiones = useMemo(() => {
     const lista = printingsFromApi(sets).map((p, i) => {
-      const cm = cardmarket[printingKey(p.code, p.rarity)];
-      const eur = cm ?? (p.usd != null && rate ? p.usd * rate.usdToEur : null);
-      return { ...p, set: sets![i]!, eur, deTcgplayer: cm == null && eur != null };
+      const precio = versionPrice(cardmarket, sets![i]!, rate);
+      return { ...p, set: sets![i]!, eur: precio?.eur ?? null, deTcgplayer: precio?.deTcgplayer ?? false };
     });
     // Las que tienen precio primero, de la más cara a la más barata; luego las demás.
     return lista.sort((a, b) => (b.eur ?? -1) - (a.eur ?? -1));
@@ -104,9 +98,14 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
             <div className="text-xs font-bold text-primary uppercase tracking-wide">Valor de mercado</div>
             <div className="text-xs text-muted truncate mt-0.5">{actual ? actual.name : 'Elige una versión'}</div>
           </div>
-          <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted bg-bg-surface border border-border-base rounded px-2 py-1">
-            {actual?.deTcgplayer ? 'TCGplayer' : 'Cardmarket'}
-          </span>
+          {actual?.deTcgplayer && (
+            <span
+              className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted bg-bg-surface border border-border-base rounded px-2 py-1"
+              title="Esta versión no está en Cardmarket"
+            >
+              TCGplayer
+            </span>
+          )}
         </div>
         {actual && (
           <div className="flex flex-wrap gap-1.5 mt-2">
@@ -167,7 +166,7 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex gap-1">
             {RANGOS.map((r) => (
               <button
@@ -182,24 +181,6 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
               </button>
             ))}
           </div>
-          <div className="flex gap-1.5">
-            <a
-              href={tcgplayerLink(cardName)}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[11px] font-bold text-muted hover:text-main border border-border-base rounded px-2 py-1 flex items-center gap-1"
-            >
-              TCGplayer <ExternalLink size={10} />
-            </a>
-            <a
-              href={getCardMarketLink(cardName)}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[11px] font-bold text-muted hover:text-main border border-border-base rounded px-2 py-1 flex items-center gap-1"
-            >
-              Cardmarket <ExternalLink size={10} />
-            </a>
-          </div>
         </div>
       </div>
 
@@ -208,7 +189,7 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
         <div className="flex items-baseline justify-between gap-2 mb-2">
           <span className="text-xs font-bold text-main">Precio de sus versiones</span>
           <span className="text-[11px] text-muted">
-            {versiones.length} versiones · {conPrecio.length} con precio
+            {versiones.length} {versiones.length === 1 ? 'versión' : 'versiones'} · {conPrecio.length} con precio
           </span>
         </div>
         {masCara && masBarata && (
@@ -267,7 +248,7 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
           })}
         </div>
         <p className="text-[10px] text-sub leading-relaxed mt-2">
-          Precios de Cardmarket por versión, actualizados cada día. Orientativos: mezclan idiomas y estados.
+          Precio de cada versión, actualizado cada día. Orientativo: mezcla idiomas y estados.
           {hayTcgplayer && ' * No está en Cardmarket: precio de TCGplayer (EE. UU.) pasado a euros.'}
         </p>
       </div>

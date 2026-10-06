@@ -197,6 +197,23 @@ function pedir<T extends { v: number }>(archivo: string): Promise<T | null> {
   return p;
 }
 
+/**
+ * Precio de una versión en euros: el de Cardmarket si lo hay; si no, el de
+ * TCGplayer pasado a euros (y se dice). Lo usan todas las pantallas, para que
+ * la misma versión no salga con dos precios distintos.
+ */
+export function versionPrice(
+  cardmarket: Record<string, number> | undefined,
+  set: CardSet,
+  rate: ExchangeRate | null,
+): { eur: number; deTcgplayer: boolean } | null {
+  const cm = cardmarket?.[printingKey(set.set_code, set.set_rarity)];
+  if (cm != null) return { eur: cm, deTcgplayer: false };
+  const usd = Number.parseFloat(set.set_price);
+  if (rate && Number.isFinite(usd) && usd > 0) return { eur: usd * rate.usdToEur, deTcgplayer: true };
+  return null;
+}
+
 /** Olvida lo descargado de Cardmarket, para volver a pedirlo. */
 export function forgetMarketData() {
   pedidos.clear();

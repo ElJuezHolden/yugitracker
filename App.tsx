@@ -16,7 +16,7 @@ import { CollectionValue } from './components/CollectionValue';
 import { usePrices } from './context/PricesContext';
 import { CardFilter } from './components/CardFilter';
 import { ToastContainer } from './components/Toast';
-import { ID_ALL, getTypeWeight, getRarityWeight, normalizeStr, analyzeCardType } from './utils';
+import { ID_ALL, getTypeWeight, getRarityWeight, normalizeStr, analyzeCardType, compareNames } from './utils';
 import type { Card, ApiCard, Folder, MainCardType, MonsterType, CardProperty } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Trash, X } from 'lucide-react';
@@ -280,7 +280,7 @@ function App() {
       });
 
       return {
-          availableSets: Array.from(sets).sort(),
+          availableSets: Array.from(sets).sort(compareNames),
           // CHANGE: Sort by Weight Descending instead of Alphabetical
           availableRarities: Array.from(rarities).sort((a, b) => {
               const wA = getRarityWeight(a);
@@ -295,7 +295,7 @@ function App() {
   const finalData = useMemo(() => {
     // Helper Identity sort
     const compareAttributes = (a: Card, b: Card) => {
-        const setDiff = (a.setCode || '').localeCompare(b.setCode || '');
+        const setDiff = compareNames(a.setCode || '', b.setCode || '');
         if (setDiff !== 0) return setDiff;
         const imgDiff = a.img.localeCompare(b.img);
         if (imgDiff !== 0) return imgDiff;
@@ -333,7 +333,7 @@ function App() {
             }
 
             userFolders.sort((a, b) => {
-                if (sortFolders === 'name') return a.name.localeCompare(b.name) * dir;
+                if (sortFolders === 'name') return compareNames(a.name, b.name) * dir;
                 if (sortFolders === 'value') {
                     const valA = valuePerFolder.get(a.id) ?? 0;
                     const valB = valuePerFolder.get(b.id) ?? 0;
@@ -399,7 +399,7 @@ function App() {
             const dir = sortCardsDir === 'asc' ? 1 : -1;
             list.sort((a, b) => {
                 if (sortCards === 'name') {
-                    const nameDiff = a.name.localeCompare(b.name) * dir;
+                    const nameDiff = compareNames(a.name, b.name) * dir;
                     if (nameDiff !== 0) return nameDiff;
                     const attrDiff = compareAttributes(a, b);
                     if (attrDiff !== 0) return attrDiff;
@@ -413,7 +413,7 @@ function App() {
                     const tB = getTypeWeight(b.type);
                     const typeDiff = (tA - tB) * dir;
                     if (typeDiff !== 0) return typeDiff;
-                    const nameDiff = a.name.localeCompare(b.name) * dir;
+                    const nameDiff = compareNames(a.name, b.name) * dir;
                     if (nameDiff !== 0) return nameDiff;
                     return compareAttributes(a, b);
                 }
@@ -422,7 +422,7 @@ function App() {
                     const wB = getRarityWeight(b.rarity);
                     const rarityDiff = (wB - wA) * dir;
                     if (rarityDiff !== 0) return rarityDiff;
-                    const nameDiff = a.name.localeCompare(b.name) * dir;
+                    const nameDiff = compareNames(a.name, b.name) * dir;
                     if (nameDiff !== 0) return nameDiff;
                     const attrDiff = compareAttributes(a, b);
                     if (attrDiff !== 0) return attrDiff;
@@ -433,7 +433,7 @@ function App() {
                      const wB = getTypeWeight(b.type);
                      const typeDiff = (wA - wB) * dir;
                      if (typeDiff !== 0) return typeDiff;
-                     const nameDiff = a.name.localeCompare(b.name) * dir;
+                     const nameDiff = compareNames(a.name, b.name) * dir;
                      if (nameDiff !== 0) return nameDiff;
                      const attrDiff = compareAttributes(a, b);
                      if (attrDiff !== 0) return attrDiff;

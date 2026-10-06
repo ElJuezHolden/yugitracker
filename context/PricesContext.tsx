@@ -192,6 +192,22 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return <PricesContext.Provider value={value}>{children}</PricesContext.Provider>;
 };
 
+/** Precios de Cardmarket de cada versión de una carta (vacío mientras carga o si no hay). */
+export function useCardmarketPrices(cardId: number | undefined): Record<string, number> {
+  const [precios, setPrecios] = useState<{ id: number; porVersion: Record<string, number> } | null>(null);
+  useEffect(() => {
+    if (cardId == null) return;
+    let vivo = true;
+    loadMarketPrices([cardId]).then((m) => {
+      if (vivo) setPrecios({ id: cardId, porVersion: m.porCarta.get(cardId) ?? {} });
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [cardId]);
+  return precios && precios.id === cardId ? precios.porVersion : {};
+}
+
 export const usePrices = () => {
   const ctx = useContext(PricesContext);
   if (!ctx) throw new Error('usePrices debe usarse dentro de PricesProvider');

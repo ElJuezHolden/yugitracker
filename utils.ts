@@ -37,6 +37,12 @@ export const formatMoney = (val: number): string => {
   return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(val);
 };
 
+/**
+ * Compara nombres en orden natural: "Number 2" antes que "Number 10", y sin
+ * distinguir mayúsculas ni tildes. Ordenar como texto puro ponía el 10 tras el 1.
+ */
+export const compareNames = new Intl.Collator('es', { numeric: true, sensitivity: 'base' }).compare;
+
 export const normalizeStr = (str: string): string => {
   return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };

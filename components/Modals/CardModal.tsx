@@ -5,7 +5,8 @@ import type { ApiCard, Card, CardSet, CardCondition } from '../../types';
 import { formatMoney, normalizeStr, generateId, getCardMarketLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
 import { getCardDetails } from '../../services/cardService';
 import { CardMarketValue } from '../CardMarketValue';
-import { usePrices } from '../../context/PricesContext';
+import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
+import { versionPrice } from '../../services/prices';
 import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search } from 'lucide-react';
 
 interface Props {
@@ -38,6 +39,7 @@ const MANUAL_RARITIES = [
 export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, existingCard, onCreateFolder, newFolderId }) => {
   const { state, dispatch, toast } = useStore();
   const [apiData, setApiData] = useState<ApiCard | null>(null);
+  const preciosCardmarket = useCardmarketPrices(apiData?.id);
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
@@ -52,11 +54,6 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   /** Filtro del selector de versión: hay cartas con más de 70. */
   const [filtroVersion, setFiltroVersion] = useState('');
   const { rate } = usePrices();
-  /** Precio en euros de una impresión, o null si no tiene. */
-  const eurDe = (set: CardSet) => {
-    const usd = Number.parseFloat(set.set_price);
-    return rate && Number.isFinite(usd) && usd > 0 ? usd * rate.usdToEur : null;
-  };
 
   const [formData, setFormData] = useState({
     paid: '',
@@ -489,7 +486,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                         {set.set_rarity}
                                                     </div>
                                                     <div className="text-[10px] text-muted font-semibold mt-0.5">
-                                                        {eurDe(set) != null ? `≈ ${formatMoney(eurDe(set)!)}` : '—'}
+                                                        {(() => { const v = versionPrice(preciosCardmarket, set, rate); return v ? `≈ ${formatMoney(v.eur)}${v.deTcgplayer ? '*' : ''}` : '—'; })()}
                                                     </div>
                                                 </div>
                                             )) : (
@@ -663,7 +660,6 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                         <div className="order-3 min-w-0 md:col-start-2 xl:col-start-auto xl:sticky xl:top-0">
                             <CardMarketValue
                                 cardId={apiData.id}
-                                cardName={apiData.name}
                                 sets={apiData.card_sets}
                                 selected={selectedSet}
                                 paid={formData.isWanted ? 0 : parseFloat(formData.paid) || 0}
