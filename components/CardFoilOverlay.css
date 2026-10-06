@@ -104,9 +104,10 @@
   /*
    * La carta pivota y crece desde su CENTRO, para que al levantarse sobresalga
    * lo mismo por cada lado. Se probó desde el borde inferior y crecía casi todo
-   * hacia arriba. Por arriba ya no se corta porque la ficha levantada pasa por
-   * delante de la cabecera (ver CardItem). Va también en reposo para que el
-   * origen no salte al entrar el ratón.
+   * hacia arriba. La ficha levantada pasa por delante de las demás cartas pero
+   * por DETRÁS de la cabecera y la barra de filtros (z-80 frente a 90 y 100, ver
+   * CardItem): al hacer scroll, la carta nunca tapa los menús. Va también en
+   * reposo para que el origen no salte al entrar el ratón.
    */
   transform-origin: 50% 50%;
   transform: perspective(600px) rotateY(var(--rotate-x, 0deg)) rotateX(var(--rotate-y, 0deg));

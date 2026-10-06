@@ -458,7 +458,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
         onDrop={handleDrop}
         onClick={handleClick}
         style={{ containerType: 'inline-size' }}
-        className={`group relative bg-bg-surface rounded-xl overflow-hidden hover:overflow-visible hover:z-[105] cursor-pointer shadow-lg flex flex-col transition-all duration-300 border ${
+        className={`group relative bg-bg-surface rounded-xl overflow-hidden hover:overflow-visible hover:z-[80] cursor-pointer shadow-lg flex flex-col transition-all duration-300 border ${
             isSelectionMode 
                 ? (isSelected ? 'border-primary ring-2 ring-primary scale-95' : 'border-border-base opacity-75 hover:opacity-100')
                 : 'border-border-base hover:shadow-[0_0_20px_rgba(var(--rgb-primary),0.15)] hover:border-primary/40'
