@@ -431,7 +431,6 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
         layout
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        whileHover={isSelectionMode ? {} : { y: -5, transition: { duration: 0.2 } }}
         transition={{ 
             duration: 0.35, 
             ease: "easeOut",

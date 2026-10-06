@@ -102,13 +102,13 @@
   inset: 0;
   border-radius: inherit;
   /*
-   * La carta pivota y crece desde su BORDE INFERIOR, como al sacarla de una
-   * funda: abajo sigue encajada con su ficha de texto y es hacia arriba hacia
-   * donde se levanta. Creciendo desde el centro sobresalía por los lados de la
-   * ficha y quedaba como una pieza puesta encima de otra. Va también en reposo
-   * para que el origen no salte al entrar el ratón.
+   * La carta pivota y crece desde su CENTRO, para que al levantarse sobresalga
+   * lo mismo por cada lado. Se probó desde el borde inferior y crecía casi todo
+   * hacia arriba. Por arriba ya no se corta porque la ficha levantada pasa por
+   * delante de la cabecera (ver CardItem). Va también en reposo para que el
+   * origen no salte al entrar el ratón.
    */
-  transform-origin: 50% 100%;
+  transform-origin: 50% 50%;
   transform: perspective(600px) rotateY(var(--rotate-x, 0deg)) rotateX(var(--rotate-y, 0deg));
   /*
    * El giro va en `transform` y la elevación en `scale` y `translate`, que son
@@ -138,7 +138,17 @@
 }
 
 .card-container:hover .card-tilt {
-  scale: 1.07;
+  /*
+   * Escala algo mayor en horizontal que en vertical para que sobresalga LOS
+   * MISMOS PÍXELES por los cuatro lados: con una escala igual, como la carta es
+   * más alta que ancha, sobresalía más por arriba y abajo que por los lados.
+   * 1,08 × (421/614) ≈ 0,055 → 1,055 en vertical. La diferencia de proporción
+   * (un 2 %) no se aprecia en la ilustración.
+   *
+   * La ficha ya no sube al pasar el ratón: esos 5 px de subida hacían que la
+   * carta se levantara bastante más por arriba que por abajo.
+   */
+  scale: 1.08 1.055;
   /*
    * Sin z-index a propósito: las insignias (edición, estado, barra de rareza)
    * tienen que quedar SIEMPRE por encima de la carta, también levantada. Se
