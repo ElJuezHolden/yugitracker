@@ -140,12 +140,10 @@
 .card-container:hover .card-tilt {
   scale: 1.07;
   /*
-   * Por delante de las insignias (edición, estado, barra de rareza): si la
-   * carta se levanta hacia ti, lo lógico es que quede encima de las etiquetas
-   * del hueco, no que estas la tapen. Las insignias no se mueven; solo quedan
-   * detrás mientras la carta está levantada.
+   * Sin z-index a propósito: las insignias (edición, estado, barra de rareza)
+   * tienen que quedar SIEMPRE por encima de la carta, también levantada. Se
+   * probó a ponerla delante y tapaba la información de cada carta.
    */
-  z-index: 40;
   border-radius: 4.5% / 3.1%;
   overflow: hidden;
   box-shadow:
