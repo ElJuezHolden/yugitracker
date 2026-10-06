@@ -14,6 +14,11 @@ Los datos de las cartas vienen de la API pública de [YGOPRODeck](https://ygopro
 - **Cuatro vistas**: cuadrícula, lista, álbum (a modo de carpeta de fundas, con páginas que
   pasan) y display, que enseña solo las imágenes.
 - **Brillos por rareza**: cada rareza brilla donde brilla en la carta real (ver abajo).
+- **Desgaste según el estado**: de EX a PO, cantos blanqueados, esquinas gastadas, arañazos,
+  pliegues y color apagado, cada copia con sus propias marcas (`components/CardWear.tsx`). Se oculta
+  con el botón de estados de la cabecera.
+- **Filtro por idioma** de la copia, y **versiones añadidas a mano** para las que faltan en la base
+  de datos (el buscador de versiones entiende los códigos en español, p. ej. SP13-SP021).
 - **Precios de Cardmarket**: valor aproximado de la colección, de cada carpeta y de cada carta,
   y en la ficha de una carta el precio de todas sus versiones y una gráfica de su evolución.
   Cardmarket da un precio por versión que mezcla idiomas y estados. Si una versión no está en

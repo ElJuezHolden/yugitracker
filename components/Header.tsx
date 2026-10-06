@@ -236,7 +236,7 @@ export const Header: React.FC<Props> = ({
                 <button 
                     onClick={() => dispatch({ type: 'TOGGLE_CONDITION_FLAGS' })}
                     className={`p-1.5 rounded transition-colors ${showConditionFlags ? 'text-primary hover:text-primary/80' : 'text-main/60 hover:text-main'}`}
-                    title={showConditionFlags ? "Ocultar Estados" : "Mostrar Estados"}
+                    title={showConditionFlags ? "Ocultar estados y desgaste" : "Mostrar estados y desgaste"}
                 >
                     <Stamp size={16} fill={showConditionFlags ? 'currentColor' : 'none'} />
                 </button>

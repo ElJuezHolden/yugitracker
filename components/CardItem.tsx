@@ -6,6 +6,7 @@ import { formatMoney, getConditionMeta, getRarityColor, ID_ALL, onCardImageError
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquareText, FolderOpen, CheckCircle2, Circle } from 'lucide-react';
 import CardFoilOverlay from './CardFoilOverlay';
+import CardWear from './CardWear';
 import { useCardName } from './useCardName';
 import { usePrices } from '../context/PricesContext';
 import { useCardPointer } from './useCardPointer';
@@ -256,6 +257,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                    />
                    
                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
+                {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                    </div>
                    
                    {card.isWanted && !isSelectionMode && (
@@ -300,6 +302,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     alt={nombre}
                 />
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
+                {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
 
                 {/*
                   Edición y estado: pastillas pequeñas DENTRO de la carta, para que
@@ -385,6 +388,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         decoding="async"
                     />
                     {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
+                {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                     </div>
                     
                     {card.isWanted && !isSelectionMode && (
@@ -519,6 +523,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 />
 
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
+                {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                 </div>
                 
                 {/* WANTED Overlay */}

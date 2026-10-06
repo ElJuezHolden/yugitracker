@@ -1,0 +1,81 @@
+/*
+ * Desgaste de la carta (ver CardWear.tsx). Va dentro de .card-tilt, encima de
+ * la imagen y del foil: las marcas tapan también el brillo, como en una carta
+ * real. Nada de esto usa mix-blend en el contenedor, así que no interfiere con
+ * la mezcla del foil.
+ */
+
+.desgaste {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  overflow: hidden;
+  /* Ancho del canto gastado y fuerza de las motas, según el estado. */
+  --canto: 1.4%;
+  --motas: 0.45;
+  --esquina: 7%;
+}
+.desgaste--1 { --canto: 1.4%; --motas: 0.45; --esquina: 6%; }
+.desgaste--2 { --canto: 2.2%; --motas: 0.6;  --esquina: 9%; }
+.desgaste--3 { --canto: 3%;   --motas: 0.75; --esquina: 12%; }
+.desgaste--4 { --canto: 4%;   --motas: 0.85; --esquina: 15%; }
+.desgaste--5 { --canto: 5.5%; --motas: 1;    --esquina: 19%; }
+
+.desgaste > div,
+.desgaste__marcas {
+  position: absolute;
+  inset: 0;
+}
+
+/* Blanqueado del canto: motas que se concentran en el borde y se apagan hacia dentro. */
+.desgaste__canto {
+  background: var(--ruido) 0 0 / 80px 80px;
+  opacity: var(--motas);
+  -webkit-mask:
+    linear-gradient(to right, #000 0, transparent var(--canto), transparent calc(100% - var(--canto)), #000 100%),
+    linear-gradient(to bottom, #000 0, transparent calc(var(--canto) * 0.69), transparent calc(100% - var(--canto) * 0.69), #000 100%);
+  mask:
+    linear-gradient(to right, #000 0, transparent var(--canto), transparent calc(100% - var(--canto)), #000 100%),
+    linear-gradient(to bottom, #000 0, transparent calc(var(--canto) * 0.69), transparent calc(100% - var(--canto) * 0.69), #000 100%);
+}
+
+/* Esquinas: lo primero que se gasta. Blanco moteado que sale de cada esquina. */
+.desgaste__esquinas {
+  background:
+    radial-gradient(circle at 0 0, rgba(255, 252, 245, 0.95), transparent var(--esquina)),
+    radial-gradient(circle at 100% 0, rgba(255, 252, 245, 0.95), transparent var(--esquina)),
+    radial-gradient(circle at 0 100%, rgba(255, 252, 245, 0.95), transparent var(--esquina)),
+    radial-gradient(circle at 100% 100%, rgba(255, 252, 245, 0.95), transparent var(--esquina));
+  opacity: calc(var(--motas) * 0.85);
+  -webkit-mask: var(--ruido) 0 0 / 60px 60px;
+  mask: var(--ruido) 0 0 / 60px 60px;
+}
+
+/* Played y Poor: los colores pierden viveza (se desatura y se aclara un poco). */
+.desgaste__apagado {
+  background: #8a8a8a;
+  mix-blend-mode: saturation;
+  opacity: 0.3;
+}
+.desgaste--5 .desgaste__apagado {
+  opacity: 0.5;
+}
+.desgaste__apagado::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 248, 235, 0.08);
+}
+
+/* Poor: manchas de suciedad. */
+.desgaste__sucio {
+  background: var(--manchas, none);
+  mix-blend-mode: multiply;
+  opacity: 0.35;
+}
+
+.desgaste__marcas {
+  width: 100%;
+  height: 100%;
+}
