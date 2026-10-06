@@ -210,9 +210,9 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
             <div className="py-10 px-6 text-center">
               <div className="text-sm text-main font-bold">Todavía no hay con qué comparar</div>
               <p className="text-xs text-muted mt-2 max-w-sm mx-auto leading-relaxed">
-                La app apunta el precio de tus cartas una vez al día, cuando la abres. En cuanto haya precios de dos días
+                Los precios de todas las cartas se apuntan solos cada día, aunque no abras la web. En cuanto haya dos días
                 distintos empezarán a salir aquí las que suben y las que bajan.
-                {diasApuntados === 1 && ' Ya tienes el de hoy.'}
+                {diasApuntados === 1 && ' Ya está el de hoy.'}
               </p>
             </div>
           ) : lista.length === 0 ? (

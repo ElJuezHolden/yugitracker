@@ -17,8 +17,9 @@ Los datos de las cartas vienen de la API pública de [YGOPRODeck](https://ygopro
 - **Precios**: valor aproximado de la colección, de cada carpeta y de cada carta, y en la
   ficha de una carta el precio de todas sus versiones y una gráfica de su evolución. Salen
   del precio de TCGplayer de cada impresión que da YGOPRODeck, pasado a euros al cambio del
-  BCE; no distinguen idioma, edición ni estado. La API no da historial, así que la app apunta
-  el precio una vez al día y la gráfica se va llenando con el uso.
+  BCE; no distinguen idioma, edición ni estado. La API no da historial, así que lo construimos
+  nosotros: GitHub Actions apunta cada día los precios de todas las cartas aunque nadie abra la
+  web (ver abajo), y cada navegador apunta además los que ve.
 - **Subidas y bajadas**: un panel (icono de tendencia en la cabecera) con las cartas de tu
   colección que más han subido o bajado en 7 días, 30, 90 o un año, filtrando por cambio mínimo.
 - **Lo pagado**, opcional y por carta: solo se ve en la ficha de esa carta, comparado con su
@@ -137,6 +138,19 @@ useCardPointer.ts    Inclinación 3D y seguimiento del puntero de cada carta
 foil-demo.html       Banco de pruebas de los brillos (solo desarrollo)
 components/Modals/   Añadir carta, editar carta, carpeta y tema
 ```
+
+## Historial de precios
+
+El flujo `Publicar` (`.github/workflows/deploy.yml`) se ejecuta en cada push a `main` y también
+todos los días a las 06:23 UTC. En cada ejecución `scripts/actualizar-precios.mjs` descarga los
+precios de todas las cartas de YGOPRODeck (una sola petición), los añade al historial y lo guarda
+en la rama `datos-precios`, que se reescribe en un único commit para que el repositorio no crezca.
+La web se publica con ese historial en `/precios/NN.json` (las cartas repartidas en 100 archivos
+por `id % 100`) y lo mezcla con lo que haya apuntado el navegador.
+
+Solo se guarda un precio cuando cambia; pasado un mes queda uno por semana y a los 400 días se
+borra. GitHub desactiva los flujos programados si un repositorio pasa 60 días sin actividad; si
+pasara, se reactiva desde la pestaña *Actions*.
 
 ## Cosas a tener en cuenta
 

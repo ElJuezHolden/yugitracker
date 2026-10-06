@@ -19,9 +19,10 @@ import type { ApiCard, CardSet } from '../types';
  * Los precios se guardan un día en IndexedDB: cambian despacio, y una colección
  * de mil cartas costaría decenas de peticiones cada vez que se abre la página.
  *
- * La API solo da el precio de hoy, sin historial. Para poder dibujar cómo
- * evoluciona, cada vez que llega un precio se apunta como el del día (uno por
- * día y carta), así que la gráfica se va llenando con el uso.
+ * La API solo da el precio de hoy, sin historial. El historial sale de dos
+ * sitios: el público, que GitHub Actions apunta cada día para todas las cartas
+ * (ver loadHistories), y el de cada navegador, que apunta un precio por día y
+ * carta cada vez que llega uno.
  */
 
 const API = 'https://db.ygoprodeck.com/api/v7/cardinfo.php';
@@ -189,24 +190,8 @@ function recordHistory(tx: IDBTransaction, prices: CardPrices[]) {
   }
 }
 
-/** Historial de precios de una carta, del día más antiguo al más reciente. */
-export async function loadHistory(id: number): Promise<PricePoint[]> {
-  try {
-    const idb = await openIdb();
-    const fila = await asPromise(
-      idb.transaction(STORE_HISTORY, 'readonly').objectStore(STORE_HISTORY).get(id) as IDBRequest<
-        { id: number; points: PricePoint[] } | undefined
-      >,
-    );
-    return fila?.points ?? [];
-  } catch (e) {
-    console.error('No se pudo leer el historial de precios:', e);
-    return [];
-  }
-}
-
-/** Historial de varias cartas a la vez (las que no tengan, no aparecen). */
-export async function loadHistories(ids: number[]): Promise<Map<number, PricePoint[]>> {
+/** Lo que ha apuntado este navegador. */
+async function loadLocalHistories(ids: number[]): Promise<Map<number, PricePoint[]>> {
   const out = new Map<number, PricePoint[]>();
   try {
     const idb = await openIdb();
@@ -219,6 +204,85 @@ export async function loadHistories(ids: number[]): Promise<Map<number, PricePoi
     console.error('No se pudo leer el historial de precios:', e);
   }
   return out;
+}
+
+/*
+ * Historial público: lo genera cada día GitHub Actions con los precios de todas
+ * las cartas (scripts/actualizar-precios.mjs) y se publica con la web en
+ * /precios/NN.json. Así hay historial aunque nadie haya abierto la web esos días.
+ */
+const TROZOS = 100;
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+interface Trozo {
+  actualizado: number;
+  /** id → clave de impresión → [día, dólares] solo cuando cambia el precio. */
+  cartas: Record<string, Record<string, [number, number][]>>;
+}
+
+const trozosPedidos = new Map<number, Promise<Trozo | null>>();
+
+function pedirTrozo(n: number): Promise<Trozo | null> {
+  let p = trozosPedidos.get(n);
+  if (!p) {
+    p = fetch(`${import.meta.env.BASE_URL}precios/${n}.json`)
+      .then((r) => (r.ok ? (r.json() as Promise<Trozo>) : null))
+      .catch(() => null); // En local (o antes de la primera ejecución) no existe: solo cuenta lo del navegador.
+    trozosPedidos.set(n, p);
+  }
+  return p;
+}
+
+const diaTexto = (dia: number) => new Date(dia * DIA_MS).toISOString().slice(0, 10);
+
+/** Pasa los cambios de precio a un precio por día (el de cada cambio sigue hasta el siguiente). */
+function expandir(historial: Record<string, [number, number][]>, hasta: number): Map<string, Record<string, number>> {
+  const dias = new Map<string, Record<string, number>>();
+  for (const [clave, puntos] of Object.entries(historial)) {
+    puntos.forEach(([dia, usd], i) => {
+      const fin = i + 1 < puntos.length ? puntos[i + 1]![0] : hasta + 1;
+      for (let d = dia; d < fin; d++) {
+        const texto = diaTexto(d);
+        let p = dias.get(texto);
+        if (!p) dias.set(texto, (p = {}));
+        p[clave] = usd;
+      }
+    });
+  }
+  return dias;
+}
+
+/** Historial de varias cartas: el público y el de este navegador, juntos. */
+export async function loadHistories(ids: number[]): Promise<Map<number, PricePoint[]>> {
+  const [locales, trozos] = await Promise.all([
+    loadLocalHistories(ids),
+    Promise.all([...new Set(ids.map((id) => id % TROZOS))].map(async (n) => [n, await pedirTrozo(n)] as const)),
+  ]);
+  const porTrozo = new Map(trozos);
+
+  const out = new Map<number, PricePoint[]>();
+  for (const id of ids) {
+    const trozo = porTrozo.get(id % TROZOS);
+    const remoto = trozo?.cartas[id];
+    const dias = remoto ? expandir(remoto, trozo.actualizado) : new Map<string, Record<string, number>>();
+    // Lo del navegador rellena los huecos (días o versiones que el público no tenga).
+    for (const punto of locales.get(id) ?? []) {
+      const p = dias.get(punto.d);
+      if (!p) dias.set(punto.d, { ...punto.p });
+      else for (const [clave, usd] of Object.entries(punto.p)) p[clave] ??= usd;
+    }
+    if (dias.size === 0) continue;
+    out.set(
+      id,
+      [...dias.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([d, p]) => ({ d, p })),
+    );
+  }
+  return out;
+}
+
+/** Historial de precios de una carta, del día más antiguo al más reciente. */
+export async function loadHistory(id: number): Promise<PricePoint[]> {
+  return (await loadHistories([id])).get(id) ?? [];
 }
 
 /**

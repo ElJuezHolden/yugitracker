@@ -1,13 +1,18 @@
-# Publica la web en GitHub Pages en cada push a main.
+# Publica la web en GitHub Pages en cada push a main, y además una vez al día
+# para apuntar los precios del día en el historial aunque nadie abra la web.
 name: Publicar
 
 on:
   push:
     branches: [main]
+  schedule:
+    # Todos los días a las 06:23 UTC (las horas en punto van saturadas en GitHub).
+    - cron: '23 6 * * *'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # Escritura para guardar el historial de precios en la rama datos-precios.
+  contents: write
   pages: write
   id-token: write
 
@@ -25,9 +30,33 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+
+      # Historial de precios: vive en la rama datos-precios (un solo commit que se
+      # reescribe cada día, para que el repositorio no crezca). Si algo falla, la
+      # web se publica igual con el historial que hubiera.
+      - name: Apuntar los precios de hoy
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p datos-precios && cd datos-precios
+          git init -q -b datos-precios
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          if git fetch -q --depth 1 origin datos-precios; then git checkout -q FETCH_HEAD -- .; else echo "Primera vez: historial vacío"; fi
+          cd ..
+          node scripts/actualizar-precios.mjs datos-precios/precios
+          cd datos-precios
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Precios del $(date -u +%F)"
+          git push -q -f origin HEAD:datos-precios
+
       - run: npm run build
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
+      - name: Incluir el historial de precios en la web
+        run: if [ -d datos-precios/precios ]; then cp -r datos-precios/precios dist/; fi
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

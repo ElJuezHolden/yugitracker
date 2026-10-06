@@ -154,7 +154,7 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
           <div className="h-36 rounded-lg bg-bg-surface border border-border-base flex flex-col items-center justify-center text-center px-6">
             <span className="text-sm text-muted">Aún no hay historial de precios</span>
             <span className="text-[11px] text-sub mt-1">
-              La app apunta el precio una vez al día; la gráfica se irá llenando sola.
+              Los precios se apuntan solos cada día, aunque no abras la web; la gráfica se irá llenando.
             </span>
           </div>
         )}

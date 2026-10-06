@@ -20,3 +20,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Historial de precios (lo genera GitHub Actions en la rama datos-precios)
+/public/precios/
+/datos-precios/
