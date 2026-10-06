@@ -238,10 +238,10 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
             whileHover={!isSelectionMode ? { scale: 1.75, zIndex: 100, transition: { duration: 0.2 } } : {}}
             onClick={handleClick}
             style={{ containerType: 'inline-size' }} // Critical for CQW units in WANTED overlay
-            className={`group relative rounded-lg overflow-hidden cursor-pointer shadow-md bg-black border w-full h-full ${
+            className={`group relative rounded-lg overflow-hidden hover:bg-transparent hover:shadow-none cursor-pointer shadow-md bg-black border w-full h-full ${
                 isSelectionMode 
                 ? (isSelected ? 'border-primary ring-2 ring-primary' : 'border-transparent opacity-80') 
-                : 'border-transparent hover:border-white/20 hover:shadow-xl'
+                : 'border-transparent'
             }`}
           >
               <div ref={contenedorRef} className="card-container relative w-full h-full bg-[#111]">
@@ -502,7 +502,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
         onDrop={handleDrop}
         onClick={handleClick}
         style={{ containerType: 'inline-size' }}
-        className={`group relative bg-bg-surface rounded-xl overflow-hidden hover:overflow-visible hover:z-[80] cursor-pointer shadow-lg flex flex-col transition-all duration-300 border ${
+        className={`group relative bg-bg-surface rounded-lg overflow-hidden hover:overflow-visible hover:z-[80] cursor-pointer shadow-lg flex flex-col transition-all duration-300 border ${
             isSelectionMode 
                 ? (isSelected ? 'border-primary ring-2 ring-primary scale-95' : 'border-border-base opacity-75 hover:opacity-100')
                 : 'border-border-base hover:shadow-[0_0_20px_rgba(var(--rgb-primary),0.15)] hover:border-primary/40'
