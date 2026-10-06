@@ -11,6 +11,7 @@ import {
   loadCachedPrices,
   loadMarketPrices,
   printingKey,
+  resolvePrintingKey,
   type CardPrices,
   type ExchangeRate,
   type MarketPrices,
@@ -181,7 +182,9 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const info = prices.get(card.apiId);
       const impresion = info ? findPrinting(info.printings, card.setCode, card.rarity, card.rarityCode) : null;
       const cm = mercado.porCarta.get(card.apiId);
-      const clave = impresion ? printingKey(impresion.code, impresion.rarity) : printingKey(card.setCode, card.rarity);
+      const clave = impresion
+        ? printingKey(impresion.code, impresion.rarity)
+        : resolvePrintingKey((k) => !!cm?.[k], card.setCode, card.rarity);
       const factor = conditionFactor(card.condition);
       // Si la versión no está en YGOPRODeck (p. ej. TN23 de Utopia), su producto sobrante de Cardmarket.
       const cifras = cm?.[clave] ?? leftoverFor(mercado.sobrantes.get(card.apiId), card.setCode, card.rarity)?.stats;

@@ -8,7 +8,7 @@ import { CardMarketValue } from '../CardMarketValue';
 import { IDIOMAS, LanguageFlag } from '../LanguageFlag';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
-import { leftoverFor, printingKey, versionPrice } from '../../services/prices';
+import { isPlaceholderRarity, leftoverFor, resolvePrintingKey, versionPrice } from '../../services/prices';
 import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search } from 'lucide-react';
 
 interface Props {
@@ -46,6 +46,11 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   const modoNombres = useNameMode();
   const [loading, setLoading] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  /**
+   * Carpeta para la que se avisó de que la carta ya estaba: hay que confirmar
+   * para añadir otra. Si se cambia de carpeta, el aviso deja de valer.
+   */
+  const [avisoRepetidaEn, setAvisoRepetidaEn] = useState<string | null>(null);
   
   // Submission State to prevent dupes
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,6 +96,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
       if (!isOpen) return;
       setLoading(true);
       setShowDeleteConfirm(false);
+      setAvisoRepetidaEn(null);
       setFiltroVersion('');
       setVersionesExtra([]);
       setNuevaVersion(v => ({ ...v, abierta: false, codigo: '' }));
@@ -213,17 +219,36 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
     }
   }, [newFolderId]);
 
+  /** Carpeta en la que se guardará: la elegida o, si no hay, la que está abierta. */
+  const carpetaDestino =
+    formData.moveToFolder && formData.moveToFolder !== ID_ALL
+      ? formData.moveToFolder
+      : state.ui.activeFolderId && state.ui.activeFolderId !== ID_ALL
+        ? state.ui.activeFolderId
+        : null;
+
+  /** Copias de esta misma carta que ya hay en la carpeta destino (solo al añadir). */
+  const repetidas = useMemo(
+    () =>
+      !existingCard && apiData && carpetaDestino
+        ? state.db.cards.filter(c => c.folderId === carpetaDestino && c.apiId === apiData.id)
+        : [],
+    [existingCard, apiData, carpetaDestino, state.db.cards],
+  );
+
+  const avisoRepetida = repetidas.length > 0 && avisoRepetidaEn === carpetaDestino;
+
   const handleSave = () => {
     if (!apiData || isSubmitting) return;
     
     // Validate folder
-    let targetFolder = formData.moveToFolder;
-    if (!targetFolder || targetFolder === ID_ALL) {
-        if (state.ui.activeFolderId && state.ui.activeFolderId !== ID_ALL) {
-            targetFolder = state.ui.activeFolderId;
-        } else {
-            return toast("Selecciona una carpeta válida", "err");
-        }
+    const targetFolder = carpetaDestino;
+    if (!targetFolder) return toast("Selecciona una carpeta válida", "err");
+
+    // Ya está en la carpeta: primero se avisa, y solo se añade al confirmar.
+    if (repetidas.length > 0 && !avisoRepetida) {
+        setAvisoRepetidaEn(targetFolder);
+        return;
     }
 
     setIsSubmitting(true);
@@ -337,6 +362,10 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         const tiene = new Set(prev.map(v => clave(v.set_code, v.set_rarity)));
         return [...prev, ...nuevas.filter(n => !tiene.has(clave(n.set_code, n.set_rarity)))];
       });
+      // Si estaba elegida la provisional ("New"), se pasa a la real del mismo código.
+      setSelectedSet(prev =>
+        prev && isPlaceholderRarity(prev.set_rarity) ? (nuevas.find(n => n.set_code === prev.set_code) ?? prev) : prev,
+      );
     });
     return () => {
       vivo = false;
@@ -344,7 +373,12 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   }, [apiData]);
 
   // Todas las versiones: las de la API, las de Yugipedia y las añadidas a mano.
-  const todasVersiones = useMemo(() => [...(apiData?.card_sets ?? []), ...versionesExtra], [apiData, versionesExtra]);
+  // La provisional "New" de YGOPRODeck sobra si Yugipedia da la rareza real del mismo código.
+  const todasVersiones = useMemo(() => {
+    const conRareza = new Set(versionesExtra.filter(v => v.origen === 'yugipedia').map(v => v.set_code));
+    const api = (apiData?.card_sets ?? []).filter(s => !(isPlaceholderRarity(s.set_rarity) && conRareza.has(s.set_code)));
+    return [...api, ...versionesExtra];
+  }, [apiData, versionesExtra]);
 
   // Versiones que casan con el filtro (la elegida no se esconde nunca).
   const versionesVisibles = useMemo(() => {
@@ -379,7 +413,9 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
 
   // Producto de Cardmarket de la versión elegida, para enlazar directamente a su página.
   const idProductoElegido = selectedSet
-    ? preciosCardmarket.productos[printingKey(selectedSet.set_code, selectedSet.set_rarity)] ??
+    ? preciosCardmarket.productos[
+        resolvePrintingKey(k => preciosCardmarket.productos[k] != null, selectedSet.set_code, selectedSet.set_rarity)
+      ] ??
       leftoverFor(preciosCardmarket.sobrantes, selectedSet.set_code, selectedSet.set_rarity)?.idProduct ??
       null
     : null;
@@ -530,6 +566,29 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                         <option key={f.id} value={f.id}>{f.name}</option>
                                     ))}
                                 </select>
+                                {repetidas.length > 0 && (
+                                    <div className={`mt-1.5 rounded-lg border px-2.5 py-1.5 text-xs leading-snug transition-colors ${
+                                        avisoRepetida ? 'border-amber-400 bg-amber-400/15 text-amber-300' : 'border-amber-500/30 bg-amber-500/10 text-amber-400'
+                                    }`}>
+                                        <div className="font-bold">
+                                            Ya tienes {repetidas.length === 1 ? 'esta carta' : `${repetidas.length} copias de esta carta`} en esta carpeta
+                                        </div>
+                                        <ul className="mt-0.5 space-y-0.5">
+                                            {repetidas.slice(0, 4).map(r => {
+                                                const misma = !!selectedSet && r.setCode === selectedSet.set_code && r.rarity === (manualRarity || selectedSet.set_rarity);
+                                                return (
+                                                    <li key={r.uid} className="flex items-center gap-1.5 text-main/80">
+                                                        <LanguageFlag lang={r.lang} size={10} />
+                                                        <span className="font-mono">{r.isWanted ? 'Buscada' : r.setCode}</span>
+                                                        {!r.isWanted && <span className="truncate">{r.rarity} · {r.condition}</span>}
+                                                        {misma && <span className="ml-auto shrink-0 font-bold text-amber-300">misma versión</span>}
+                                                    </li>
+                                                );
+                                            })}
+                                            {repetidas.length > 4 && <li className="text-main/60">y {repetidas.length - 4} más</li>}
+                                        </ul>
+                                    </div>
+                                )}
                             </div>
                             <button
                                 onClick={() => setFormData(prev => ({ ...prev, isWanted: !prev.isWanted }))}
@@ -881,15 +940,20 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                     </button>
                  )
             ) : <div />}
-            <div className="flex gap-2 sm:gap-3">
-                <button onClick={onClose} className="px-4 py-2 rounded-lg bg-bg-surface hover:bg-main/10 text-main text-sm font-semibold transition-colors border border-border-base">Cancelar</button>
+            <div className="flex items-center gap-2 sm:gap-3">
+                {avisoRepetida && (
+                    <span className="text-xs text-amber-400 font-bold hidden sm:block animate-fadeIn">Ya está en esta carpeta. ¿Añadir otra?</span>
+                )}
+                <button onClick={avisoRepetida ? () => setAvisoRepetidaEn(null) : onClose} className="px-4 py-2 rounded-lg bg-bg-surface hover:bg-main/10 text-main text-sm font-semibold transition-colors border border-border-base">Cancelar</button>
                 <button 
                     onClick={handleSave} 
                     disabled={isSubmitting}
-                    className="px-4 sm:px-6 py-2 rounded-lg bg-primary hover:brightness-110 disabled:brightness-75 disabled:cursor-not-allowed text-black text-sm font-bold transition-transform active:scale-95 shadow-lg shadow-primary/20 flex items-center gap-2"
+                    className={`px-4 sm:px-6 py-2 rounded-lg hover:brightness-110 disabled:brightness-75 disabled:cursor-not-allowed text-black text-sm font-bold transition-transform active:scale-95 shadow-lg flex items-center gap-2 ${
+                        avisoRepetida ? 'bg-amber-400 shadow-amber-500/20' : 'bg-primary shadow-primary/20'
+                    }`}
                 >
                     {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />} 
-                    Confirmar
+                    {avisoRepetida ? 'Sí, añadir otra' : 'Confirmar'}
                 </button>
             </div>
         </div>

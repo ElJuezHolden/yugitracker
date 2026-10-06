@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { TrendingDown, TrendingUp, X } from 'lucide-react';
 import type { Card } from '../../types';
 import { useStore } from '../../context/StoreContext';
-import { findPrinting, loadCachedPrices, loadHistories, printingKey, type CardPrices, type PricePoint } from '../../services/prices';
+import { findPrinting, loadCachedPrices, loadHistories, printingKey, resolvePrintingKey, type CardPrices, type PricePoint } from '../../services/prices';
 import { formatMoney, getRarityColor } from '../../utils';
 import { useCardName } from '../useCardName';
 
@@ -89,7 +89,10 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
       const info = precios.get(card.apiId);
       if (!card.setCode || card.setCode === '---') continue;
       const impresion = info ? findPrinting(info.printings, card.setCode, card.rarity, card.rarityCode) : null;
-      const k = impresion ? printingKey(impresion.code, impresion.rarity) : printingKey(card.setCode, card.rarity);
+      const historial = historiales.get(card.apiId) ?? [];
+      const k = impresion
+        ? printingKey(impresion.code, impresion.rarity)
+        : resolvePrintingKey((x) => historial.some((p) => p.p[x] != null), card.setCode, card.rarity);
       const clave = `${card.apiId}|${k}`;
       const ya = porVersion.get(clave);
       if (ya) {
@@ -97,7 +100,7 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
         continue;
       }
 
-      const puntos = (historiales.get(card.apiId) ?? [])
+      const puntos = historial
         .map((p) => ({ t: diaATiempo(p.d), eur: p.p[k] }))
         .filter((p): p is { t: number; eur: number } => p.eur != null);
       if (puntos.length < 2) continue;

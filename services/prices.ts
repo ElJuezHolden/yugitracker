@@ -55,6 +55,22 @@ export interface PricePoint {
 
 export const printingKey = (code: string, rarity: string) => `${code}|${rarity}`;
 
+/**
+ * YGOPRODeck pone la rareza provisional "New" a las cartas recién salidas hasta
+ * que la corrige, y el proceso diario guarda su precio con esa clave (p. ej.
+ * BLMM-EN038|New). Yugipedia ya da la rareza real (Ultra Rare): si la clave
+ * exacta no tiene precio, se usa la provisional del mismo código.
+ */
+const RAREZA_PROVISIONAL = 'New';
+export const isPlaceholderRarity = (rarity: string) => rarity.trim().toLowerCase() === 'new';
+
+export function resolvePrintingKey(tiene: (clave: string) => boolean, code: string, rarity: string): string {
+  const exacta = printingKey(code, rarity);
+  if (tiene(exacta)) return exacta;
+  const provisional = printingKey(code, RAREZA_PROVISIONAL);
+  return tiene(provisional) ? provisional : exacta;
+}
+
 export interface ExchangeRate {
   usdToEur: number;
   /** Fecha del cambio publicado por el BCE, o `null` si es el de reserva. */
@@ -319,7 +335,8 @@ export function versionPrice(
   sobrantes?: Sobrante[],
 ): { eur: number; deTcgplayer: boolean } | null {
   const stats =
-    cardmarket?.[printingKey(set.set_code, set.set_rarity)] ?? leftoverFor(sobrantes, set.set_code, set.set_rarity)?.stats;
+    cardmarket?.[resolvePrintingKey((k) => !!cardmarket?.[k], set.set_code, set.set_rarity)] ??
+    leftoverFor(sobrantes, set.set_code, set.set_rarity)?.stats;
   const cm = stats ? (statValue(stats, metric) ?? statValue(stats, 'referencia')) : null;
   if (cm != null) return { eur: cm, deTcgplayer: false };
   const usd = Number.parseFloat(set.set_price);
