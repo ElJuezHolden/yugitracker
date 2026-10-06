@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from './context/StoreContext';
 import { Header } from './components/Header';
 import { FolderItem } from './components/FolderItem';
@@ -8,6 +8,8 @@ import { FolderModal } from './components/Modals/FolderModal';
 import { SearchModal } from './components/Modals/SearchModal';
 import { CardModal } from './components/Modals/CardModal';
 import { ThemeModal } from './components/Modals/ThemeModal';
+import { BackupModal } from './components/Modals/BackupModal';
+import { useBackup } from './context/BackupContext';
 import { CardFilter } from './components/CardFilter';
 import { ToastContainer } from './components/Toast';
 import { ID_ALL, getTypeWeight, getRarityWeight, normalizeStr, analyzeCardType } from './utils';
@@ -23,6 +25,7 @@ const getSetPrefix = (code: string) => {
 
 function App() {
   const { state, dispatch, toast } = useStore();
+  const backup = useBackup();
   const { activeFolderId, view, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, showWantedCards } = state.ui;
 
   // Modals State
@@ -31,6 +34,7 @@ function App() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   
   // Selection Mode State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -80,28 +84,6 @@ function App() {
     });
     setIsFilterOpen(false);
   }, [activeFolderId]);
-
-  // --- Import Logic ---
-  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-        try {
-            const json = JSON.parse(ev.target?.result as string);
-            if (json.folders && json.cards) {
-                dispatch({ type: 'IMPORT_DB', payload: json });
-                toast("Base de datos importada", "ok");
-            } else {
-                toast("Archivo inválido", "err");
-            }
-        } catch {
-            toast("Error al leer archivo", "err");
-        }
-    };
-    reader.readAsText(file);
-    e.target.value = ''; 
-  };
 
   // --- Callbacks for Optimized Children ---
   const handleFolderEdit = useCallback((id: string) => {
@@ -488,7 +470,7 @@ function App() {
       <Header 
         onOpenFolderModal={() => { setEditingFolderId(null); setIsFolderModalOpen(true); }}
         onOpenSearchModal={() => setIsSearchModalOpen(true)}
-        onImport={handleImport}
+        onOpenBackupModal={() => setIsBackupModalOpen(true)}
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
         isSelectionMode={isSelectionMode}
         onToggleSelectionMode={() => setIsSelectionMode(prev => !prev)}
@@ -498,6 +480,35 @@ function App() {
       />
 
       <ToastContainer />
+
+      {/*
+        Si la copia en archivo se queda en pausa (lo normal tras reiniciar el
+        navegador), se avisa aquí y no solo dentro del panel: si no se ve, se
+        puede pasar semanas sin copia sin darse cuenta.
+      */}
+      {(backup.fileState === 'needs-permission' || backup.fileState === 'error') && (
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 mb-4">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl bg-amber-500/10 border border-amber-500/25 px-4 py-2.5 text-sm">
+            <span className="text-main flex-1 min-w-[200px]">
+              {backup.fileState === 'needs-permission'
+                ? <>La copia en <strong>{backup.fileName}</strong> está en pausa hasta que le des permiso.</>
+                : <>No se pudo guardar la copia en <strong>{backup.fileName}</strong>.</>}
+            </span>
+            <button
+              onClick={() => void backup.resumeFile()}
+              className="bg-amber-400 text-black font-bold text-xs px-3 py-1.5 rounded-lg hover:brightness-110"
+            >
+              Reanudar copia
+            </button>
+            <button
+              onClick={() => setIsBackupModalOpen(true)}
+              className="text-xs font-semibold text-muted hover:text-main"
+            >
+              Ver detalles
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6">
         {/* FILTERS (Only visible in Card View) */}
@@ -748,6 +759,9 @@ function App() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {isBackupModalOpen && (
+            <BackupModal isOpen={isBackupModalOpen} onClose={() => setIsBackupModalOpen(false)} />
+        )}
         {isThemeModalOpen && (
             <ThemeModal isOpen={isThemeModalOpen} onClose={() => setIsThemeModalOpen(false)} />
         )}

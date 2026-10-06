@@ -79,16 +79,36 @@ La aplicación queda en `http://localhost:3000`. No hace falta ninguna clave de 
 
 ## Dónde se guarda la colección
 
-**En el navegador, en `localStorage`.** Conviene tenerlo presente:
+La colección vive **en tu navegador** (`localStorage`). Una sola copia ahí se puede perder de
+varias maneras, así que el botón del escudo de la cabecera abre **Copias de seguridad**, que
+cubre cada una:
 
-- La colección vive solo en el equipo y el navegador donde la creaste. No se sincroniza.
-- Si borras los datos de navegación, se va con ellos. Exporta una copia de vez en cuando.
-- El límite ronda los 5 MB. Con muchas cartas y portadas personalizadas se puede llegar; si
-  ocurre, la aplicación avisa en vez de fallar en silencio.
+| Riesgo | Qué lo cubre |
+|---|---|
+| El navegador libera espacio y la borra | Se le pide almacenamiento persistente (`navigator.storage.persist()`) |
+| Un borrado por error, importar el archivo equivocado o un fallo del código | **Historial automático** en IndexedDB: una versión cada pocos minutos mientras hay cambios; se guardan todas las recientes y una por día durante dos meses |
+| Borrar los datos de navegación (que se lleva lo anterior) | **Copia continua en un archivo de tu ordenador**: eliges dónde una vez y cada cambio se escribe ahí solo. Si está en OneDrive o Dropbox, también queda en la nube |
+| Cambiar de navegador o de equipo | Ese archivo, o una copia descargada, se restaura en el otro lado |
 
-Migrar esto a una base de datos con cuentas de usuario es el siguiente paso natural del
-proyecto, y es lo único que habría que rehacer: los componentes no dependen de dónde salen
-los datos.
+Detalles que conviene saber:
+
+- **La copia en archivo solo existe en Chrome y Edge** (usa la File System Access API). En el
+  resto se puede descargar una copia a mano.
+- **Tras reiniciar el navegador hay que reanudarla con un clic.** El navegador concede el permiso
+  de escritura por sesión; la aplicación lo avisa con una franja amarilla.
+- **Una colección vacía nunca se escribe sola en el archivo.** Si el navegador arrancase sin
+  datos, eso no machaca la copia que serviría para recuperarlos.
+- **Importar y restaurar guardan antes la colección actual en el historial** y ofrecen deshacer:
+  ninguna operación que lo sustituya todo es irreversible.
+- Las copias van envueltas (`{ app, version, savedAt, db }`) para poder migrarlas si cambia el
+  formato. Las copias antiguas, sin envolver, se siguen leyendo.
+
+El código está en `services/backup.ts` (almacenamiento) y `context/BackupContext.tsx` (cuándo se
+guarda).
+
+Migrar esto a una base de datos con cuentas de usuario sigue siendo el paso natural para
+sincronizar entre dispositivos, y es lo único que habría que rehacer: los componentes no dependen
+de dónde salen los datos.
 
 ## Stack
 

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../context/StoreContext';
-import { ID_ALL, exportData, CARD_BACK_IMG } from '../utils';
-import { Search, ChevronLeft, Download, Upload, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor } from 'lucide-react';
+import { ID_ALL, CARD_BACK_IMG } from '../utils';
+import { useBackup } from '../context/BackupContext';
+import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor } from 'lucide-react';
 import { TagsPanel } from './TagsPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FolderSort, CardSort } from '../types';
@@ -9,7 +10,7 @@ import type { FolderSort, CardSort } from '../types';
 interface Props {
   onOpenFolderModal: () => void;
   onOpenSearchModal: () => void;
-  onImport: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onOpenBackupModal: () => void;
   onOpenThemeModal: () => void;
   isSelectionMode: boolean;
   onToggleSelectionMode: () => void;
@@ -22,7 +23,7 @@ interface Props {
 export const Header: React.FC<Props> = ({ 
     onOpenFolderModal, 
     onOpenSearchModal, 
-    onImport, 
+    onOpenBackupModal,
     onOpenThemeModal, 
     isSelectionMode, 
     onToggleSelectionMode,
@@ -31,6 +32,7 @@ export const Header: React.FC<Props> = ({
     activeFilterCount
 }) => {
   const { state, dispatch } = useStore();
+  const backup = useBackup();
   const { view, activeFolderId, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, isTagsPanelOpen, showFoils, showConditionFlags, showEditionFlags, showWantedCards } = state.ui;
   const searchContainerRef = useRef<HTMLDivElement>(null);
   
@@ -241,17 +243,34 @@ export const Header: React.FC<Props> = ({
                 >
                     <Sparkles size={16} fill={showFoils ? 'currentColor' : 'none'} />
                 </button>
-                <button onClick={() => exportData(state.db)} className="p-1.5 hover:text-main text-main/60 hover:bg-main/10 rounded transition-colors" title="Exportar copia de seguridad">
-                    <Download size={16} />
-                </button>
-                <label className="p-1.5 hover:text-main text-main/60 hover:bg-main/10 rounded transition-colors cursor-pointer" title="Importar copia de seguridad">
-                    <Upload size={16} />
-                    <input type="file" className="hidden" onChange={onImport} />
-                </label>
                 <button onClick={onOpenThemeModal} className="p-1.5 hover:text-main text-main/60 hover:bg-main/10 rounded transition-colors" title="Personalizar Tema">
                     <Palette size={16} />
                 </button>
             </div>
+
+            {/*
+              Copias de seguridad. Fuera del grupo de iconos que se oculta en el
+              móvil: antes exportar e importar no existían en pantallas pequeñas.
+              El punto avisa del estado sin tener que abrir el panel.
+            */}
+            <button
+                onClick={onOpenBackupModal}
+                className="relative p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
+                title={
+                    backup.fileState === 'active' ? 'Copias de seguridad: guardando también en tu archivo'
+                    : backup.fileState === 'needs-permission' || backup.fileState === 'error' ? 'Copias de seguridad: la copia en archivo está en pausa'
+                    : 'Copias de seguridad'
+                }
+                aria-label="Copias de seguridad"
+            >
+                {backup.fileState === 'active' ? <ShieldCheck size={16} /> : <Shield size={16} />}
+                {backup.fileState === 'active' && (
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-bg-surface" />
+                )}
+                {(backup.fileState === 'needs-permission' || backup.fileState === 'error') && (
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-bg-surface animate-pulse" />
+                )}
+            </button>
 
             <div className="flex items-center gap-1 bg-bg-surface p-1 rounded-lg">
                 <button 

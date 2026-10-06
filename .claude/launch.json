@@ -4,7 +4,10 @@
     {
       "name": "yugi-tracker",
       "runtimeExecutable": "cmd.exe",
-      "runtimeArgs": ["/c", "set PATH=C:\Program Files\nodejs;%PATH% && npm run dev"],
+      "runtimeArgs": [
+        "/c",
+        "set PATH=C:\\Program Files\\nodejs;%PATH% && npm run dev"
+      ],
       "port": 3000
     }
   ]

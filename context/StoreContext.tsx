@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useRef } from 'react';
 import type { Database, Folder, Card, ViewMode, FolderSort, CardSort, ToastData, SortDirection, ThemeConfig, AlbumColumns } from '../types';
-import { ID_ALL, generateId, CARD_BACK_IMG } from '../utils';
+import { generateId } from '../utils';
+import { createEmptyDatabase, normalizeDatabase } from '../services/database';
 
 // --- State Definition ---
 interface AppState {
@@ -75,38 +76,12 @@ const DEFAULT_THEME: ThemeConfig = {
 const DB_STORAGE_KEY = 'yugi-tracker-platinum-db';
 const THEME_STORAGE_KEY = 'yugi-tracker-platinum-theme';
 
-/** La carpeta de sistema siempre existe y reúne todas las cartas. */
-const createSystemFolder = (): Folder => ({
-  id: ID_ALL,
-  name: 'Colección Completa',
-  img: CARD_BACK_IMG,
-  align: 'center',
-  cardSort: 'type',
-  cardSortDir: 'asc',
-});
-
-const createEmptyDatabase = (): Database => ({
-  folders: [createSystemFolder()],
-  cards: [],
-  customArts: {},
-});
-
 /**
- * Valida lo que había guardado antes de usarlo. Si el JSON está a medias o le
- * faltan las listas se devuelve `null` y se empieza de cero, en vez de dejar
- * que un `undefined.find(...)` tumbe la aplicación al arrancar.
+ * Lee lo guardado en el navegador. Si el JSON está a medias o no tiene forma de
+ * colección devuelve `null` y se empieza de cero.
  */
 function parseDatabase(raw: string): Database | null {
-  const json: unknown = JSON.parse(raw);
-  if (!json || typeof json !== 'object') return null;
-
-  const candidate = json as Partial<Database>;
-  if (!Array.isArray(candidate.folders) || !Array.isArray(candidate.cards)) return null;
-
-  const folders = [...candidate.folders];
-  if (!folders.some((f) => f.id === ID_ALL)) folders.unshift(createSystemFolder());
-
-  return { folders, cards: candidate.cards, customArts: candidate.customArts ?? {} };
+  return normalizeDatabase(JSON.parse(raw));
 }
 
 const INITIAL_STATE: AppState = {
