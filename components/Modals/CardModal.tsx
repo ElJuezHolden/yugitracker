@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../context/StoreContext';
 import type { ApiCard, Card, CardSet, CardCondition } from '../../types';
-import { formatMoney, generateId, getCardMarketLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
+import { formatMoney, normalizeStr, generateId, getCardMarketLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
 import { getCardDetails } from '../../services/cardService';
 import { CardMarketValue } from '../CardMarketValue';
 import { usePrices } from '../../context/PricesContext';
-import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles } from 'lucide-react';
+import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -49,6 +49,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   const [customImg, setCustomImg] = useState('');
   const [selectedSet, setSelectedSet] = useState<CardSet | null>(null);
   const [manualRarity, setManualRarity] = useState<string>(''); // For Manual Override
+  /** Filtro del selector de versión: hay cartas con más de 70. */
+  const [filtroVersion, setFiltroVersion] = useState('');
   const { rate } = usePrices();
   /** Precio en euros de una impresión, o null si no tiene. */
   const eurDe = (set: CardSet) => {
@@ -77,6 +79,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
       if (!isOpen) return;
       setLoading(true);
       setShowDeleteConfirm(false);
+      setFiltroVersion('');
       setIsSubmitting(false);
 
       let data = initialApiCard;
@@ -84,7 +87,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
       // If editing, fetch fresh details to get all arts/sets
       if (existingCard) {
         setFormData({
-            paid: existingCard.paid.toString(),
+            paid: existingCard.paid ? existingCard.paid.toString() : '',
             lang: existingCard.lang,
             condition: existingCard.condition,
             tags: existingCard.tags.map(t => t.replace('#','')).join(' '),
@@ -295,6 +298,14 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   const isValidSelection = formData.moveToFolder && formData.moveToFolder !== ID_ALL && state.db.folders.some(f => f.id === formData.moveToFolder);
   const selectValue = isValidSelection ? formData.moveToFolder : '';
   
+  // Versiones que casan con el filtro (la elegida no se esconde nunca).
+  const versionesVisibles = useMemo(() => {
+    const sets = apiData?.card_sets ?? [];
+    const q = normalizeStr(filtroVersion.trim());
+    if (!q) return sets;
+    return sets.filter(s => s === selectedSet || normalizeStr(`${s.set_code} ${s.set_name} ${s.set_rarity}`).includes(q));
+  }, [apiData, filtroVersion, selectedSet]);
+
   // Extract Misc Info for Beta/Dates
   const misc = apiData?.misc_info?.[0];
   const isBeta = misc?.beta_id != null;
@@ -309,7 +320,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98, y: 10 }}
         transition={{ duration: 0.2, ease: "easeOut" }}
-        className="w-full max-w-4xl bg-bg-surface border border-border-base rounded-2xl shadow-2xl flex flex-col my-auto"
+        className="w-full max-w-4xl xl:max-w-[1360px] max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] bg-bg-surface border border-border-base rounded-2xl shadow-2xl flex flex-col my-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -335,25 +346,25 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
             </div>
         </div>
 
-        {/* Body */}
-        <div className="p-6 overflow-y-auto max-h-[75vh]">
+        {/* Body: en pantallas anchas, tres columnas (carta | datos de tu copia | valor de mercado) */}
+        <div className="p-4 sm:p-6 xl:py-4 overflow-y-auto flex-1 min-h-0">
             {loading ? <div className="p-10 text-center text-main">Cargando datos v7...</div> : (
-                <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-8">
-                    
-                    {/* Left Column: Image */}
-                    <div className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] xl:grid-cols-[230px_minmax(0,1fr)_minmax(0,390px)] gap-6 items-start">
+
+                    {/* Columna 1: la carta y sus artes (en el móvil, los artes van al final) */}
+                    <div className="contents md:flex md:flex-col md:gap-4">
                         <img 
                             src={customImg || selectedImg || CARD_BACK_IMG} 
-                            className={`w-full rounded-xl shadow-2xl aspect-[421/614] object-cover ${formData.isWanted ? 'grayscale brightness-90' : ''}`}
+                            className={`w-full max-w-[170px] mx-auto md:max-w-none rounded-xl shadow-2xl aspect-[421/614] object-cover ${formData.isWanted ? 'grayscale brightness-90' : ''}`}
                             alt="Preview"
                         />
                          {releaseDate && (
-                            <div className="flex items-center justify-center gap-1.5 text-xs text-muted bg-bg-panel p-2 rounded-lg border border-border-base">
+                            <div className="order-2 md:order-none flex items-center justify-center gap-1.5 text-xs text-muted bg-bg-panel p-2 rounded-lg border border-border-base">
                                 <Calendar size={12} /> Lanzamiento: <span className="text-main font-bold">{releaseDate}</span>
                             </div>
                         )}
 
-                        <div className="bg-bg-panel p-3 rounded-lg border border-border-base">
+                        <div className="order-2 md:order-none bg-bg-panel p-3 rounded-lg border border-border-base">
                             <label className="text-xs text-muted block mb-2">Variaciones de Arte ({uniqueOfficialImages.length + uniqueHistoryArts.length})</label>
                             <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide mask-fade-r">
                                 {uniqueOfficialImages.map(img => (
@@ -388,23 +399,11 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                         </div>
                     </div>
 
-                    {/* Right Column: Details */}
-                    <div className="space-y-5 min-w-0">
+                    {/* Columna 2: los datos de tu copia, empezando por la versión */}
+                    <div className="order-1 space-y-4 min-w-0">
 
-                        {/* Valor de mercado y precio de sus versiones (también para las buscadas) */}
-                        {apiData && (
-                            <CardMarketValue
-                                cardId={apiData.id}
-                                cardName={apiData.name}
-                                sets={apiData.card_sets}
-                                selected={selectedSet}
-                                paid={formData.isWanted ? 0 : parseFloat(formData.paid) || 0}
-                                onSelect={(set) => { setSelectedSet(set); setManualRarity(''); }}
-                            />
-                        )}
-                        
-                        {/* Location & Type */}
-                        <div className="bg-bg-panel p-3 rounded-lg border border-border-base space-y-3">
+                        {/* Carpeta y "buscada", en una sola fila */}
+                        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-2 items-end">
                             <div>
                                 <div className="text-xs text-primary mb-1">
                                     {existingCard ? '📍 Mover a otra carpeta' : '📍 Carpeta destino'}
@@ -428,10 +427,9 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                     ))}
                                 </select>
                             </div>
-
                             <button
                                 onClick={() => setFormData(prev => ({ ...prev, isWanted: !prev.isWanted }))}
-                                className={`w-full py-2 rounded-lg text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                                className={`px-4 py-2 rounded-lg whitespace-nowrap text-sm font-bold border transition-all flex items-center justify-center gap-1.5 ${
                                     formData.isWanted
                                         ? 'bg-red-500/20 border-red-500 text-red-500 shadow-lg shadow-red-900/20' 
                                         : 'bg-bg-surface border-border-base text-muted hover:bg-main/5 hover:text-main'
@@ -448,13 +446,30 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                     initial={{ opacity: 0, height: 0 }}
                                     animate={{ opacity: 1, height: 'auto' }}
                                     exit={{ opacity: 0, height: 0 }}
-                                    className="space-y-5 overflow-hidden"
+                                    className="space-y-4 overflow-hidden"
                                 >
-                                    {/* Rarity & Set */}
+                                    {/* Tu versión: set y rareza, con su precio */}
                                     <div>
-                                        <label className="text-primary font-bold text-sm block mb-2">Rareza y Edición</label>
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-40 overflow-y-auto bg-bg-panel p-2 rounded-lg border border-border-base">
-                                            {apiData?.card_sets ? apiData.card_sets.map((set, idx) => (
+                                        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                            <label className="text-primary font-bold text-sm">
+                                                Tu versión
+                                                {apiData?.card_sets && <span className="text-muted font-normal text-xs"> · {apiData.card_sets.length} en total</span>}
+                                            </label>
+                                            {(apiData?.card_sets?.length ?? 0) > 8 && (
+                                                <div className="relative w-full sm:w-64">
+                                                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+                                                    <input
+                                                        type="text"
+                                                        value={filtroVersion}
+                                                        onChange={e => setFiltroVersion(e.target.value)}
+                                                        placeholder="Busca código, set o rareza…"
+                                                        className="w-full bg-bg-panel border border-border-base text-main rounded-md pl-8 pr-2 py-1.5 text-xs focus:border-primary outline-none"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 max-h-60 overflow-y-auto bg-bg-panel p-2 rounded-lg border border-border-base">
+                                            {apiData?.card_sets ? versionesVisibles.map((set, idx) => (
                                                 <div 
                                                     key={`${set.set_code}-${idx}`}
                                                     onClick={() => {
@@ -462,6 +477,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                         // Reset manual rarity to ensure clean state on switch
                                                         setManualRarity('');
                                                     }}
+                                                    title={set.set_name}
                                                     className={`p-2 rounded cursor-pointer text-center border transition-all flex flex-col justify-center min-h-[50px] ${
                                                         selectedSet === set 
                                                             ? 'bg-primary/10 border-primary' 
@@ -479,25 +495,22 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                             )) : (
                                                 <div className="col-span-full text-center text-muted text-xs py-4">Sin Sets (OCG/Promo/Beta)</div>
                                             )}
+                                            {apiData?.card_sets && versionesVisibles.length === 0 && (
+                                                <div className="col-span-full text-center text-muted text-xs py-4">Ninguna versión coincide con «{filtroVersion}»</div>
+                                            )}
                                         </div>
 
-                                        {/* MANUAL RARITY OVERRIDE (GLOBAL) */}
+                                        {/* Rareza a mano, por si la de tu carta no es la oficial */}
                                         {selectedSet && (
-                                            <motion.div 
-                                                initial={{ opacity: 0, y: -5 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                className="mt-3 bg-primary/5 border border-primary/20 rounded-lg p-3"
-                                            >
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <Sparkles size={14} className="text-primary" />
-                                                    <span className="text-xs font-bold text-primary uppercase tracking-wide">
-                                                        Selector de rareza manual
-                                                    </span>
-                                                </div>
-                                                <select 
-                                                    value={manualRarity} 
+                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                <span className="text-xs text-muted flex items-center gap-1.5">
+                                                    <Sparkles size={13} className="text-primary" /> ¿Otra rareza?
+                                                </span>
+                                                <select
+                                                    value={manualRarity}
                                                     onChange={(e) => setManualRarity(e.target.value)}
-                                                    className="w-full bg-bg-panel border border-primary/30 text-main rounded p-2 text-sm focus:border-primary outline-none font-medium transition-colors"
+                                                    title="Úsalo si la rareza de tu carta no coincide con la lista oficial"
+                                                    className="flex-1 min-w-[180px] bg-bg-panel border border-border-base text-main rounded p-1.5 text-xs focus:border-primary outline-none"
                                                 >
                                                     <option value="">{selectedSet.set_rarity} (Oficial)</option>
                                                     <option disabled>──────────</option>
@@ -505,15 +518,24 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                         <option key={r} value={r}>{r}</option>
                                                     ))}
                                                 </select>
-                                                <div className="text-[10px] text-muted mt-1 italic">
-                                                    Úsalo si la rareza de tu carta no coincide con la lista oficial.
-                                                </div>
-                                            </motion.div>
+                                            </div>
                                         )}
                                     </div>
 
-                                    {/* Fields Grid */}
+                                    {/* Idioma y lo pagado */}
                                     <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="text-xs font-medium text-muted block mb-1">Idioma</label>
+                                            <select 
+                                                value={formData.lang}
+                                                onChange={e => setFormData({...formData, lang: e.target.value})}
+                                                className="w-full bg-bg-panel border border-border-base text-main rounded p-2 text-sm focus:border-primary outline-none"
+                                            >
+                                                <option value="ES">Español</option>
+                                                <option value="EN">Inglés</option>
+                                                <option value="JP">Japonés</option>
+                                            </select>
+                                        </div>
                                         <div>
                                             <label className="text-xs font-medium text-muted block mb-1">Lo que pagaste (opcional)</label>
                                             <input 
@@ -526,18 +548,6 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                 placeholder="Sin apuntar"
                                                 title="Solo se usa en esta ficha, para compararlo con su valor actual"
                                             />
-                                        </div>
-                                        <div>
-                                            <label className="text-xs font-medium text-muted block mb-1">Idioma</label>
-                                            <select 
-                                                value={formData.lang}
-                                                onChange={e => setFormData({...formData, lang: e.target.value})}
-                                                className="w-full bg-bg-panel border border-border-base text-main rounded p-2 text-sm focus:border-primary outline-none"
-                                            >
-                                                <option value="ES">Español</option>
-                                                <option value="EN">Inglés</option>
-                                                <option value="JP">Japonés</option>
-                                            </select>
                                         </div>
                                     </div>
 
@@ -612,7 +622,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                             )}
                         </AnimatePresence>
 
-                        {/* Common Fields */}
+                        {/* Etiquetas y notas */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-medium text-muted block mb-1">Etiquetas</label>
                             <input 
@@ -637,14 +648,29 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                 value={formData.obs}
                                 onChange={e => setFormData({...formData, obs: e.target.value})}
                                 maxLength={MAX_OBS}
-                                className={`w-full bg-bg-panel border rounded p-2 text-sm text-main focus:border-primary outline-none h-24 resize-none transition-colors ${
+                                className={`w-full bg-bg-panel border rounded p-2 text-sm text-main focus:border-primary outline-none h-[38px] focus:h-24 resize-none transition-colors ${
                                     (MAX_OBS - formData.obs.length) <= 0 ? 'border-red-500/50' : 'border-border-base'
                                 }`}
                                 placeholder="Ej: Daño leve en esquinas..."
                             />
                         </div>
 
+                        </div>
                     </div>
+
+                    {/* Columna 3: valor de mercado (debajo del formulario si no hay sitio) */}
+                    {apiData && (
+                        <div className="order-3 min-w-0 md:col-start-2 xl:col-start-auto xl:sticky xl:top-0">
+                            <CardMarketValue
+                                cardId={apiData.id}
+                                cardName={apiData.name}
+                                sets={apiData.card_sets}
+                                selected={selectedSet}
+                                paid={formData.isWanted ? 0 : parseFloat(formData.paid) || 0}
+                                onSelect={(set) => { setSelectedSet(set); setManualRarity(''); }}
+                            />
+                        </div>
+                    )}
                 </div>
             )}
         </div>

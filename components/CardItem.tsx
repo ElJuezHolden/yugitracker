@@ -470,7 +470,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 <img 
                     src={card.img}
                         onError={onCardImageError} 
-                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out relative z-10 ${card.isWanted ? 'grayscale brightness-75' : ''}`} 
+                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out ${card.isWanted ? 'grayscale brightness-75' : ''}`} 
                     loading="lazy" 
                     decoding="async"
                     alt={card.name} 

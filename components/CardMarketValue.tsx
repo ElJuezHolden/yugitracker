@@ -209,7 +209,7 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
             <span className="text-amber-400 font-bold">{formatMoney(eur(masCara.usd!))}</span> según la versión.
           </div>
         )}
-        <div className="max-h-60 overflow-y-auto rounded-lg border border-border-base divide-y divide-border-base bg-bg-surface">
+        <div className="max-h-44 overflow-y-auto rounded-lg border border-border-base divide-y divide-border-base bg-bg-surface">
           {versiones.map((v, i) => {
             const esActual = esMisma(selected, v.code, v.rarity);
             const etiqueta = v === masCara ? 'la más cara' : v === masBarata ? 'la más barata' : null;
