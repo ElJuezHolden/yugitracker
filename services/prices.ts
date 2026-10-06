@@ -215,6 +215,46 @@ interface TrozoActual {
   cartas: Record<string, Record<string, (number | null)[]>>;
   /** id → clave de impresión → número de producto en Cardmarket (para enlazar a su página). */
   productos?: Record<string, Record<string, number>>;
+  /** id → productos de Cardmarket sin versión en YGOPRODeck: [prefijo, set, idProduct, desde, tendencia, media1, media7, media30] */
+  sobrantes?: Record<string, (string | number | null)[][]>;
+}
+
+/**
+ * Producto de Cardmarket que no casa con ninguna versión de YGOPRODeck (le
+ * faltan impresiones). Se casa en la web con las versiones de Yugipedia por el
+ * prefijo del set (TN23-EN013 → TN23).
+ */
+export interface Sobrante {
+  prefijo: string;
+  set: string;
+  idProduct: number;
+  stats: PriceStats;
+}
+
+// Rarezas de menor a mayor (la misma escala que el proceso diario).
+const RAREZAS = [
+  'common', 'short print', 'super short print', 'rare', 'super rare', 'ultra rare', 'ultimate rare', 'secret rare',
+  'prismatic secret rare', 'ultra secret rare', 'platinum secret rare', "collector's rare", 'quarter century secret rare',
+  'starlight rare', 'ghost rare',
+];
+const rangoRareza = (r: string) => {
+  const i = RAREZAS.indexOf(r.toLowerCase().trim());
+  return i < 0 ? RAREZAS.indexOf('ultra rare') : i;
+};
+
+/**
+ * El producto sobrante que corresponde a una versión: el de su mismo set; si hay
+ * varios (varias rarezas en el set), el más caro para las rarezas altas (de
+ * Secret para arriba) y el más barato para las demás.
+ */
+export function leftoverFor(sobrantes: Sobrante[] | undefined, code: string, rarity: string): Sobrante | null {
+  if (!sobrantes?.length) return null;
+  const prefijo = code.split('-')[0]?.toUpperCase();
+  const delSet = sobrantes
+    .filter((s) => s.prefijo === prefijo)
+    .sort((a, b) => (statValue(a.stats, 'referencia') ?? 0) - (statValue(b.stats, 'referencia') ?? 0));
+  if (delSet.length === 0) return null;
+  return rangoRareza(rarity) >= rangoRareza('secret rare') ? delSet[delSet.length - 1]! : delSet[0]!;
 }
 interface TrozoHistorial {
   v: number;
@@ -276,8 +316,10 @@ export function versionPrice(
   set: CardSet,
   rate: ExchangeRate | null,
   metric: PriceMetric = 'referencia',
+  sobrantes?: Sobrante[],
 ): { eur: number; deTcgplayer: boolean } | null {
-  const stats = cardmarket?.[printingKey(set.set_code, set.set_rarity)];
+  const stats =
+    cardmarket?.[printingKey(set.set_code, set.set_rarity)] ?? leftoverFor(sobrantes, set.set_code, set.set_rarity)?.stats;
   const cm = stats ? (statValue(stats, metric) ?? statValue(stats, 'referencia')) : null;
   if (cm != null) return { eur: cm, deTcgplayer: false };
   const usd = Number.parseFloat(set.set_price);
@@ -297,6 +339,8 @@ export interface MarketPrices {
   porCarta: Map<number, Record<string, PriceStats>>;
   /** id → clave de impresión → número de producto en Cardmarket */
   productos: Map<number, Record<string, number>>;
+  /** id → productos de Cardmarket sin versión en YGOPRODeck */
+  sobrantes: Map<number, Sobrante[]>;
   /** Día de los precios (ms), o `null` si no hay datos de Cardmarket. */
   fecha: number | null;
 }
@@ -306,6 +350,7 @@ export async function loadMarketPrices(ids: number[]): Promise<MarketPrices> {
   const trozos = await Promise.all(trozosDe(ids).map((n) => pedir<TrozoActual>(`actual-${n}.json`, FORMATO_ACTUAL)));
   const porCarta = new Map<number, Record<string, PriceStats>>();
   const productos = new Map<number, Record<string, number>>();
+  const sobrantes = new Map<number, Sobrante[]>();
   let fecha: number | null = null;
   for (const t of trozos) {
     if (!t) continue;
@@ -318,8 +363,25 @@ export async function loadMarketPrices(ids: number[]): Promise<MarketPrices> {
       porCarta.set(Number(id), porVersion);
     }
     for (const [id, ids] of Object.entries(t.productos ?? {})) productos.set(Number(id), ids);
+    for (const [id, lista] of Object.entries(t.sobrantes ?? {})) {
+      sobrantes.set(
+        Number(id),
+        lista.map(([prefijo, set, idProduct, low, trend, avg1, avg7, avg30]) => ({
+          prefijo: String(prefijo),
+          set: String(set),
+          idProduct: Number(idProduct),
+          stats: {
+            low: (low as number | null) ?? null,
+            trend: (trend as number | null) ?? null,
+            avg1: (avg1 as number | null) ?? null,
+            avg7: (avg7 as number | null) ?? null,
+            avg30: (avg30 as number | null) ?? null,
+          },
+        })),
+      );
+    }
   }
-  return { porCarta, productos, fecha };
+  return { porCarta, productos, sobrantes, fecha };
 }
 
 const diaTexto = (dia: number) => new Date(dia * DIA_MS).toISOString().slice(0, 10);

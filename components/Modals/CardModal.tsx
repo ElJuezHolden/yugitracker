@@ -7,7 +7,7 @@ import { getCardDetails, getYugipediaPrintings } from '../../services/cardServic
 import { CardMarketValue } from '../CardMarketValue';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
-import { printingKey, versionPrice } from '../../services/prices';
+import { leftoverFor, printingKey, versionPrice } from '../../services/prices';
 import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search } from 'lucide-react';
 
 interface Props {
@@ -378,7 +378,9 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
 
   // Producto de Cardmarket de la versión elegida, para enlazar directamente a su página.
   const idProductoElegido = selectedSet
-    ? preciosCardmarket.productos[printingKey(selectedSet.set_code, selectedSet.set_rarity)] ?? null
+    ? preciosCardmarket.productos[printingKey(selectedSet.set_code, selectedSet.set_rarity)] ??
+      leftoverFor(preciosCardmarket.sobrantes, selectedSet.set_code, selectedSet.set_rarity)?.idProduct ??
+      null
     : null;
 
   const nombreFicha = apiData
@@ -595,7 +597,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                         {set.set_rarity}
                                                     </div>
                                                     <div className="text-[10px] text-muted font-semibold mt-0.5">
-                                                        {(() => { const v = versionPrice(preciosCardmarket.precios, set, rate, metric); return v ? `≈ ${formatMoney(v.eur)}${v.deTcgplayer ? '*' : ''}` : '—'; })()}
+                                                        {(() => { const v = versionPrice(preciosCardmarket.precios, set, rate, metric, preciosCardmarket.sobrantes); return v ? `≈ ${formatMoney(v.eur)}${v.deTcgplayer ? '*' : ''}` : '—'; })()}
                                                     </div>
                                                 </div>
                                             )) : (

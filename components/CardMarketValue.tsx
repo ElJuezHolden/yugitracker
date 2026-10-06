@@ -5,6 +5,7 @@ import { useCardmarketPrices, usePrices } from '../context/PricesContext';
 import {
   PRICE_METRICS,
   conditionFactor,
+  leftoverFor,
   loadHistory,
   printingKey,
   printingsFromApi,
@@ -64,15 +65,15 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
     };
   }, [cardId]);
 
-  const cardmarket = useCardmarketPrices(cardId).precios;
+  const { precios: cardmarket, sobrantes } = useCardmarketPrices(cardId);
   const versiones = useMemo(() => {
     const lista = printingsFromApi(sets).map((p, i) => {
-      const precio = versionPrice(cardmarket, sets![i]!, rate, metric);
+      const precio = versionPrice(cardmarket, sets![i]!, rate, metric, sobrantes);
       return { ...p, set: sets![i]!, eur: precio?.eur ?? null, deTcgplayer: precio?.deTcgplayer ?? false };
     });
     // Las que tienen precio primero, de la más cara a la más barata; luego las demás.
     return lista.sort((a, b) => (b.eur ?? -1) - (a.eur ?? -1));
-  }, [sets, cardmarket, rate, metric]);
+  }, [sets, cardmarket, rate, metric, sobrantes]);
 
   const conPrecio = versiones.filter((v) => v.eur != null);
   const hayTcgplayer = versiones.some((v) => v.deTcgplayer);
@@ -97,7 +98,9 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
 
   const precio = actual?.eur ?? null;
   // Todas las cifras de Cardmarket de la versión elegida, como en su web.
-  const cifras = actual ? cardmarket[printingKey(actual.code, actual.rarity)] : undefined;
+  const cifras = actual
+    ? (cardmarket[printingKey(actual.code, actual.rarity)] ?? leftoverFor(sobrantes, actual.code, actual.rarity)?.stats)
+    : undefined;
   const ORDEN_TABLA = ['low', 'trend', 'avg30', 'avg7', 'avg1', 'referencia'] as const;
   // Lo que vale TU copia: el precio de la versión ajustado por su estado (estimación).
   const factor = conditionFactor(condition);

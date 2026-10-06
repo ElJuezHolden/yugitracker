@@ -288,11 +288,11 @@ function asegurarPurpurina() {
     const rnd = () => ((semilla = (semilla * 16807) % 2147483647) / 2147483647);
     for (let x = 1; x < lado; x += 3) {
       for (let y = 0; y < lado; y++) {
-        if (rnd() > 0.3) continue;
-        const brillo = 0.45 + rnd() * 0.55;
+        if (rnd() > 0.22) continue;
+        const brillo = 0.5 + rnd() * 0.5;
         const v = Math.round(brillo * 255);
         ctx.fillStyle = `rgb(${v},${v},${v})`;
-        ctx.fillRect(x, y, rnd() > 0.7 ? 2 : 1, rnd() > 0.6 ? 2 : 1);
+        ctx.fillRect(x, y, 1, rnd() > 0.75 ? 2 : 1);
       }
     }
     document.documentElement.style.setProperty('--tex-purpurina', `url("${canvas.toDataURL('image/png')}")`);

@@ -34,7 +34,8 @@
  * Archivos (las cartas se reparten en 100 por `id % 100`):
  *   actual-NN.json  { v: 3, actualizado: <día>,
  *                     cartas: { <id>: { "<set>|<rareza>": [desde, tendencia, media1, media7, media30] } },
- *                     productos: { <id>: { "<set>|<rareza>": idProduct de Cardmarket } } }
+ *                     productos: { <id>: { "<set>|<rareza>": idProduct de Cardmarket } },
+ *                     sobrantes: { <id>: [[prefijo, set, idProduct, desde, tendencia, media1, media7, media30]] } }
  *                   (euros; `null` si Cardmarket no tiene esa cifra)
  *   NN.json         { v: 2, actualizado: <día>, cartas: { <id>: { "<set>|<rareza>": [[<día>, euros], ...] } } }
  *                   (el precio de referencia)
@@ -162,9 +163,14 @@ const productoDe = new Map();
 let versiones = 0;
 let conPrecio = 0;
 let setsSinPareja = 0;
+/** Productos de Cardmarket ya asignados a una versión. */
+const asignados = new Set();
+/** Sets de YGOPRODeck con su expansión de Cardmarket. */
+const emparejados = [];
 for (const [nombreSet, cartasSet] of setsCartas) {
   const exp = expansionDe(nombreSet, cartasSet);
   if (exp == null) setsSinPareja++;
+  else emparejados.push([nombreSet, exp]);
   for (const [n, impresiones] of cartasSet) {
     versiones += impresiones.length;
     if (exp == null) continue;
@@ -180,6 +186,7 @@ for (const [nombreSet, cartasSet] of setsCartas) {
       const producto = porRareza.get(imp.rarity);
       if (producto == null) continue;
       conPrecio++;
+      asignados.add(producto.idProduct);
       const clave = `${imp.code}|${imp.rarity}`;
       if (!deHoy.has(imp.id)) deHoy.set(imp.id, {});
       deHoy.get(imp.id)[clave] = producto.precio.ref;
@@ -187,6 +194,37 @@ for (const [nombreSet, cartasSet] of setsCartas) {
       cifrasDe.get(imp.id)[clave] = producto.precio.cifras;
       if (!productoDe.has(imp.id)) productoDe.set(imp.id, {});
       productoDe.get(imp.id)[clave] = producto.idProduct;
+    }
+  }
+}
+
+/*
+ * Productos sobrantes. A YGOPRODeck le faltan impresiones (p. ej. Number 39:
+ * Utopia en la lata TN23, aunque el set sí lo tiene con otras cartas). Esas
+ * impresiones están en Cardmarket, en la expansión ya emparejada, pero sin
+ * versión a la que asignarlas. Se publican con el prefijo del set (TN23) para
+ * que la web las case con las versiones que trae de Yugipedia.
+ */
+const idPorNombre = new Map();
+for (const carta of cartas) idPorNombre.set(norm(carta.name), carta.id);
+const prefijoDe = new Map(setsYgo.map((x) => [x.set_name, String(x.set_code || '').toUpperCase()]));
+/** id → [[prefijo, set, idProduct, desde, tendencia, media1, media7, media30], ...] */
+const sobrantes = new Map();
+let numSobrantes = 0;
+for (const [nombreSet, exp] of emparejados) {
+  const prefijo = prefijoDe.get(nombreSet);
+  if (!prefijo) continue;
+  for (const [n, productosExp] of expansiones.get(exp)) {
+    const id = idPorNombre.get(n);
+    if (id == null) continue;
+    for (const pr of productosExp) {
+      const precio = precioProducto.get(pr.idProduct);
+      if (!precio || asignados.has(pr.idProduct)) continue;
+      const lista = sobrantes.get(id) ?? [];
+      if (lista.some((x) => x[2] === pr.idProduct)) continue;
+      lista.push([prefijo, nombreSet, pr.idProduct, ...precio.cifras]);
+      sobrantes.set(id, lista);
+      numSobrantes++;
     }
   }
 }
@@ -242,16 +280,17 @@ for (let i = 0; i < TROZOS; i++) {
   for (const porClave of Object.values(historial.cartas)) {
     for (const clave of Object.keys(porClave)) porClave[clave] = aclarar(porClave[clave]);
   }
-  const actual = { v: VERSION_ACTUAL, actualizado: hoy, cartas: {}, productos: {} };
+  const actual = { v: VERSION_ACTUAL, actualizado: hoy, cartas: {}, productos: {}, sobrantes: {} };
   for (const [id, cifras] of cifrasDe) {
     if (id % TROZOS !== i) continue;
     actual.cartas[id] = cifras;
     actual.productos[id] = productoDe.get(id);
   }
+  for (const [id, lista] of sobrantes) if (id % TROZOS === i) actual.sobrantes[id] = lista;
   await writeFile(join(CARPETA, `${i}.json`), JSON.stringify(historial));
   await writeFile(join(CARPETA, `actual-${i}.json`), JSON.stringify(actual));
 }
 
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${cambios} precios nuevos o cambiados.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados.`,
 );

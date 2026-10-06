@@ -646,7 +646,7 @@
 .foil-cubierta--qcsr {
   --franja: var(--franja-arcoiris);
   --textura: var(--tex-vertical);
-  opacity: calc(0.22 + var(--card-active, 0) * 0.28);
+  opacity: calc(0.12 + var(--card-active, 0) * 0.22);
 }
 
 /*
@@ -660,16 +660,16 @@
   inset: 0;
   background-image:
     var(--tex-purpurina, none),
-    radial-gradient(circle at var(--pointer-x, 30%) var(--pointer-y, 22%), #fff 0%, rgba(255, 255, 255, 0.55) 22%, rgba(255, 255, 255, 0.25) 55%),
+    radial-gradient(circle at var(--pointer-x, 30%) var(--pointer-y, 22%), #fff 0%, rgba(255, 255, 255, 0.6) 20%, rgba(255, 255, 255, 0.14) 48%, rgba(255, 255, 255, 0.06) 75%),
     linear-gradient(115deg, #ff5a5a, #ffb84a, #f3ff52, #5cff8a, #52d6ff, #8a66ff, #ff66d6, #ff5a5a, #ffb84a, #f3ff52);
-  background-size: 54px 54px, 100% 100%, 300% 300%;
+  background-size: 108px 108px, 100% 100%, 300% 300%;
   background-position:
     0 0,
     0 0,
     calc(100% - var(--background-x, 40%)) calc(100% - var(--background-y, 35%));
   background-blend-mode: multiply;
   mix-blend-mode: screen;
-  opacity: calc(0.6 + var(--card-active, 0) * 0.4);
+  opacity: calc(0.55 + var(--card-active, 0) * 0.45);
   -webkit-mask: var(--mascara-sin-texto) 0 0 / 100% 100% no-repeat;
   mask: var(--mascara-sin-texto) 0 0 / 100% 100% no-repeat;
   transition: opacity 0.3s ease;
@@ -739,25 +739,36 @@
  * de texto (oro viejo satinado) y las letras quedan caladas, del color de la caja.
  */
 .foil-sello__tinta {
-  background: linear-gradient(160deg, #c19a3e, #9a7429 50%, #c9a552);
-  mix-blend-mode: multiply;
-  opacity: 0.85;
+  /* Sin relleno: el sello real es solo relieve, del mismo color que la caja. */
+  display: none;
 }
 
 .foil-sello__sombra {
-  background: #3a3530;
-  mix-blend-mode: multiply;
-  opacity: 0.22;
-  -webkit-mask-position: calc(50% + 1px) calc(50% + 1px) !important;
-  mask-position: calc(50% + 1px) calc(50% + 1px) !important;
+  /*
+   * Solo el borde: la silueta desplazada MENOS la silueta en su sitio deja una
+   * línea fina de sombra abajo a la derecha de cada trazo, como un estampado
+   * prensado en la carta. Sin relleno gris.
+   */
+  background: #3b3020;
+  opacity: 0.5;
+  -webkit-mask: var(--sello-25) calc(50% + 1.1px) calc(50% + 1.1px) / contain no-repeat,
+    var(--sello-25) center / contain no-repeat !important;
+  -webkit-mask-composite: source-out !important;
+  mask: var(--sello-25) calc(50% + 1.1px) calc(50% + 1.1px) / contain no-repeat,
+    var(--sello-25) center / contain no-repeat !important;
+  mask-composite: subtract !important;
 }
 
 .foil-sello__luz {
-  background: #fff;
-  mix-blend-mode: screen;
-  opacity: calc(0.1 + var(--card-active, 0) * 0.14);
-  -webkit-mask-position: calc(50% - 1px) calc(50% - 1px) !important;
-  mask-position: calc(50% - 1px) calc(50% - 1px) !important;
+  /* Y la luz en el borde contrario (arriba a la izquierda). */
+  background: #fffdf6;
+  opacity: calc(0.75 + var(--card-active, 0) * 0.2);
+  -webkit-mask: var(--sello-25) calc(50% - 1.1px) calc(50% - 1.1px) / contain no-repeat,
+    var(--sello-25) center / contain no-repeat !important;
+  -webkit-mask-composite: source-out !important;
+  mask: var(--sello-25) calc(50% - 1.1px) calc(50% - 1.1px) / contain no-repeat,
+    var(--sello-25) center / contain no-repeat !important;
+  mask-composite: subtract !important;
 }
 
 .foil-sello__brillo {

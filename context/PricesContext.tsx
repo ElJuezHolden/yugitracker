@@ -16,6 +16,8 @@ import {
   type MarketPrices,
   type PriceMetric,
   type PriceStats,
+  type Sobrante,
+  leftoverFor,
   PRICE_METRICS,
   statValue,
 } from '../services/prices';
@@ -93,7 +95,7 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // No poder recordarla no impide usarla.
     }
   }, []);
-  const [mercado, setMercado] = useState<MarketPrices>(() => ({ porCarta: new Map(), productos: new Map(), fecha: null }));
+  const [mercado, setMercado] = useState<MarketPrices>(() => ({ porCarta: new Map(), productos: new Map(), sobrantes: new Map(), fecha: null }));
 
   /*
    * Las ids de la colección, como texto ordenado: así el efecto solo se dispara
@@ -181,7 +183,8 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const cm = mercado.porCarta.get(card.apiId);
       const clave = impresion ? printingKey(impresion.code, impresion.rarity) : printingKey(card.setCode, card.rarity);
       const factor = conditionFactor(card.condition);
-      const cifras = cm?.[clave];
+      // Si la versión no está en YGOPRODeck (p. ej. TN23 de Utopia), su producto sobrante de Cardmarket.
+      const cifras = cm?.[clave] ?? leftoverFor(mercado.sobrantes.get(card.apiId), card.setCode, card.rarity)?.stats;
       const deCardmarket = cifras ? (statValue(cifras, metric) ?? statValue(cifras, 'referencia')) : undefined;
       const deMercado = deCardmarket ?? (impresion?.usd != null && rate ? impresion.usd * rate.usdToEur : null);
       if (deMercado == null) return null;
@@ -231,8 +234,10 @@ export interface CardmarketData {
   precios: Record<string, PriceStats>;
   /** Clave de impresión → número de producto en Cardmarket. */
   productos: Record<string, number>;
+  /** Productos sin versión en YGOPRODeck, para las versiones de Yugipedia. */
+  sobrantes: Sobrante[];
 }
-const SIN_DATOS: CardmarketData = { precios: {}, productos: {} };
+const SIN_DATOS: CardmarketData = { precios: {}, productos: {}, sobrantes: [] };
 
 /** Precios y productos de Cardmarket de cada versión de una carta (vacío mientras carga o si no hay). */
 export function useCardmarketPrices(cardId: number | undefined): CardmarketData {
@@ -241,7 +246,13 @@ export function useCardmarketPrices(cardId: number | undefined): CardmarketData 
     if (cardId == null) return;
     let vivo = true;
     loadMarketPrices([cardId]).then((m) => {
-      if (vivo) setDatos({ id: cardId, precios: m.porCarta.get(cardId) ?? {}, productos: m.productos.get(cardId) ?? {} });
+      if (vivo)
+        setDatos({
+          id: cardId,
+          precios: m.porCarta.get(cardId) ?? {},
+          productos: m.productos.get(cardId) ?? {},
+          sobrantes: m.sobrantes.get(cardId) ?? [],
+        });
     });
     return () => {
       vivo = false;
