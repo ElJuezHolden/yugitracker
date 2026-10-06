@@ -1,4 +1,5 @@
 import type { ApiCard, CardSet } from '../types';
+import { isPlaceholderRarity, sameRarity } from './versiones';
 
 /*
  * Precios de mercado de las cartas.
@@ -56,19 +57,33 @@ export interface PricePoint {
 export const printingKey = (code: string, rarity: string) => `${code}|${rarity}`;
 
 /**
- * YGOPRODeck pone la rareza provisional "New" a las cartas recién salidas hasta
- * que la corrige, y el proceso diario guarda su precio con esa clave (p. ej.
- * BLMM-EN038|New). Yugipedia ya da la rareza real (Ultra Rare): si la clave
- * exacta no tiene precio, se usa la provisional del mismo código.
+ * La clave con la que está guardado el precio de una versión. Normalmente es la
+ * exacta, pero YGOPRODeck a veces trae mal la rareza ("New" en las cartas
+ * recién salidas, una nota como "Reprint", "PLatinum Secret Rare"…) y el proceso
+ * diario guardaba el precio con esa (ahora la corrige con Yugipedia). Así que,
+ * si no está la exacta: la misma rareza escrita de otra forma; si no, la única
+ * rareza falsa de ese código (BLMM-EN038 Ultra Rare → BLMM-EN038|New, en datos
+ * antiguos); y al revés, una copia guardada con rareza falsa toma el único
+ * precio de su código (BLMM-EN038 New → |Ultra Rare). Ver services/versiones.ts.
  */
-const RAREZA_PROVISIONAL = 'New';
-export const isPlaceholderRarity = (rarity: string) => rarity.trim().toLowerCase() === 'new';
-
-export function resolvePrintingKey(tiene: (clave: string) => boolean, code: string, rarity: string): string {
+export function resolvePrintingKey(claves: Iterable<string>, code: string, rarity: string): string {
   const exacta = printingKey(code, rarity);
-  if (tiene(exacta)) return exacta;
-  const provisional = printingKey(code, RAREZA_PROVISIONAL);
-  return tiene(provisional) ? provisional : exacta;
+  const delCodigo: string[] = [];
+  const codigo = `${code}|`.toLowerCase();
+  for (const k of claves) {
+    if (k === exacta) return k;
+    if (k.toLowerCase().startsWith(codigo)) delCodigo.push(k);
+  }
+  const rarezaDe = (k: string) => k.slice(codigo.length);
+  const igual = delCodigo.find((k) => sameRarity(rarezaDe(k), rarity));
+  if (igual) return igual;
+  if (isPlaceholderRarity(rarity)) {
+    if (delCodigo.length === 1) return delCodigo[0]!;
+  } else {
+    const falsas = delCodigo.filter((k) => isPlaceholderRarity(rarezaDe(k)));
+    if (falsas.length === 1) return falsas[0]!;
+  }
+  return exacta;
 }
 
 export interface ExchangeRate {
@@ -335,7 +350,7 @@ export function versionPrice(
   sobrantes?: Sobrante[],
 ): { eur: number; deTcgplayer: boolean } | null {
   const stats =
-    cardmarket?.[resolvePrintingKey((k) => !!cardmarket?.[k], set.set_code, set.set_rarity)] ??
+    cardmarket?.[resolvePrintingKey(Object.keys(cardmarket ?? {}), set.set_code, set.set_rarity)] ??
     leftoverFor(sobrantes, set.set_code, set.set_rarity)?.stats;
   const cm = stats ? (statValue(stats, metric) ?? statValue(stats, 'referencia')) : null;
   if (cm != null) return { eur: cm, deTcgplayer: false };

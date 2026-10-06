@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { TrendingDown, TrendingUp, X } from 'lucide-react';
 import type { Card } from '../../types';
 import { useStore } from '../../context/StoreContext';
-import { findPrinting, loadCachedPrices, loadHistories, printingKey, resolvePrintingKey, type CardPrices, type PricePoint } from '../../services/prices';
+import { findPrinting, loadCachedPrices, loadHistories, resolvePrintingKey, type CardPrices, type PricePoint } from '../../services/prices';
 import { formatMoney, getRarityColor } from '../../utils';
 import { useCardName } from '../useCardName';
 
@@ -90,9 +90,10 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
       if (!card.setCode || card.setCode === '---') continue;
       const impresion = info ? findPrinting(info.printings, card.setCode, card.rarity, card.rarityCode) : null;
       const historial = historiales.get(card.apiId) ?? [];
-      const k = impresion
-        ? printingKey(impresion.code, impresion.rarity)
-        : resolvePrintingKey((x) => historial.some((p) => p.p[x] != null), card.setCode, card.rarity);
+      // Primero con la rareza de la copia; si no, con la de YGOPRODeck (que puede ser una falsa, como "New").
+      const claves = new Set(historial.flatMap((p) => Object.keys(p.p)));
+      const propia = resolvePrintingKey(claves, card.setCode, card.rarity);
+      const k = claves.has(propia) || !impresion ? propia : resolvePrintingKey(claves, impresion.code, impresion.rarity);
       const clave = `${card.apiId}|${k}`;
       const ya = porVersion.get(clave);
       if (ya) {

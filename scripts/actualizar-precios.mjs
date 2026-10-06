@@ -9,6 +9,7 @@
  *     (un precio por producto) y la lista de productos (nombre y expansión).
  *     No dice ni el código de set ni la rareza de cada producto.
  *   - YGOPRODeck da, para cada carta, sus versiones: set, código y rareza.
+ *   - Yugipedia corrige las rarezas que YGOPRODeck trae mal ("New"…).
  *
  * Para unirlos:
  *   1. Cada set de YGOPRODeck se empareja con la expansión de Cardmarket que
@@ -79,10 +80,110 @@ if (!Array.isArray(cartas) || cartas.length < 1000) throw new Error('YGOPRODeck:
 if (!Array.isArray(productos) || productos.length < 1000) throw new Error('Cardmarket: lista de productos incompleta');
 
 // ---------------------------------------------------------------------------
+// Corregir las rarezas mal puestas de YGOPRODeck
+// ---------------------------------------------------------------------------
+
+/*
+ * YGOPRODeck no siempre trae bien la rareza: a las cartas recién salidas les
+ * pone "New" hasta que la corrige, en otras copia una nota de la tabla de
+ * Yugipedia ("2", "Reprint", "New artwork", "force-SMW"…) y alguna la escribe
+ * distinto ("PLatinum Secret Rare"). Con esas el precio se guardaba con una
+ * rareza que la web no conoce (BLMM-EN038|New en vez de Ultra Rare), y si al
+ * código le faltaban varias rarezas los productos se repartían mal. Las rarezas
+ * buenas se piden a Yugipedia (unas 350 cartas, 50 por consulta). La misma
+ * regla está en la web, en services/versiones.ts.
+ */
+const AGENTE = 'YugiTracker/1.0 (coleccion personal; https://github.com/ElJuezHolden/yugitracker)';
+const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+const rarezaFalsa = (r) => !/rare|common|short print/i.test(r);
+const plana = (s) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+
+// Mismas rarezas escritas distinto: se usa la forma más repetida.
+const formas = new Map();
+for (const c of cartas) for (const s of c.card_sets ?? []) {
+  const k = plana(s.set_rarity);
+  if (!formas.has(k)) formas.set(k, new Map());
+  formas.get(k).set(s.set_rarity, (formas.get(k).get(s.set_rarity) ?? 0) + 1);
+}
+const formaBuena = new Map([...formas].map(([k, m]) => [k, [...m].sort((a, b) => b[1] - a[1])[0][0]]));
+for (const c of cartas) for (const s of c.card_sets ?? []) s.set_rarity = formaBuena.get(plana(s.set_rarity));
+
+async function impresionesYugipedia(nombres) {
+  const url = new URL('https://yugipedia.com/api.php');
+  const params = { action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', redirects: '1', titles: nombres.join('|') };
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
+  if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
+  const { query } = await res.json();
+  // Título de la página → nombre pedido (por si redirige).
+  const origen = new Map();
+  for (const r of [...(query.normalized ?? []), ...(query.redirects ?? [])]) origen.set(r.to, origen.get(r.from) ?? r.from);
+  const resultado = new Map();
+  for (const pg of query.pages ?? []) {
+    const texto = pg.revisions?.[0]?.content ?? '';
+    if (!texto.includes('CardTable2')) continue;
+    const impresiones = [];
+    for (const campo of texto.matchAll(/\|\s*(?:en|na|eu)_sets\s*=([\s\S]*?)(?=\n\s*\||\n\}\})/g)) {
+      for (const linea of campo[1].split('\n')) {
+        const [code, , rarezas] = linea.split(';').map((x) => x.trim());
+        if (!code || !rarezas) continue;
+        for (const rarity of rarezas.split(',').map((r) => r.trim()).filter(Boolean)) impresiones.push({ code, rarity });
+      }
+    }
+    resultado.set(origen.get(pg.title) ?? pg.title, impresiones);
+  }
+  return resultado;
+}
+
+const conRarezaFalsa = cartas.filter((c) => c.card_sets?.some((s) => rarezaFalsa(s.set_rarity)));
+let rarezasCorregidas = 0;
+/** id → (clave vieja → clave buena), para pasar el historial ya guardado a la rareza buena. */
+const renombrar = new Map();
+try {
+  for (let i = 0; i < conRarezaFalsa.length; i += 50) {
+    const lote = conRarezaFalsa.slice(i, i + 50);
+    const deYugipedia = await impresionesYugipedia(lote.map((c) => c.name));
+    for (const c of lote) {
+      const yp = deYugipedia.get(c.name);
+      if (!yp?.length) continue;
+      const nuevas = [];
+      for (const s of c.card_sets) {
+        if (!rarezaFalsa(s.set_rarity)) {
+          nuevas.push(s);
+          continue;
+        }
+        // Las rarezas de ese código según Yugipedia que YGOPRODeck no tiene.
+        const codigo = plana(s.set_code);
+        const delCodigo = yp.filter((p) => plana(p.code) === codigo);
+        if (delCodigo.length === 0) {
+          nuevas.push(s); // Yugipedia no la conoce: se queda como está.
+          continue;
+        }
+        const faltan = [...new Set(delCodigo.map((p) => formaBuena.get(plana(p.rarity)) ?? p.rarity))].filter(
+          (r) => !c.card_sets.some((x) => plana(x.set_code) === codigo && plana(x.set_rarity) === plana(r)) && !nuevas.some((x) => plana(x.set_code) === codigo && plana(x.set_rarity) === plana(r)),
+        );
+        // Si no falta ninguna, la de rareza falsa sobraba (era una de las que ya están).
+        for (const r of faltan) nuevas.push({ ...s, set_rarity: r });
+        if (faltan.length === 1) {
+          if (!renombrar.has(c.id)) renombrar.set(c.id, new Map());
+          renombrar.get(c.id).set(`${s.set_code}|${s.set_rarity}`, `${s.set_code}|${faltan[0]}`);
+        }
+        rarezasCorregidas++;
+      }
+      c.card_sets = nuevas;
+    }
+    await esperar(1000); // Educación con un wiki que mantienen voluntarios.
+  }
+} catch (e) {
+  // Sin Yugipedia se sigue con las rarezas tal cual (la web tiene su propio arreglo).
+  console.warn(`No se pudieron corregir las rarezas con Yugipedia: ${e.message}`);
+}
+
+// ---------------------------------------------------------------------------
 // Emparejar Cardmarket con YGOPRODeck
 // ---------------------------------------------------------------------------
 
-const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
+const norm =(s) => s.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
 const redondear = (x) => Math.round(x * 100) / 100;
 const esPrecio = (x) => typeof x === 'number' && x > 0;
 
@@ -245,6 +346,15 @@ for (let i = 0; i < TROZOS; i++) {
   // El formato 1 guardaba dólares de TCGplayer: no se mezcla con euros de Cardmarket.
   historiales.push(trozo?.v === VERSION_HISTORIAL ? trozo : { v: VERSION_HISTORIAL, actualizado: hoy, cartas: {} });
 }
+// El historial apuntado con una rareza falsa pasa a la buena (BLMM-EN038|New → |Ultra Rare).
+for (const [id, cambiosClave] of renombrar) {
+  const porClave = historiales[id % TROZOS].cartas[id];
+  if (!porClave) continue;
+  for (const [vieja, buena] of cambiosClave) {
+    if (porClave[vieja] && !porClave[buena]) porClave[buena] = porClave[vieja];
+    delete porClave[vieja];
+  }
+}
 
 const cambiaDeVerdad = (antes, ahora) => Math.abs(ahora - antes) >= Math.max(0.02, antes * 0.02);
 let cambios = 0;
@@ -292,5 +402,5 @@ for (let i = 0; i < TROZOS; i++) {
 }
 
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia.`,
 );

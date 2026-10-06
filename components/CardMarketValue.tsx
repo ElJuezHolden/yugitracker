@@ -84,7 +84,8 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
   // Serie de la versión elegida dentro del rango.
   const serie = useMemo(() => {
     if (!actual) return [];
-    const clave = resolvePrintingKey((k) => !!cardmarket[k] || historial.some((pt) => pt.p[k] != null), actual.code, actual.rarity);
+    const claves = new Set([...Object.keys(cardmarket), ...historial.flatMap((pt) => Object.keys(pt.p))]);
+    const clave = resolvePrintingKey(claves, actual.code, actual.rarity);
     const dias = RANGOS.find((r) => r.id === rango)!.dias;
     const puntos = historial
       .map((pt) => ({ t: new Date(`${pt.d}T12:00:00`).getTime(), eur: pt.p[clave] }))
@@ -99,7 +100,7 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
   const precio = actual?.eur ?? null;
   // Todas las cifras de Cardmarket de la versión elegida, como en su web.
   const cifras = actual
-    ? (cardmarket[resolvePrintingKey((k) => !!cardmarket[k], actual.code, actual.rarity)] ?? leftoverFor(sobrantes, actual.code, actual.rarity)?.stats)
+    ? (cardmarket[resolvePrintingKey(Object.keys(cardmarket), actual.code, actual.rarity)] ?? leftoverFor(sobrantes, actual.code, actual.rarity)?.stats)
     : undefined;
   const ORDEN_TABLA = ['low', 'trend', 'avg30', 'avg7', 'avg1', 'referencia'] as const;
   // Lo que vale TU copia: el precio de la versión ajustado por su estado (estimación).

@@ -8,7 +8,8 @@ import { CardMarketValue } from '../CardMarketValue';
 import { IDIOMAS, LanguageFlag } from '../LanguageFlag';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
-import { isPlaceholderRarity, leftoverFor, resolvePrintingKey, versionPrice } from '../../services/prices';
+import { leftoverFor, resolvePrintingKey, versionPrice } from '../../services/prices';
+import { claveVersion, cruzarVersiones, sameRarity } from '../../services/versiones';
 import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search } from 'lucide-react';
 
 interface Props {
@@ -67,6 +68,11 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
    * ciertas latas): las añade el usuario a mano o vienen de la copia guardada.
    */
   const [versionesExtra, setVersionesExtra] = useState<CardSet[]>([]);
+  /**
+   * Versiones de YGOPRODeck con una rareza falsa ("New", "Reprint"…) que sobran
+   * porque Yugipedia da la buena: clave → la versión que la sustituye.
+   */
+  const [sustituidas, setSustituidas] = useState<Map<string, CardSet>>(() => new Map());
   const [nuevaVersion, setNuevaVersion] = useState<{ abierta: boolean; codigo: string; rareza: string; set: string }>({
     abierta: false,
     codigo: '',
@@ -99,6 +105,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
       setAvisoRepetidaEn(null);
       setFiltroVersion('');
       setVersionesExtra([]);
+      setSustituidas(new Map());
       setNuevaVersion(v => ({ ...v, abierta: false, codigo: '' }));
       setIsSubmitting(false);
 
@@ -123,9 +130,13 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         if (details) {
             data = details;
              // Match set
+            // Primero por la rareza: por el código de rareza, una copia sin él (las de
+            // Yugipedia) encajaba con cualquier versión que tampoco lo tuviera ("New").
             const foundSet =
-              details.card_sets?.find(s => s.set_code === existingCard.setCode && s.set_rarity_code === existingCard.rarityCode) ??
-              details.card_sets?.find(s => s.set_code === existingCard.setCode && s.set_rarity === existingCard.rarity);
+              details.card_sets?.find(s => s.set_code === existingCard.setCode && sameRarity(s.set_rarity, existingCard.rarity)) ??
+              (existingCard.rarityCode
+                ? details.card_sets?.find(s => s.set_code === existingCard.setCode && s.set_rarity_code === existingCard.rarityCode)
+                : undefined);
             // Una versión añadida a mano no está en la API: se reconstruye para no perderla al editar.
             const aMano: CardSet | null =
               !foundSet && existingCard.setCode && existingCard.setCode !== '---'
@@ -350,22 +361,22 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   useEffect(() => {
     if (!apiData?.name) return;
     let vivo = true;
-    const clave = (code: string, rarity: string) => `${code}|${rarity}`.toLowerCase();
     getYugipediaPrintings(apiData.name).then(lista => {
       if (!vivo || lista.length === 0) return;
-      const ya = new Set((apiData.card_sets ?? []).map(s => clave(s.set_code, s.set_rarity)));
-      const nuevas: CardSet[] = lista
-        .filter(p => !ya.has(clave(p.code, p.rarity)))
-        .map(p => ({ set_name: p.set, set_code: p.code, set_rarity: p.rarity, set_rarity_code: '', set_price: '0', origen: 'yugipedia' }));
-      if (nuevas.length === 0) return;
+      const cruce = cruzarVersiones(apiData.card_sets ?? [], lista);
+      setSustituidas(cruce.sustituidas);
+      if (cruce.nuevas.length === 0) return;
+      const claveDe = (v: CardSet) => claveVersion(v.set_code, v.set_rarity);
+      const deYugipedia = new Map(cruce.nuevas.map(n => [claveDe(n), n]));
+      // La copia guardada que se reconstruyó "a mano" pasa a ser la de Yugipedia si coincide.
+      const mejor = (v: CardSet) => (v.origen === 'mano' && deYugipedia.get(claveDe(v))) || v;
       setVersionesExtra(prev => {
-        const tiene = new Set(prev.map(v => clave(v.set_code, v.set_rarity)));
-        return [...prev, ...nuevas.filter(n => !tiene.has(clave(n.set_code, n.set_rarity)))];
+        const previas = prev.map(mejor);
+        const tiene = new Set(previas.map(claveDe));
+        return [...previas, ...cruce.nuevas.filter(n => !tiene.has(claveDe(n)))];
       });
-      // Si estaba elegida la provisional ("New"), se pasa a la real del mismo código.
-      setSelectedSet(prev =>
-        prev && isPlaceholderRarity(prev.set_rarity) ? (nuevas.find(n => n.set_code === prev.set_code) ?? prev) : prev,
-      );
+      // Si estaba elegida una rareza falsa, se pasa a la buena.
+      setSelectedSet(prev => (prev && (cruce.sustituidas.get(claveDe(prev)) ?? mejor(prev))) || prev);
     });
     return () => {
       vivo = false;
@@ -373,12 +384,11 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   }, [apiData]);
 
   // Todas las versiones: las de la API, las de Yugipedia y las añadidas a mano.
-  // La provisional "New" de YGOPRODeck sobra si Yugipedia da la rareza real del mismo código.
+  // Las de rareza falsa de YGOPRODeck sobran si Yugipedia da la buena.
   const todasVersiones = useMemo(() => {
-    const conRareza = new Set(versionesExtra.filter(v => v.origen === 'yugipedia').map(v => v.set_code));
-    const api = (apiData?.card_sets ?? []).filter(s => !(isPlaceholderRarity(s.set_rarity) && conRareza.has(s.set_code)));
+    const api = (apiData?.card_sets ?? []).filter(s => !sustituidas.has(claveVersion(s.set_code, s.set_rarity)));
     return [...api, ...versionesExtra];
-  }, [apiData, versionesExtra]);
+  }, [apiData, versionesExtra, sustituidas]);
 
   // Versiones que casan con el filtro (la elegida no se esconde nunca).
   const versionesVisibles = useMemo(() => {
@@ -414,7 +424,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   // Producto de Cardmarket de la versión elegida, para enlazar directamente a su página.
   const idProductoElegido = selectedSet
     ? preciosCardmarket.productos[
-        resolvePrintingKey(k => preciosCardmarket.productos[k] != null, selectedSet.set_code, selectedSet.set_rarity)
+        resolvePrintingKey(Object.keys(preciosCardmarket.productos), selectedSet.set_code, selectedSet.set_rarity)
       ] ??
       leftoverFor(preciosCardmarket.sobrantes, selectedSet.set_code, selectedSet.set_rarity)?.idProduct ??
       null
