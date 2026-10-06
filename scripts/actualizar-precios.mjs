@@ -26,7 +26,8 @@
  * de 30 días.
  *
  * Archivos (las cartas se reparten en 100 por `id % 100`):
- *   actual-NN.json  { v: 2, actualizado: <día>, cartas: { <id>: { "<set>|<rareza>": euros } } }
+ *   actual-NN.json  { v: 2, actualizado: <día>, cartas: { <id>: { "<set>|<rareza>": euros } },
+ *                     productos: { <id>: { "<set>|<rareza>": idProduct de Cardmarket } } }
  *   NN.json         { v: 2, actualizado: <día>, cartas: { <id>: { "<set>|<rareza>": [[<día>, euros], ...] } } }
  * Los días son días desde 1970 (UTC). En el historial solo se apunta un precio
  * cuando cambia de verdad (un 2 % o 2 céntimos); pasado un mes queda uno por
@@ -141,6 +142,8 @@ const rango = (r) => {
 
 /** id → (clave → euros) */
 const deHoy = new Map();
+/** id → (clave → número de producto de Cardmarket), para enlazar a su página. */
+const productoDe = new Map();
 let versiones = 0;
 let conPrecio = 0;
 let setsSinPareja = 0;
@@ -151,19 +154,22 @@ for (const [nombreSet, cartasSet] of setsCartas) {
     versiones += impresiones.length;
     if (exp == null) continue;
     const productosCarta = (expansiones.get(exp).get(n) ?? [])
-      .map((p) => precioProducto.get(p.idProduct))
-      .filter((eur) => eur != null)
-      .sort((a, b) => a - b);
+      .map((p) => ({ eur: precioProducto.get(p.idProduct), idProduct: p.idProduct }))
+      .filter((x) => x.eur != null)
+      .sort((a, b) => a.eur - b.eur);
     const rarezas = [...new Set(impresiones.map((i) => i.rarity))].sort((a, b) => rango(a) - rango(b));
     const porRareza = new Map();
     if (productosCarta.length && productosCarta.length === rarezas.length) rarezas.forEach((r, i) => porRareza.set(r, productosCarta[i]));
     else if (productosCarta.length && rarezas.length === 1) porRareza.set(rarezas[0], productosCarta[0]);
     for (const imp of impresiones) {
-      const eur = porRareza.get(imp.rarity);
-      if (eur == null) continue;
+      const producto = porRareza.get(imp.rarity);
+      if (producto == null) continue;
       conPrecio++;
+      const clave = `${imp.code}|${imp.rarity}`;
       if (!deHoy.has(imp.id)) deHoy.set(imp.id, {});
-      deHoy.get(imp.id)[`${imp.code}|${imp.rarity}`] = eur;
+      deHoy.get(imp.id)[clave] = producto.eur;
+      if (!productoDe.has(imp.id)) productoDe.set(imp.id, {});
+      productoDe.get(imp.id)[clave] = producto.idProduct;
     }
   }
 }
@@ -219,8 +225,12 @@ for (let i = 0; i < TROZOS; i++) {
   for (const porClave of Object.values(historial.cartas)) {
     for (const clave of Object.keys(porClave)) porClave[clave] = aclarar(porClave[clave]);
   }
-  const actual = { v: VERSION, actualizado: hoy, cartas: {} };
-  for (const [id, precios] of deHoy) if (id % TROZOS === i) actual.cartas[id] = precios;
+  const actual = { v: VERSION, actualizado: hoy, cartas: {}, productos: {} };
+  for (const [id, precios] of deHoy) {
+    if (id % TROZOS !== i) continue;
+    actual.cartas[id] = precios;
+    actual.productos[id] = productoDe.get(id);
+  }
   await writeFile(join(CARPETA, `${i}.json`), JSON.stringify(historial));
   await writeFile(join(CARPETA, `actual-${i}.json`), JSON.stringify(actual));
 }

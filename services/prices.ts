@@ -175,6 +175,8 @@ interface TrozoActual {
   actualizado: number;
   /** id → clave de impresión → euros */
   cartas: Record<string, Record<string, number>>;
+  /** id → clave de impresión → número de producto en Cardmarket (para enlazar a su página). */
+  productos?: Record<string, Record<string, number>>;
 }
 interface TrozoHistorial {
   v: number;
@@ -241,6 +243,8 @@ const trozosDe = (ids: number[]) => [...new Set(ids.map((id) => id % TROZOS))];
 export interface MarketPrices {
   /** id → clave de impresión → euros */
   porCarta: Map<number, Record<string, number>>;
+  /** id → clave de impresión → número de producto en Cardmarket */
+  productos: Map<number, Record<string, number>>;
   /** Día de los precios (ms), o `null` si no hay datos de Cardmarket. */
   fecha: number | null;
 }
@@ -249,13 +253,15 @@ export interface MarketPrices {
 export async function loadMarketPrices(ids: number[]): Promise<MarketPrices> {
   const trozos = await Promise.all(trozosDe(ids).map((n) => pedir<TrozoActual>(`actual-${n}.json`)));
   const porCarta = new Map<number, Record<string, number>>();
+  const productos = new Map<number, Record<string, number>>();
   let fecha: number | null = null;
   for (const t of trozos) {
     if (!t) continue;
     fecha = fecha == null ? t.actualizado * DIA_MS : Math.min(fecha, t.actualizado * DIA_MS);
     for (const [id, precios] of Object.entries(t.cartas)) porCarta.set(Number(id), precios);
+    for (const [id, ids] of Object.entries(t.productos ?? {})) productos.set(Number(id), ids);
   }
-  return { porCarta, fecha };
+  return { porCarta, productos, fecha };
 }
 
 const diaTexto = (dia: number) => new Date(dia * DIA_MS).toISOString().slice(0, 10);

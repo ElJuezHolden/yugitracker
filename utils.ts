@@ -283,8 +283,14 @@ export const analyzeCardType = (rawType: string, rawRace: string): {
     };
 };
 
+/** Filtros de Cardmarket: vendedores de Europa y cartas en español. */
+const CARDMARKET_FILTROS = 'sellerCountry=1,2,3,33,35,5,6,8,9,11,12,7,14,15,37,16,17,36,21,18,19,20,22,23,24,25,26,27,29,31,30,10,28,4,13&language=4';
+
+/** Página de un producto concreto de Cardmarket (una versión: set y rareza). */
+export const getCardMarketProductLink = (idProduct: number): string =>
+  `https://www.cardmarket.com/es/YuGiOh/Products?idProduct=${idProduct}&${CARDMARKET_FILTROS}`;
+
 export const getCardMarketLink = (name: string): string => {
   const clean = name.replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "-");
-  const params = "?sellerCountry=1,2,3,33,35,5,6,8,9,11,12,7,14,15,37,16,17,36,21,18,19,20,22,23,24,25,26,27,29,31,30,10,28,4,13&language=4";
-  return `https://www.cardmarket.com/es/YuGiOh/Cards/${clean}${params}`;
+  return `https://www.cardmarket.com/es/YuGiOh/Cards/${clean}?${CARDMARKET_FILTROS}`;
 };

@@ -67,7 +67,7 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forzar, setForzar] = useState(0);
-  const [mercado, setMercado] = useState<MarketPrices>(() => ({ porCarta: new Map(), fecha: null }));
+  const [mercado, setMercado] = useState<MarketPrices>(() => ({ porCarta: new Map(), productos: new Map(), fecha: null }));
 
   /*
    * Las ids de la colección, como texto ordenado: así el efecto solo se dispara
@@ -199,20 +199,28 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   return <PricesContext.Provider value={value}>{children}</PricesContext.Provider>;
 };
 
-/** Precios de Cardmarket de cada versión de una carta (vacío mientras carga o si no hay). */
-export function useCardmarketPrices(cardId: number | undefined): Record<string, number> {
-  const [precios, setPrecios] = useState<{ id: number; porVersion: Record<string, number> } | null>(null);
+export interface CardmarketData {
+  /** Clave de impresión → euros. */
+  precios: Record<string, number>;
+  /** Clave de impresión → número de producto en Cardmarket. */
+  productos: Record<string, number>;
+}
+const SIN_DATOS: CardmarketData = { precios: {}, productos: {} };
+
+/** Precios y productos de Cardmarket de cada versión de una carta (vacío mientras carga o si no hay). */
+export function useCardmarketPrices(cardId: number | undefined): CardmarketData {
+  const [datos, setDatos] = useState<{ id: number } & CardmarketData>();
   useEffect(() => {
     if (cardId == null) return;
     let vivo = true;
     loadMarketPrices([cardId]).then((m) => {
-      if (vivo) setPrecios({ id: cardId, porVersion: m.porCarta.get(cardId) ?? {} });
+      if (vivo) setDatos({ id: cardId, precios: m.porCarta.get(cardId) ?? {}, productos: m.productos.get(cardId) ?? {} });
     });
     return () => {
       vivo = false;
     };
   }, [cardId]);
-  return precios && precios.id === cardId ? precios.porVersion : {};
+  return datos && datos.id === cardId ? datos : SIN_DATOS;
 }
 
 export const usePrices = () => {

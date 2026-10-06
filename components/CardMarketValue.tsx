@@ -55,7 +55,7 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
     };
   }, [cardId]);
 
-  const cardmarket = useCardmarketPrices(cardId);
+  const cardmarket = useCardmarketPrices(cardId).precios;
   const versiones = useMemo(() => {
     const lista = printingsFromApi(sets).map((p, i) => {
       const precio = versionPrice(cardmarket, sets![i]!, rate);

@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../context/StoreContext';
 import type { ApiCard, Card, CardSet, CardCondition } from '../../types';
-import { formatMoney, normalizeStr, generateId, getCardMarketLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
+import { formatMoney, normalizeStr, generateId, getCardMarketLink, getCardMarketProductLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
 import { getCardDetails } from '../../services/cardService';
 import { CardMarketValue } from '../CardMarketValue';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
-import { versionPrice } from '../../services/prices';
+import { printingKey, versionPrice } from '../../services/prices';
 import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search } from 'lucide-react';
 
 interface Props {
@@ -303,6 +303,11 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
     return sets.filter(s => s === selectedSet || normalizeStr(`${s.set_code} ${s.set_name} ${s.set_rarity}`).includes(q));
   }, [apiData, filtroVersion, selectedSet]);
 
+  // Producto de Cardmarket de la versión elegida, para enlazar directamente a su página.
+  const idProductoElegido = selectedSet
+    ? preciosCardmarket.productos[printingKey(selectedSet.set_code, selectedSet.set_rarity)] ?? null
+    : null;
+
   // Extract Misc Info for Beta/Dates
   const misc = apiData?.misc_info?.[0];
   const isBeta = misc?.beta_id != null;
@@ -332,14 +337,30 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                         <Database size={10} /> ID: {misc.konami_id}
                     </span>
                 )}
-                <a 
-                    href={apiData ? getCardMarketLink(apiData.name) : '#'} 
-                    target="_blank" 
-                    rel="noreferrer"
-                    className="flex items-center gap-1 text-xs bg-[#00b4e2] hover:bg-[#009ac0] text-white px-3 py-1.5 rounded font-bold transition-colors"
-                >
-                    Cardmarket <ExternalLink size={12} />
-                </a>
+                {/* Cardmarket: todas las versiones de la carta, o solo la elegida */}
+                <div className="flex items-stretch rounded overflow-hidden text-xs font-bold text-white bg-[#00b4e2]">
+                    <span className="px-2.5 py-1.5 bg-[#0098c0] hidden sm:flex items-center">Cardmarket</span>
+                    <a
+                        href={apiData ? getCardMarketLink(apiData.name) : '#'}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-1 px-2.5 py-1.5 hover:bg-[#009ac0] transition-colors"
+                        title="Todas las versiones de la carta en Cardmarket"
+                    >
+                        Todas <ExternalLink size={11} />
+                    </a>
+                    {idProductoElegido != null && (
+                        <a
+                            href={getCardMarketProductLink(idProductoElegido)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1 px-2.5 py-1.5 border-l border-white/25 hover:bg-[#009ac0] transition-colors"
+                            title={`Solo ${selectedSet?.set_code} · ${selectedSet?.set_rarity} en Cardmarket`}
+                        >
+                            Esta versión <ExternalLink size={11} />
+                        </a>
+                    )}
+                </div>
             </div>
         </div>
 
@@ -486,7 +507,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                         {set.set_rarity}
                                                     </div>
                                                     <div className="text-[10px] text-muted font-semibold mt-0.5">
-                                                        {(() => { const v = versionPrice(preciosCardmarket, set, rate); return v ? `≈ ${formatMoney(v.eur)}${v.deTcgplayer ? '*' : ''}` : '—'; })()}
+                                                        {(() => { const v = versionPrice(preciosCardmarket.precios, set, rate); return v ? `≈ ${formatMoney(v.eur)}${v.deTcgplayer ? '*' : ''}` : '—'; })()}
                                                     </div>
                                                 </div>
                                             )) : (
