@@ -225,13 +225,24 @@ interface TrozoHistorial {
 
 const pedidos = new Map<string, Promise<unknown>>();
 
+/*
+ * GitHub Pages deja que el navegador guarde los archivos 10 minutos. Tras un
+ * cambio de formato, el navegador seguía usando el archivo viejo, la web lo
+ * descartaba y todas las cartas salían "sin precio". Por eso se pide con
+ * `no-cache` (se pregunta al servidor si ha cambiado; si no, no se descarga
+ * otra vez) y un fallo no se recuerda: se reintenta en la siguiente petición.
+ */
 function pedir<T extends { v: number }>(archivo: string, formato: number): Promise<T | null> {
   let p = pedidos.get(archivo) as Promise<T | null> | undefined;
   if (!p) {
-    p = fetch(`${import.meta.env.BASE_URL}precios/${archivo}`)
+    const peticion = fetch(`${import.meta.env.BASE_URL}precios/${archivo}`, { cache: 'no-cache' })
       .then((r) => (r.ok ? (r.json() as Promise<T>) : null))
       .then((t) => (t?.v === formato ? t : null))
       .catch(() => null);
+    peticion.then((t) => {
+      if (t == null) pedidos.delete(archivo);
+    });
+    p = peticion;
     pedidos.set(archivo, p);
   }
   return p;
