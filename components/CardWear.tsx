@@ -55,7 +55,7 @@ function texturaRuido(): string {
     for (let i = 0; i < lado * lado; i++) {
       const v = rnd();
       // Pocas motas, de opacidad variable: el blanqueado real es irregular.
-      const alfa = v > 0.62 ? Math.round(((v - 0.62) / 0.38) * 255) : 0;
+      const alfa = v > 0.45 ? Math.round(Math.min(1, ((v - 0.45) / 0.4)) * 255) : 0;
       img.data[i * 4] = 255;
       img.data[i * 4 + 1] = 252;
       img.data[i * 4 + 2] = 245;
@@ -92,8 +92,8 @@ export default function CardWear({ condition, seed }: Props) {
         y1: y,
         x2: x + Math.cos(angulo) * largo,
         y2: y + Math.sin(angulo) * largo,
-        ancho: 0.5 + rnd() * 0.8,
-        opacidad: 0.12 + rnd() * (0.08 + nivel * 0.05),
+        ancho: 0.8 + rnd() * (0.6 + nivel * 0.2),
+        opacidad: 0.3 + rnd() * (0.15 + nivel * 0.07),
       };
     });
     // Pliegues: de un canto a otro, con una leve curva.
@@ -106,18 +106,30 @@ export default function CardWear({ condition, seed }: Props) {
         ? `M0 ${a} Q 210 ${(a + b) / 2 + curva} 421 ${b}`
         : `M${a} 0 Q ${(a + b) / 2 + curva} 307 ${b} 614`;
     });
+    // Rozaduras (desde LP): manchas alargadas y mates.
+    const rozaduras =
+      nivel >= 3
+        ? Array.from({ length: nivel - 1 }, () => ({ x: 15 + rnd() * 70, y: 15 + rnd() * 70, w: 10 + rnd() * 20, h: 4 + rnd() * 8 }))
+        : [];
     // Manchas (solo Poor).
     const manchas =
       nivel >= 5
         ? Array.from({ length: 4 }, () => ({ x: rnd() * 100, y: rnd() * 100, r: 8 + rnd() * 18 }))
         : [];
-    return { aranazos, pliegues, manchas };
+    return { aranazos, pliegues, manchas, rozaduras };
   }, [nivel, seed, condition]);
 
   if (!nivel || !marcas) return null;
 
   const estilo = {
     '--ruido': texturaRuido(),
+    ...(marcas.rozaduras.length
+      ? {
+          '--rozaduras': marcas.rozaduras
+            .map((r) => `radial-gradient(${r.w}% ${r.h}% at ${r.x}% ${r.y}%, rgba(255, 255, 255, ${0.1 + nivel * 0.04}), transparent)`)
+            .join(', '),
+        }
+      : {}),
     ...(marcas.manchas.length
       ? {
           '--manchas': marcas.manchas
@@ -130,10 +142,27 @@ export default function CardWear({ condition, seed }: Props) {
   return (
     <div className={`desgaste desgaste--${nivel}`} style={estilo} aria-hidden="true">
       <div className="desgaste__canto" />
+      <div className="desgaste__filo" />
+      {nivel >= 3 && <div className="desgaste__rozaduras" />}
       <div className="desgaste__esquinas" />
       {nivel >= 4 && <div className="desgaste__apagado" />}
       {nivel >= 5 && <div className="desgaste__sucio" />}
       <svg className="desgaste__marcas" viewBox="0 0 421 614" preserveAspectRatio="none">
+        {/* La sombra de los arañazos (desde LP): el surco se ve oscuro por un lado. */}
+        {nivel >= 3 &&
+          marcas.aranazos.map((r, i) => (
+            <line
+              key={`s${i}`}
+              x1={r.x1 + 0.8}
+              y1={r.y1 + 0.8}
+              x2={r.x2 + 0.8}
+              y2={r.y2 + 0.8}
+              stroke="#000"
+              strokeWidth={r.ancho}
+              strokeOpacity={r.opacidad * 0.5}
+              strokeLinecap="round"
+            />
+          ))}
         {marcas.aranazos.map((r, i) => (
           <line
             key={i}
@@ -150,8 +179,8 @@ export default function CardWear({ condition, seed }: Props) {
         {marcas.pliegues.map((d, i) => (
           <g key={i}>
             {/* Un pliegue es una arista: un lado coge luz y el otro sombra. */}
-            <path d={d} fill="none" stroke="#000" strokeWidth={2.2} strokeOpacity={0.28} transform="translate(1.2 1.2)" />
-            <path d={d} fill="none" stroke="#fff" strokeWidth={1.4} strokeOpacity={0.5} />
+            <path d={d} fill="none" stroke="#000" strokeWidth={3.5} strokeOpacity={0.4} transform="translate(1.6 1.6)" />
+            <path d={d} fill="none" stroke="#fff" strokeWidth={2.4} strokeOpacity={0.75} />
           </g>
         ))}
       </svg>

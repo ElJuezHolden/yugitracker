@@ -16,11 +16,26 @@
   --motas: 0.45;
   --esquina: 7%;
 }
-.desgaste--1 { --canto: 1.4%; --motas: 0.45; --esquina: 6%; }
-.desgaste--2 { --canto: 2.2%; --motas: 0.6;  --esquina: 9%; }
-.desgaste--3 { --canto: 3%;   --motas: 0.75; --esquina: 12%; }
-.desgaste--4 { --canto: 4%;   --motas: 0.85; --esquina: 15%; }
-.desgaste--5 { --canto: 5.5%; --motas: 1;    --esquina: 19%; }
+/* --filo: el borde mismo, donde la tinta se pela y asoma el cartón blanco. */
+.desgaste--1 { --canto: 2.2%; --motas: 0.75; --esquina: 10%; --filo: 1.5px; --filo-a: 0.55; }
+.desgaste--2 { --canto: 3.2%; --motas: 0.9;  --esquina: 14%; --filo: 2px;   --filo-a: 0.7; }
+.desgaste--3 { --canto: 4.5%; --motas: 1;    --esquina: 19%; --filo: 3px;   --filo-a: 0.85; }
+.desgaste--4 { --canto: 6%;   --motas: 1;    --esquina: 24%; --filo: 4px;   --filo-a: 0.92; }
+.desgaste--5 { --canto: 8%;   --motas: 1;    --esquina: 30%; --filo: 5px;   --filo-a: 1; }
+
+/* El filo: una línea blanca en el mismo borde, desconchada por el ruido. */
+.desgaste__filo {
+  box-shadow: inset 0 0 0 var(--filo) rgba(255, 251, 242, var(--filo-a));
+  border-radius: inherit;
+  -webkit-mask: var(--ruido) 0 0 / 40px 40px;
+  mask: var(--ruido) 0 0 / 40px 40px;
+}
+
+/* Rozaduras: zonas mates donde se ha ido el brillo (desde LP). */
+.desgaste__rozaduras {
+  background: var(--rozaduras, none);
+  mix-blend-mode: screen;
+}
 
 .desgaste > div,
 .desgaste__marcas {
@@ -47,7 +62,7 @@
     radial-gradient(circle at 100% 0, rgba(255, 252, 245, 0.95), transparent var(--esquina)),
     radial-gradient(circle at 0 100%, rgba(255, 252, 245, 0.95), transparent var(--esquina)),
     radial-gradient(circle at 100% 100%, rgba(255, 252, 245, 0.95), transparent var(--esquina));
-  opacity: calc(var(--motas) * 0.85);
+  opacity: var(--motas);
   -webkit-mask: var(--ruido) 0 0 / 60px 60px;
   mask: var(--ruido) 0 0 / 60px 60px;
 }
@@ -56,10 +71,10 @@
 .desgaste__apagado {
   background: #8a8a8a;
   mix-blend-mode: saturation;
-  opacity: 0.3;
+  opacity: 0.45;
 }
 .desgaste--5 .desgaste__apagado {
-  opacity: 0.5;
+  opacity: 0.7;
 }
 .desgaste__apagado::after {
   content: '';
@@ -70,9 +85,9 @@
 
 /* Poor: manchas de suciedad. */
 .desgaste__sucio {
-  background: var(--manchas, none);
+  background: var(--manchas, none), rgba(205, 175, 105, 0.22);
   mix-blend-mode: multiply;
-  opacity: 0.35;
+  opacity: 0.6;
 }
 
 .desgaste__marcas {
