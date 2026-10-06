@@ -56,6 +56,17 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   const [manualRarity, setManualRarity] = useState<string>(''); // For Manual Override
   /** Filtro del selector de versión: hay cartas con más de 70. */
   const [filtroVersion, setFiltroVersion] = useState('');
+  /**
+   * Versiones que no están en la base de datos (le faltan algunas, p. ej. las de
+   * ciertas latas): las añade el usuario a mano o vienen de la copia guardada.
+   */
+  const [versionesExtra, setVersionesExtra] = useState<CardSet[]>([]);
+  const [nuevaVersion, setNuevaVersion] = useState<{ abierta: boolean; codigo: string; rareza: string; set: string }>({
+    abierta: false,
+    codigo: '',
+    rareza: 'Ultra Rare',
+    set: '',
+  });
   const { rate, metric } = usePrices();
 
   const [formData, setFormData] = useState({
@@ -80,6 +91,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
       setLoading(true);
       setShowDeleteConfirm(false);
       setFiltroVersion('');
+      setVersionesExtra([]);
+      setNuevaVersion(v => ({ ...v, abierta: false, codigo: '' }));
       setIsSubmitting(false);
 
       let data = initialApiCard;
@@ -103,8 +116,16 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         if (details) {
             data = details;
              // Match set
-            const foundSet = details.card_sets?.find(s => s.set_code === existingCard.setCode && s.set_rarity_code === existingCard.rarityCode);
-            setSelectedSet(foundSet || null);
+            const foundSet =
+              details.card_sets?.find(s => s.set_code === existingCard.setCode && s.set_rarity_code === existingCard.rarityCode) ??
+              details.card_sets?.find(s => s.set_code === existingCard.setCode && s.set_rarity === existingCard.rarity);
+            // Una versión añadida a mano no está en la API: se reconstruye para no perderla al editar.
+            const aMano: CardSet | null =
+              !foundSet && existingCard.setCode && existingCard.setCode !== '---'
+                ? { set_name: 'Añadida a mano', set_code: existingCard.setCode, set_rarity: existingCard.rarity, set_rarity_code: existingCard.rarityCode || '', set_price: '0' }
+                : null;
+            setVersionesExtra(aMano ? [aMano] : []);
+            setSelectedSet(foundSet || aMano);
             
             // Check if existing card has a rarity that matches the override list but might not be in the default set info
             // If the saved rarity is different from the set's default, populate manualRarity
@@ -139,12 +160,13 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
       } else if (initialApiCard) {
           // OPTIMIZATION: If search results already provided misc_info, do NOT re-fetch.
           // This fixes the "double check" lag when selecting a card.
-          if (initialApiCard.misc_info && initialApiCard.misc_info.length > 0) {
+          // Pero si llega con un solo arte, se vuelve a pedir por nombre: buscando por
+          // id (por número o por nombre en español) la API solo da el arte de ese id.
+          if (initialApiCard.misc_info && initialApiCard.misc_info.length > 0 && initialApiCard.card_images.length > 1) {
               data = initialApiCard;
           } else {
-              // Only fallback to fetch if the initial data is incomplete (should be rare with updated search service)
               const fullDetails = await getCardDetails(initialApiCard.name);
-              data = fullDetails || initialApiCard;
+              data = fullDetails ? { ...fullDetails, name_es: initialApiCard.name_es } : initialApiCard;
           }
 
           const defaultFolder = (state.ui.activeFolderId && state.ui.activeFolderId !== ID_ALL) 
@@ -298,13 +320,38 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   const isValidSelection = formData.moveToFolder && formData.moveToFolder !== ID_ALL && state.db.folders.some(f => f.id === formData.moveToFolder);
   const selectValue = isValidSelection ? formData.moveToFolder : '';
   
+  // Todas las versiones: las de la API y las añadidas a mano.
+  const todasVersiones = useMemo(() => [...(apiData?.card_sets ?? []), ...versionesExtra], [apiData, versionesExtra]);
+
   // Versiones que casan con el filtro (la elegida no se esconde nunca).
   const versionesVisibles = useMemo(() => {
-    const sets = apiData?.card_sets ?? [];
     const q = normalizeStr(filtroVersion.trim());
-    if (!q) return sets;
-    return sets.filter(s => s === selectedSet || normalizeStr(`${s.set_code} ${s.set_name} ${s.set_rarity}`).includes(q));
-  }, [apiData, filtroVersion, selectedSet]);
+    if (!q) return todasVersiones;
+    // El código impreso en una carta en español lleva SP (o S en las antiguas: LOB-S005);
+    // la base de datos guarda el inglés (EN). Se busca por los dos.
+    const qIngles = q.replace(/-(?:sp|s|fr|f|de|g|it|i|pt|p)(?=\d)/g, '-en');
+    return todasVersiones.filter(s => {
+      if (s === selectedSet) return true;
+      const texto = normalizeStr(`${s.set_code} ${s.set_name} ${s.set_rarity}`);
+      return texto.includes(q) || texto.includes(qIngles) || texto.includes(qIngles.replace('-en', '-'));
+    });
+  }, [todasVersiones, filtroVersion, selectedSet]);
+
+  const anadirVersion = () => {
+    const codigo = nuevaVersion.codigo.trim().toUpperCase();
+    if (!codigo) return;
+    const version: CardSet = {
+      set_name: nuevaVersion.set.trim() || 'Añadida a mano',
+      set_code: codigo,
+      set_rarity: nuevaVersion.rareza,
+      set_rarity_code: '',
+      set_price: '0',
+    };
+    setVersionesExtra(prev => [...prev, version]);
+    setSelectedSet(version);
+    setManualRarity('');
+    setNuevaVersion(v => ({ ...v, abierta: false, codigo: '', set: '' }));
+  };
 
   // Producto de Cardmarket de la versión elegida, para enlazar directamente a su página.
   const idProductoElegido = selectedSet
@@ -484,23 +531,23 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                                             <label className="text-primary font-bold text-sm">
                                                 Tu versión
-                                                {apiData?.card_sets && <span className="text-muted font-normal text-xs"> · {apiData.card_sets.length} en total</span>}
+                                                {todasVersiones.length > 0 && <span className="text-muted font-normal text-xs"> · {todasVersiones.length} en total</span>}
                                             </label>
-                                            {(apiData?.card_sets?.length ?? 0) > 8 && (
+                                            {todasVersiones.length > 8 && (
                                                 <div className="relative w-full sm:w-64">
                                                     <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
                                                     <input
                                                         type="text"
                                                         value={filtroVersion}
                                                         onChange={e => setFiltroVersion(e.target.value)}
-                                                        placeholder="Busca código, set o rareza…"
+                                                        placeholder="Busca código (EN o SP), set o rareza…"
                                                         className="w-full bg-bg-panel border border-border-base text-main rounded-md pl-8 pr-2 py-1.5 text-xs focus:border-primary outline-none"
                                                     />
                                                 </div>
                                             )}
                                         </div>
                                         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2 max-h-60 overflow-y-auto bg-bg-panel p-2 rounded-lg border border-border-base">
-                                            {apiData?.card_sets ? versionesVisibles.map((set, idx) => (
+                                            {todasVersiones.length > 0 ? versionesVisibles.map((set, idx) => (
                                                 <div 
                                                     key={`${set.set_code}-${idx}`}
                                                     onClick={() => {
@@ -526,10 +573,76 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                             )) : (
                                                 <div className="col-span-full text-center text-muted text-xs py-4">Sin Sets (OCG/Promo/Beta)</div>
                                             )}
-                                            {apiData?.card_sets && versionesVisibles.length === 0 && (
+                                            {todasVersiones.length > 0 && versionesVisibles.length === 0 && (
                                                 <div className="col-span-full text-center text-muted text-xs py-4">Ninguna versión coincide con «{filtroVersion}»</div>
                                             )}
                                         </div>
+
+                                        {/* Versión que no está en la base de datos */}
+                                        {nuevaVersion.abierta ? (
+                                            <div className="mt-2 rounded-lg border border-border-base bg-bg-panel p-2.5 space-y-2">
+                                                <div className="text-xs text-muted">
+                                                    Añade tu versión como viene en la carta (abajo a la derecha de la ilustración).
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                                    <input
+                                                        type="text"
+                                                        value={nuevaVersion.codigo}
+                                                        onChange={e => setNuevaVersion(v => ({ ...v, codigo: e.target.value }))}
+                                                        onKeyDown={e => e.key === 'Enter' && anadirVersion()}
+                                                        placeholder="Código, p. ej. TN23-SP013"
+                                                        className="bg-bg-surface border border-border-base text-main rounded px-2 py-1.5 text-xs uppercase focus:border-primary outline-none"
+                                                        autoFocus
+                                                    />
+                                                    <select
+                                                        value={nuevaVersion.rareza}
+                                                        onChange={e => setNuevaVersion(v => ({ ...v, rareza: e.target.value }))}
+                                                        className="bg-bg-surface border border-border-base text-main rounded px-2 py-1.5 text-xs focus:border-primary outline-none"
+                                                    >
+                                                        {MANUAL_RARITIES.map(r => <option key={r} value={r}>{r}</option>)}
+                                                    </select>
+                                                    <input
+                                                        type="text"
+                                                        value={nuevaVersion.set}
+                                                        onChange={e => setNuevaVersion(v => ({ ...v, set: e.target.value }))}
+                                                        placeholder="Set (opcional)"
+                                                        className="bg-bg-surface border border-border-base text-main rounded px-2 py-1.5 text-xs focus:border-primary outline-none"
+                                                    />
+                                                </div>
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setNuevaVersion(v => ({ ...v, abierta: false }))}
+                                                        className="text-xs text-muted hover:text-main px-2 py-1"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={anadirVersion}
+                                                        disabled={!nuevaVersion.codigo.trim()}
+                                                        className="text-xs font-bold bg-primary text-black rounded px-3 py-1 disabled:opacity-40"
+                                                    >
+                                                        Añadir y elegir
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    setNuevaVersion(v => ({
+                                                        ...v,
+                                                        abierta: true,
+                                                        // Si se estaba buscando un código, se aprovecha.
+                                                        codigo: /^[a-z0-9]{2,6}-[a-z]{0,2}\d{2,4}$/i.test(filtroVersion.trim()) ? filtroVersion.trim() : v.codigo,
+                                                    }))
+                                                }
+                                                className="mt-2 text-xs text-primary hover:underline"
+                                            >
+                                                ¿No está tu versión? Añádela
+                                            </button>
+                                        )}
 
                                         {/* Rareza a mano, por si la de tu carta no es la oficial */}
                                         {selectedSet && (
@@ -694,7 +807,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                         <div className="order-3 min-w-0 md:col-start-2 xl:col-start-auto xl:sticky xl:top-0">
                             <CardMarketValue
                                 cardId={apiData.id}
-                                sets={apiData.card_sets}
+                                sets={todasVersiones}
                                 selected={selectedSet}
                                 paid={formData.isWanted ? 0 : parseFloat(formData.paid) || 0}
                                 condition={formData.isWanted ? undefined : formData.condition}

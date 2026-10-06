@@ -267,7 +267,7 @@ export default function CardFoilOverlay({ rarity, img, cardType }: Props) {
   } as CSSProperties;
 
   return (
-    <div ref={ref} className="foil" aria-hidden="true" style={estilo}>
+    <div ref={ref} className={`foil${/pendulum/i.test(cardType ?? '') ? ' foil--pendulo' : ''}`} aria-hidden="true" style={estilo}>
       {spec.card && <div className={`foil-zona foil-zona--carta foil-carta--${spec.card}`} />}
       {spec.art && <div className={`foil-zona foil-zona--arte foil-arte--${spec.art}`} />}
       {spec.name && img && (
@@ -277,7 +277,14 @@ export default function CardFoilOverlay({ rarity, img, cardType }: Props) {
         </div>
       )}
       {spec.emboss && <div className="foil-relieve" />}
-      {spec.seal25 && <div className="foil-sello" />}
+      {spec.seal25 && (
+        <div className="foil-sello">
+          <div className="foil-sello__tinta" />
+          <div className="foil-sello__sombra" />
+          <div className="foil-sello__luz" />
+          <div className="foil-sello__brillo" />
+        </div>
+      )}
       <div className="foil-destello" />
       <div className="foil-reflejo" />
     </div>

@@ -19,6 +19,39 @@ interface Props {
   onToggleSelect?: () => void;
 }
 
+/** Abreviaturas de rareza, como las que usan las tiendas (Cardmarket, TCGplayer). */
+const ABREVIATURAS: Record<string, string> = {
+  common: 'C',
+  rare: 'R',
+  'super rare': 'SR',
+  'ultra rare': 'UR',
+  'secret rare': 'ScR',
+  'ultimate rare': 'UtR',
+  'ghost rare': 'GR',
+  'starlight rare': 'StR',
+  "collector's rare": 'CR',
+  'prismatic secret rare': 'PScR',
+  'platinum secret rare': 'PlScR',
+  'quarter century secret rare': 'QCScR',
+  'gold rare': 'GUR',
+  'gold secret rare': 'GScR',
+  'premium gold rare': 'PGR',
+  'ultra secret rare': 'UScR',
+  'starfoil rare': 'SFR',
+  'mosaic rare': 'MSR',
+  'shatterfoil rare': 'SHR',
+  'short print': 'SP',
+  'super short print': 'SSP',
+};
+function abreviarRareza(rareza: string, codigo?: string): string {
+  const r = (rareza || 'Common').toLowerCase().trim();
+  if (ABREVIATURAS[r]) return ABREVIATURAS[r];
+  const deCodigo = codigo?.replace(/[()]/g, '').trim();
+  if (deCodigo) return deCodigo;
+  // Iniciales: "Duel Terminal Super Parallel Rare" → "DTSPR".
+  return (rareza.match(/\b[A-Za-z]/g) ?? ['?']).join('').toUpperCase();
+}
+
 /**
  * Etiquetas de la copia: edición (1.ª o Limited) y estado (NM, EX…).
  * En la franja de datos son chips con borde; `sobreCarta` las hace pastillas
@@ -540,16 +573,21 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
 
                 {!card.isWanted && (
                     <div className="space-y-1 mt-auto">
-                        <div className="flex justify-between items-center text-xs">
-                            <span style={{ color: rarityColor }} className="font-bold truncate flex-1 drop-shadow-sm">{card.rarity || 'Common'}</span>
-                            <span className="text-muted ml-2">{card.setCode}</span>
+                        {/*
+                          Con la carta pequeña (la ficha mide menos de ~210 px) la rareza pasa a
+                          su abreviatura y las etiquetas bajan de línea en vez de cortarse.
+                        */}
+                        <div className="flex flex-wrap justify-between items-center text-xs gap-x-2">
+                            <span style={{ color: rarityColor }} className="font-bold truncate flex-1 drop-shadow-sm @max-[210px]:hidden" title={card.rarity}>{card.rarity || 'Common'}</span>
+                            <span style={{ color: rarityColor }} className="font-bold drop-shadow-sm hidden @max-[210px]:inline shrink-0" title={card.rarity}>{abreviarRareza(card.rarity, card.rarityCode)}</span>
+                            <span className="text-muted whitespace-nowrap ml-auto">{card.setCode}</span>
                         </div>
-                        <div className="flex justify-between items-center text-xs gap-2">
-                            <span className="text-muted flex items-center gap-1.5 min-w-0 overflow-hidden">
+                        <div className="flex flex-wrap justify-between items-center text-xs gap-x-2 gap-y-1">
+                            <span className="text-muted flex flex-wrap items-center gap-1 min-w-0">
                                 <span className="font-bold" title={card.lang}>{card.lang}</span>
                                 {!isSelectionMode && <EtiquetasCopia card={card} edicion={showEditionFlags} estado={showConditionFlags} />}
                             </span>
-                            <span className="font-black text-main whitespace-nowrap" title={tituloValor}>
+                            <span className="font-black text-main whitespace-nowrap ml-auto" title={tituloValor}>
                                 {valor != null ? `≈ ${formatMoney(valor)}` : <span className="text-muted font-bold">—</span>}
                             </span>
                         </div>

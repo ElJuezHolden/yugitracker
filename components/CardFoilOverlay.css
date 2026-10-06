@@ -86,7 +86,12 @@
     radial-gradient(circle at 80% 30%, #f2e0a0 0 8%, transparent 9%),
     linear-gradient(100deg, #c9cfd8, #e8edf2, #c9cfd8);
 
-  --sello-25: url("data:image/svg+xml,%3Csvg width='200' height='120' viewBox='0 0 200 120' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext x='50%25' y='52%25' font-family='Georgia, serif' font-weight='700' font-size='72' fill='rgba(255,255,255,0.25)' stroke='rgba(255,220,140,0.9)' stroke-width='2' text-anchor='middle' dominant-baseline='middle'%3E25%3C/text%3E%3Ctext x='50%25' y='86%25' font-family='Georgia, serif' font-size='12' letter-spacing='3' fill='rgba(255,220,140,0.75)' text-anchor='middle'%3EANNIVERSARY%3C/text%3E%3C/svg%3E");
+  /*
+   * Emblema del 25.º aniversario de las Quarter Century Secret Rare. Es una
+   * versión propia inspirada en el logo ("25th Quarter Century"), no una copia:
+   * solo se usa como máscara, así que da igual el color.
+   */
+  --sello-25: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 240 160%22%3E %3Cellipse cx=%22120%22 cy=%2280%22 rx=%22104%22 ry=%2270%22 fill=%22none%22 stroke=%22white%22 stroke-width=%225%22/%3E %3Cellipse cx=%22120%22 cy=%2280%22 rx=%2294%22 ry=%2261%22 fill=%22none%22 stroke=%22white%22 stroke-width=%221.6%22/%3E %3Ctext x=%22120%22 y=%2242%22 font-family=%22Arial Black, Arial, sans-serif%22 font-weight=%22900%22 font-size=%2215%22 letter-spacing=%222%22 fill=%22white%22 text-anchor=%22middle%22%3EYU-GI-OH!%3C/text%3E %3Ctext x=%22112%22 y=%22110%22 font-family=%22Georgia, 'Times New Roman', serif%22 font-weight=%22700%22 font-size=%2274%22 fill=%22white%22 text-anchor=%22middle%22%3E25%3C/text%3E %3Ctext x=%22165%22 y=%2270%22 font-family=%22Georgia, 'Times New Roman', serif%22 font-weight=%22700%22 font-size=%2222%22 fill=%22white%22%3Eth%3C/text%3E %3Cpath d=%22M30 116 h180 l-10 10 l10 10 h-180 l10 -10 z%22 fill=%22none%22 stroke=%22white%22 stroke-width=%222.4%22/%3E %3Ctext x=%22120%22 y=%22131%22 font-family=%22Arial, sans-serif%22 font-weight=%22700%22 font-size=%2212%22 letter-spacing=%222.5%22 fill=%22white%22 text-anchor=%22middle%22%3EQUARTER CENTURY%3C/text%3E %3C/svg%3E");
 }
 
 /* =========================================================================
@@ -485,15 +490,80 @@
   mix-blend-mode: overlay;
 }
 
+/*
+ * Sello del 25.º aniversario (Quarter Century Secret Rare).
+ *
+ * En la carta real es una marca de agua estampada EN RELIEVE en el centro de la
+ * caja de texto: casi invisible de frente y con un brillo de purpurina cuando le
+ * da la luz. Se imita con tres capas que comparten la silueta del emblema:
+ *   - sombra (abajo a la derecha) y luz (arriba a la izquierda): el relieve;
+ *   - purpurina dorada que solo se enciende donde está la luz del puntero.
+ * El texto de la carta tiene que seguir leyéndose: todo va muy suave.
+ *
+ * Ojo: la máscara va en cada capa, nunca en el contenedor (una máscara en el
+ * padre aislaría la mezcla de los hijos con la carta).
+ */
 .foil-sello {
   position: absolute;
-  right: 12%;
-  bottom: 30.5%;
-  width: 24%;
-  height: 9%;
-  background: var(--sello-25) center / contain no-repeat;
-  mix-blend-mode: overlay;
-  opacity: 0.85;
+  left: 29%;
+  right: 29%;
+  top: 73.5%;
+  bottom: 8.5%;
+}
+/* En las Péndulo la caja de texto es más baja y más estrecha. */
+.foil--pendulo .foil-sello {
+  top: 76%;
+  bottom: 9.5%;
+  left: 33%;
+  right: 33%;
+}
+
+.foil-sello > div {
+  position: absolute;
+  inset: 0;
+  -webkit-mask: var(--sello-25) center / contain no-repeat;
+  mask: var(--sello-25) center / contain no-repeat;
+}
+
+/* Un velo champán muy tenue: de frente el sello se intuye, como en la carta real. */
+.foil-sello__tinta {
+  background: linear-gradient(160deg, #d9c49a, #b9a77f 55%, #e2d2ad);
+  mix-blend-mode: multiply;
+  opacity: 0.22;
+}
+
+.foil-sello__sombra {
+  background: #3a2f1c;
+  mix-blend-mode: multiply;
+  opacity: 0.3;
+  -webkit-mask-position: calc(50% + 1px) calc(50% + 1px) !important;
+  mask-position: calc(50% + 1px) calc(50% + 1px) !important;
+}
+
+.foil-sello__luz {
+  background: #fff;
+  mix-blend-mode: screen;
+  opacity: calc(0.22 + var(--card-active, 0) * 0.18);
+  -webkit-mask-position: calc(50% - 1px) calc(50% - 1px) !important;
+  mask-position: calc(50% - 1px) calc(50% - 1px) !important;
+}
+
+.foil-sello__brillo {
+  background:
+    /* Purpurina: puntos finos repartidos. */
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 0.55px, transparent 0.9px) 0 0 / 3px 3px,
+    radial-gradient(circle, rgba(255, 236, 200, 0.8) 0 0.5px, transparent 0.85px) 1.5px 1.5px / 4px 4px,
+    /* La luz: champán donde apunta el puntero, nada lejos de él. */
+    radial-gradient(
+      circle at var(--pointer-x, 30%) var(--pointer-y, 20%),
+      rgba(255, 238, 205, 0.95) 0%,
+      rgba(240, 210, 160, 0.45) 22%,
+      transparent 48%
+    );
+  mix-blend-mode: color-dodge;
+  /* En reposo apenas se intuye; al mover la carta, brilla. */
+  opacity: calc(0.18 + var(--card-active, 0) * 0.4);
+  transition: opacity 0.3s ease;
 }
 
 /* =========================================================================
