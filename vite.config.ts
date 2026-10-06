@@ -9,6 +9,12 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 3000,
+    watch: {
+      // La copia de seguridad en archivo se puede guardar en la carpeta del
+      // proyecto. Si Vite la vigila, cada guardado recarga la página, y la
+      // página al cargar vuelve a guardarla: la web parpadea sin parar.
+      ignored: ['**/yugitracker-coleccion*.json', '**/public/precios/**'],
+    },
   },
   build: {
     // Las imágenes de las cartas son remotas; el bundle propio debe ser pequeño.

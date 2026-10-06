@@ -24,3 +24,6 @@ npm-debug.log*
 # Historial de precios (lo genera GitHub Actions en la rama datos-precios)
 /public/precios/
 /datos-precios/
+
+# Copia de seguridad de la colección, si se guarda dentro del proyecto
+yugitracker-coleccion*.json
