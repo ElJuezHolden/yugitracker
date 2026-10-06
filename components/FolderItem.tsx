@@ -23,16 +23,15 @@ export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMod
 
   const cards = state.db.cards.filter(c => isSystem ? true : c.folderId === folder.id);
   /*
-   * "Valor total" sumaba lo PAGADO. Ahora es el valor de mercado de las
-   * cartas con precio; lo pagado y las que no tienen precio van en la ayuda.
+   * Valor de mercado de las cartas con precio; las que no tienen precio se
+   * dicen en la ayuda.
    */
   const resumen = usePrices().summarize(cards);
   const textoValor = resumen.priced > 0 ? `≈ ${formatMoney(resumen.eur)}` : '—';
   const ayudaValor =
     resumen.priced > 0
       ? `Valor de mercado aproximado de ${resumen.priced} cartas` +
-        (resumen.unpriced ? ` (${resumen.unpriced} sin precio)` : '') +
-        ` · pagado ${formatMoney(resumen.paid)}`
+        (resumen.unpriced ? ` (${resumen.unpriced} sin precio)` : '')
       : 'Todavía no hay precios para estas cartas';
 
   const handleClick = () => {

@@ -9,6 +9,7 @@ import { SearchModal } from './components/Modals/SearchModal';
 import { CardModal } from './components/Modals/CardModal';
 import { ThemeModal } from './components/Modals/ThemeModal';
 import { BackupModal } from './components/Modals/BackupModal';
+import { PriceMovesModal } from './components/Modals/PriceMovesModal';
 import { useBackup } from './context/BackupContext';
 import { FoilFilters } from './components/FoilFilters';
 import { CollectionValue } from './components/CollectionValue';
@@ -39,6 +40,7 @@ function App() {
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isPriceMovesOpen, setIsPriceMovesOpen] = useState(false);
   
   // Selection Mode State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -401,7 +403,7 @@ function App() {
                     if (nameDiff !== 0) return nameDiff;
                     const attrDiff = compareAttributes(a, b);
                     if (attrDiff !== 0) return attrDiff;
-                    return a.paid - b.paid;
+                    return 0;
                 }
                 if (sortCards === 'price') {
                     // Por valor de mercado. Sin precio cuenta como -1 para que quede al final.
@@ -424,7 +426,7 @@ function App() {
                     if (nameDiff !== 0) return nameDiff;
                     const attrDiff = compareAttributes(a, b);
                     if (attrDiff !== 0) return attrDiff;
-                    return a.paid - b.paid;
+                    return 0;
                 }
                 if (sortCards === 'type') {
                      const wA = getTypeWeight(a.type);
@@ -435,7 +437,7 @@ function App() {
                      if (nameDiff !== 0) return nameDiff;
                      const attrDiff = compareAttributes(a, b);
                      if (attrDiff !== 0) return attrDiff;
-                     return a.paid - b.paid;
+                     return 0;
                 }
                 return 0;
             });
@@ -478,6 +480,7 @@ function App() {
         onOpenFolderModal={() => { setEditingFolderId(null); setIsFolderModalOpen(true); }}
         onOpenSearchModal={() => setIsSearchModalOpen(true)}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
+        onOpenPriceMoves={() => setIsPriceMovesOpen(true)}
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
         isSelectionMode={isSelectionMode}
         onToggleSelectionMode={() => setIsSelectionMode(prev => !prev)}
@@ -776,6 +779,9 @@ function App() {
       <AnimatePresence>
         {isBackupModalOpen && (
             <BackupModal isOpen={isBackupModalOpen} onClose={() => setIsBackupModalOpen(false)} />
+        )}
+        {isPriceMovesOpen && (
+            <PriceMovesModal onClose={() => setIsPriceMovesOpen(false)} onOpenCard={handleCardPress} />
         )}
         {isThemeModalOpen && (
             <ThemeModal isOpen={isThemeModalOpen} onClose={() => setIsThemeModalOpen(false)} />

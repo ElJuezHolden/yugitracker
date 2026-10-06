@@ -19,6 +19,10 @@ Los datos de las cartas vienen de la API pública de [YGOPRODeck](https://ygopro
   del precio de TCGplayer de cada impresión que da YGOPRODeck, pasado a euros al cambio del
   BCE; no distinguen idioma, edición ni estado. La API no da historial, así que la app apunta
   el precio una vez al día y la gráfica se va llenando con el uso.
+- **Subidas y bajadas**: un panel (icono de tendencia en la cabecera) con las cartas de tu
+  colección que más han subido o bajado en 7 días, 30, 90 o un año, filtrando por cambio mínimo.
+- **Lo pagado**, opcional y por carta: solo se ve en la ficha de esa carta, comparado con su
+  valor actual. No entra en los totales.
 - **Cartas buscadas**: márcalas como *wanted* para llevar la lista de lo que te falta.
 - **Filtros** por tipo de carta, tipo de monstruo, propiedad de mágica o trampa, set y rareza.
 - **Temas**: acento y fondo a elegir, con claro y oscuro automáticos, y colores propios guardados.

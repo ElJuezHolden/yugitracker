@@ -398,6 +398,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                 cardName={apiData.name}
                                 sets={apiData.card_sets}
                                 selected={selectedSet}
+                                paid={formData.isWanted ? 0 : parseFloat(formData.paid) || 0}
                                 onSelect={(set) => { setSelectedSet(set); setManualRarity(''); }}
                             />
                         )}
@@ -514,14 +515,16 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                     {/* Fields Grid */}
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="text-xs font-medium text-muted block mb-1">Precio (€) / ud</label>
+                                            <label className="text-xs font-medium text-muted block mb-1">Lo que pagaste (opcional)</label>
                                             <input 
                                                 type="number" 
                                                 step="0.01"
+                                                min="0"
                                                 value={formData.paid}
                                                 onChange={e => setFormData({...formData, paid: e.target.value})}
                                                 className="w-full bg-bg-panel border border-border-base text-main rounded p-2 text-sm focus:border-primary outline-none"
-                                                placeholder="0.00"
+                                                placeholder="Sin apuntar"
+                                                title="Solo se usa en esta ficha, para compararlo con su valor actual"
                                             />
                                         </div>
                                         <div>

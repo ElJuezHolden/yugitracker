@@ -15,10 +15,6 @@ import {
 export interface ValueSummary {
   /** Suma del valor de mercado de las cartas con precio, en euros. */
   eur: number;
-  /** Suma de lo pagado por todas las cartas del grupo. */
-  paid: number;
-  /** Lo pagado solo por las cartas con precio: para comparar con `eur` de igual a igual. */
-  paidOfPriced: number;
   /** Cartas que se han podido valorar. */
   priced: number;
   /** Cartas sin precio conocido: no se cuentan como 0, se dicen aparte. */
@@ -136,16 +132,14 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const summarize = useCallback(
     (cards: Card[]): ValueSummary => {
-      const resumen: ValueSummary = { eur: 0, paid: 0, paidOfPriced: 0, priced: 0, unpriced: 0 };
+      const resumen: ValueSummary = { eur: 0, priced: 0, unpriced: 0 };
       for (const c of cards) {
-        // Las "buscadas" no se tienen: ni suman valor ni lo pagado.
+        // Las "buscadas" no se tienen: no suman valor.
         if (c.isWanted) continue;
-        resumen.paid += c.paid || 0;
         const v = valueOf(c);
         if (v == null) resumen.unpriced++;
         else {
           resumen.eur += v;
-          resumen.paidOfPriced += c.paid || 0;
           resumen.priced++;
         }
       }

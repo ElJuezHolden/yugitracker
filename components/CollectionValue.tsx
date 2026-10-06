@@ -1,4 +1,4 @@
-import { Loader2, RefreshCw, TrendingDown, TrendingUp } from 'lucide-react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import type { Card } from '../types';
 import { usePrices } from '../context/PricesContext';
 import { formatMoney } from '../utils';
@@ -22,7 +22,7 @@ interface Props {
 }
 
 /**
- * Valor de mercado de un grupo de cartas, con lo pagado y la diferencia.
+ * Valor de mercado de un grupo de cartas.
  *
  * Es aproximado y lo dice: precios de TCGplayer (EE. UU.) por versión, pasados a
  * euros, que no distinguen idioma, edición ni estado. Las cartas sin precio no
@@ -33,7 +33,6 @@ export function CollectionValue({ cards, titulo }: Props) {
   const r = summarize(cards);
   if (r.priced === 0 && r.unpriced === 0) return null; // Nada que valorar (vacío o solo buscadas).
 
-  const diferencia = r.eur - r.paidOfPriced;
   const ayuda =
     'Precios de mercado de TCGplayer (EE. UU.) para cada versión concreta, pasados a euros' +
     (rate && !rate.fallback && rate.date
@@ -47,17 +46,6 @@ export function CollectionValue({ cards, titulo }: Props) {
         <span className="text-sm text-muted">{titulo} vale</span>{' '}
         <span className="text-xl font-black text-main">{r.priced > 0 ? `≈ ${formatMoney(r.eur)}` : '—'}</span>
       </div>
-
-      {r.paidOfPriced > 0 && r.priced > 0 && (
-        <span
-          className={`text-sm font-bold flex items-center gap-1 ${diferencia >= 0 ? 'text-emerald-400' : 'text-red-400'}`}
-          title={`Comparado con lo que pagaste por esas ${r.priced} cartas (${formatMoney(r.paidOfPriced)})`}
-        >
-          {diferencia >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-          {diferencia >= 0 ? '+' : '−'}
-          {formatMoney(Math.abs(diferencia))} sobre lo pagado
-        </span>
-      )}
 
       <span className="text-sm text-muted">
         {r.priced} con precio

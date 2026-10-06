@@ -205,6 +205,22 @@ export async function loadHistory(id: number): Promise<PricePoint[]> {
   }
 }
 
+/** Historial de varias cartas a la vez (las que no tengan, no aparecen). */
+export async function loadHistories(ids: number[]): Promise<Map<number, PricePoint[]>> {
+  const out = new Map<number, PricePoint[]>();
+  try {
+    const idb = await openIdb();
+    const store = idb.transaction(STORE_HISTORY, 'readonly').objectStore(STORE_HISTORY);
+    const filas = await Promise.all(
+      ids.map((id) => asPromise(store.get(id) as IDBRequest<{ id: number; points: PricePoint[] } | undefined>)),
+    );
+    for (const f of filas) if (f?.points.length) out.set(f.id, f.points);
+  } catch (e) {
+    console.error('No se pudo leer el historial de precios:', e);
+  }
+  return out;
+}
+
 /**
  * Apunta en el historial los precios que trae la ficha de una carta.
  * Se usa al abrir sus detalles: así también se guarda el de las cartas que se

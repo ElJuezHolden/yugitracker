@@ -13,6 +13,8 @@ interface Props {
   selected: CardSet | null;
   /** Al pulsar otra versión de la lista, se elige en el formulario. */
   onSelect?: (set: CardSet) => void;
+  /** Lo que se pagó por esta copia, si se apuntó (0 si no). Solo se enseña aquí. */
+  paid?: number;
 }
 
 const RANGOS = [
@@ -37,7 +39,7 @@ const tcgplayerLink = (name: string) => `https://www.tcgplayer.com/search/yugioh
  * La API no da historial: la gráfica sale de los precios que la app va
  * apuntando cada día (ver services/prices.ts).
  */
-export function CardMarketValue({ cardId, cardName, sets, selected, onSelect }: Props) {
+export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, paid = 0 }: Props) {
   const { rate } = usePrices();
   const [historial, setHistorial] = useState<PricePoint[]>([]);
   const [rango, setRango] = useState<Rango>('30D');
@@ -133,6 +135,18 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect }: 
             </span>
           )}
         </div>
+
+        {paid > 0 && precio != null && (
+          <div className="text-xs text-muted">
+            Pagaste <span className="font-bold text-main">{formatMoney(paid)}</span> ·{' '}
+            <span className={`font-bold ${precio >= paid ? 'text-emerald-400' : 'text-red-400'}`}>
+              {precio >= paid ? '+' : '−'}
+              {formatMoney(Math.abs(precio - paid))} ({precio >= paid ? '+' : '−'}
+              {Math.abs(((precio - paid) / paid) * 100).toFixed(0)} %)
+            </span>{' '}
+            desde entonces
+          </div>
+        )}
 
         {serie.length >= 2 ? (
           <PriceChart serie={serie} color={sube ? '#34d399' : '#f87171'} />

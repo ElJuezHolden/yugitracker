@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../context/StoreContext';
 import { ID_ALL, CARD_BACK_IMG } from '../utils';
 import { useBackup } from '../context/BackupContext';
-import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor } from 'lucide-react';
+import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp } from 'lucide-react';
 import { TagsPanel } from './TagsPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FolderSort, CardSort } from '../types';
@@ -11,6 +11,7 @@ interface Props {
   onOpenFolderModal: () => void;
   onOpenSearchModal: () => void;
   onOpenBackupModal: () => void;
+  onOpenPriceMoves: () => void;
   onOpenThemeModal: () => void;
   isSelectionMode: boolean;
   onToggleSelectionMode: () => void;
@@ -24,6 +25,7 @@ export const Header: React.FC<Props> = ({
     onOpenFolderModal, 
     onOpenSearchModal, 
     onOpenBackupModal,
+    onOpenPriceMoves,
     onOpenThemeModal, 
     isSelectionMode, 
     onToggleSelectionMode,
@@ -247,6 +249,16 @@ export const Header: React.FC<Props> = ({
                     <Palette size={16} />
                 </button>
             </div>
+
+            {/* Subidas y bajadas de precio de la colección */}
+            <button
+                onClick={onOpenPriceMoves}
+                className="p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
+                title="Subidas y bajadas de precio"
+                aria-label="Subidas y bajadas de precio"
+            >
+                <TrendingUp size={16} />
+            </button>
 
             {/*
               Copias de seguridad. Fuera del grupo de iconos que se oculta en el
