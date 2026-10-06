@@ -1,44 +1,50 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import './CardFoilOverlay.css';
 
 /*
- * En una carta de verdad la rareza no se nota como "más brillo", sino en QUÉ
- * parte de la carta lleva foil y con qué textura. Esta es la tabla completa,
- * con las zonas que pinta cada una:
+ * Brillos de rareza.
  *
- *   RAREZA                       NOMBRE    ILUSTRACIÓN        CARTA ENTERA
- *   ---------------------------------------------------------------------------
- *   Common                        —          —                  —
- *   Short Print / Super Short     —          —                  —
- *   Normal Rare                   —          —                  —
- *   Rare                          plata      —                  —
- *   Super Rare                    —          holo de puntos     —
- *   Ultra Rare                    oro        holo de puntos     —
- *   Secret Rare                   arcoíris   diagonales finas   —
- *   Ultra / Extra Secret Rare     oro        diagonales finas   —
- *   Prismatic Secret / Millennium moteado    horizontal+vertical —
- *   Platinum Secret Rare          platino    —                  platino
- *   Platinum Rare                 —          —                  platino
- *   Ultimate Rare                 oro        relieve grabado    —      + relieve
- *   Ghost Rare / Holographic      plata      vaciada, casi blanca —
- *   Ghost/Gold Rare               oro        vaciada, casi blanca —     + relieve
- *   Collector's Rare              arcoíris   mancha de aceite   —      + relieve
- *   Starlight / Alternate Rare    arcoíris   —                  trama horizontal
- *   Quarter Century Secret Rare   oro        —                  paralelo + sello 25
- *   10000 Secret Rare             oro        —                  paralelo
- *   Grand Master Rare             oro        —                  jeroglíficos + relieve
- *   Pharaoh's Rare                oro        jeroglíficos       paralelo
- *   Gold Rare                     oro        oro                oro
- *   Gold Secret Rare              oro        diagonales finas   oro
- *   Premium Gold Rare             oro        holo de puntos     oro    + relieve
- *   Starfoil Rare                 —          —                  estrellas
- *   Mosaic Rare                   —          —                  cuadrados
- *   Shatterfoil Rare              —          —                  cristal roto
- *   Parallel (Normal/Super/Ultra/Secret)  según su rareza base  + líneas paralelas
- *   Duel Terminal (las cuatro)            según su rareza base  + líneas paralelas
+ * Tres ideas que vienen de mirar cómo lo resuelven las versiones digitales
+ * oficiales (Master Duel, Duel Links, Pokémon TCG Pocket) y el referente web de
+ * estos efectos (pokemon-cards-css):
  *
- * Las zonas están medidas sobre las imágenes reales de YGOPRODeck y son las
- * mismas en monstruo, mágica y trampa (ver CardFoilOverlay.css).
+ *   1. DÓNDE brilla define la rareza: la Rare solo en el nombre, la Super Rare
+ *      solo en la ilustración, la Parallel en toda la carta. (Tabla abajo.)
+ *   2. El arco iris solo aparece DONDE DA LA LUZ. Fuera de esa franja la carta
+ *      se ve impresa normal, como en la vida real; pintarlo en toda la zona era
+ *      lo que hacía que pareciera un "ataque epiléptico".
+ *   3. En reposo, calma: la luz sigue al puntero y, sin él, solo un destello
+ *      suave cruza la carta de vez en cuando, escalonado entre cartas.
+ *
+ * El nombre es distinto: no se le pone una capa encima, sino que brillan LAS
+ * LETRAS con su forma exacta, recortadas de la propia imagen con un filtro SVG
+ * (ver FoilFilters.tsx).
+ *
+ *   RAREZA                        NOMBRE     ILUSTRACIÓN         CARTA ENTERA
+ *   -------------------------------------------------------------------------------
+ *   Common · Short Print · Normal Rare  —     —                   —
+ *   Rare                          plata      —                   —
+ *   Super Rare                    —          holo de puntos      —
+ *   Ultra Rare                    oro        holo de puntos      —
+ *   Secret Rare                   arcoíris   diagonales finas    —
+ *   Ultra / Extra Secret Rare     oro        diagonales finas    —
+ *   Prismatic Secret / Millennium moteado    trama cruzada       —
+ *   Platinum Secret Rare          platino    —                   platino
+ *   Platinum Rare                 —          —                   platino
+ *   Ultimate Rare                 oro        relieve             —        + marco en relieve
+ *   Ghost Rare / Holographic      plata      desaturada y pálida —
+ *   Ghost/Gold Rare               oro        desaturada y pálida —        + marco en relieve
+ *   Collector's Rare              arcoíris   mancha de aceite    —        + marco en relieve
+ *   Starlight / Alternate Rare    arcoíris   —                   trama horizontal
+ *   Quarter Century Secret Rare   oro        —                   paralelo + sello 25
+ *   10000 Secret Rare             oro        —                   paralelo
+ *   Grand Master Rare             oro        —                   jeroglíficos + relieve
+ *   Pharaoh's Rare                oro        jeroglíficos        paralelo
+ *   Gold Rare                     oro        oro                 oro
+ *   Gold Secret Rare              oro        diagonales finas    oro
+ *   Premium Gold Rare             oro        holo de puntos      oro      + relieve
+ *   Starfoil / Mosaic / Shatterfoil  —       —                   estrellas / cuadros / cristal
+ *   Parallel y Duel Terminal      según su rareza base            + líneas paralelas
  */
 
 type NameFoil = 'silver' | 'gold' | 'rainbow' | 'speckled' | 'platinum';
@@ -191,30 +197,89 @@ function resolveFoil(rarity: string): FoilSpec | null {
   return null;
 }
 
-interface Props {
-  rarity: string;
+/**
+ * Color de la tinta del nombre según el tipo de carta. Medido sobre una carta
+ * de cada tipo: blanca en Xyz, Link, Mágica y Trampa; negra en el resto.
+ */
+function tintaDelNombre(cardType: string | undefined): 'oscura' | 'clara' {
+  return /spell|trap|xyz|link|skill/i.test(cardType ?? '') ? 'clara' : 'oscura';
 }
 
 /**
- * Capas de foil de una carta.
- *
- * Solo pinta: el seguimiento del puntero y la inclinación viven en
- * `useCardPointer`, enganchado al contenedor de la carta, porque el reflejo
- * tiene que existir también en las Common, que no pintan ninguna capa.
+ * Retraso del destello en reposo, entre 0 y 9 s, sacado de la imagen para que
+ * sea siempre el mismo en cada carta. Si todas destellaran a la vez la rejilla
+ * entera parpadearía.
  */
-export default function CardFoilOverlay({ rarity }: Props) {
+function retrasoDestello(semilla: string): number {
+  let h = 0;
+  for (let i = 0; i < semilla.length; i++) h = (h * 31 + semilla.charCodeAt(i)) | 0;
+  return (Math.abs(h) % 900) / 100;
+}
+
+/*
+ * El destello en reposo solo corre en las cartas que están en pantalla. Con
+ * cientos de cartas, animarlas todas fuera de la vista sería gastar por nada.
+ * Un único observador para todas, en vez de uno por carta.
+ */
+let observador: IntersectionObserver | null = null;
+function observarVisibilidad(el: HTMLElement) {
+  if (typeof IntersectionObserver === 'undefined') {
+    el.dataset.visible = 'true';
+    return () => {};
+  }
+  observador ??= new IntersectionObserver(
+    (entradas) => {
+      for (const e of entradas) (e.target as HTMLElement).dataset.visible = String(e.isIntersecting);
+    },
+    { rootMargin: '100px' },
+  );
+  observador.observe(el);
+  return () => observador?.unobserve(el);
+}
+
+interface Props {
+  rarity: string;
+  /** Imagen de la carta: de ella se recortan las letras del nombre. */
+  img?: string;
+  /** Tipo de carta de la API ("Spell Card", "XYZ Monster"...): decide el color de la tinta. */
+  cardType?: string;
+}
+
+/**
+ * Capas de foil de una carta. Solo pinta: el seguimiento del puntero y la
+ * inclinación viven en `useCardPointer`, sobre el contenedor de la carta.
+ */
+export default function CardFoilOverlay({ rarity, img, cardType }: Props) {
   const spec = useMemo(() => resolveFoil(rarity), [rarity]);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    return el ? observarVisibilidad(el) : undefined;
+  }, [spec]);
 
   if (!spec) return null; // Common: nada que pintar, y una capa menos por carta.
 
+  const tinta = tintaDelNombre(cardType);
+  const estilo = {
+    '--carta-img': img ? `url("${img}")` : 'none',
+    '--retraso-destello': `${retrasoDestello(img || rarity)}s`,
+  } as CSSProperties;
+
   return (
-    <div className="foil" aria-hidden="true">
-      {spec.card && <div className={`foil-zone foil-zone--card foil-card--${spec.card}`} />}
-      {spec.art && <div className={`foil-zone foil-zone--art foil-art--${spec.art}`} />}
-      {spec.name && <div className={`foil-zone foil-zone--name foil-name--${spec.name}`} />}
-      {spec.emboss && <div className="foil-emboss" />}
-      {spec.seal25 && <div className="foil-seal" />}
-      <div className="foil-glare" />
+    <div ref={ref} className="foil" aria-hidden="true" style={estilo}>
+      {spec.card && <div className={`foil-zona foil-zona--carta foil-carta--${spec.card}`} />}
+      {spec.art && <div className={`foil-zona foil-zona--arte foil-arte--${spec.art}`} />}
+      {spec.name && img && (
+        <div className={`foil-letras foil-letras--tinta-${tinta}`}>
+          <div className="foil-letras__mascara" />
+          <div className={`foil-letras__metal foil-metal--${spec.name}`} />
+        </div>
+      )}
+      {spec.emboss && <div className="foil-relieve" />}
+      {spec.seal25 && <div className="foil-sello" />}
+      <div className="foil-destello" />
+      <div className="foil-reflejo" />
     </div>
   );
 }

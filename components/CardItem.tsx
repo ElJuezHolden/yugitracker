@@ -164,7 +164,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         alt={card.name}
                    />
                    
-                   {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} />}
+                   {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
                    </div>
                    
                    {card.isWanted && !isSelectionMode && (
@@ -208,7 +208,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     loading="lazy"
                     alt={card.name}
                 />
-                {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} />}
+                {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
                  </div>
 
                 {/* WANTED Overlay */}
@@ -320,7 +320,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         loading="lazy"
                         decoding="async"
                     />
-                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} />}
+                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
                     </div>
                     
                     {card.isWanted && !isSelectionMode && (
@@ -465,7 +465,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     alt={card.name} 
                 />
 
-                {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} />}
+                {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
                 </div>
                 
                 {/* WANTED Overlay */}

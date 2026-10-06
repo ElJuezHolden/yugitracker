@@ -10,6 +10,7 @@ import { CardModal } from './components/Modals/CardModal';
 import { ThemeModal } from './components/Modals/ThemeModal';
 import { BackupModal } from './components/Modals/BackupModal';
 import { useBackup } from './context/BackupContext';
+import { FoilFilters } from './components/FoilFilters';
 import { CardFilter } from './components/CardFilter';
 import { ToastContainer } from './components/Toast';
 import { ID_ALL, getTypeWeight, getRarityWeight, normalizeStr, analyzeCardType } from './utils';
@@ -479,6 +480,8 @@ function App() {
         activeFilterCount={activeFilterCount}
       />
 
+      {/* Filtros SVG que recortan las letras del nombre para los brillos (una vez por página). */}
+      <FoilFilters />
       <ToastContainer />
 
       {/*
