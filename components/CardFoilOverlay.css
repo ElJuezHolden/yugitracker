@@ -96,10 +96,20 @@
    * borde de la caja de texto (el nombre va aparte, con sus letras). La segunda,
    * más gruesa, es la de las Premium Gold, donde el oro va en relieve.
    */
-  --mascara-oro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 421 614' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H421V614H0Z M14 14V600H407V14Z M38.8 100.6H377.6V438.5H38.8Z M43.8 105.6V433.5H372.6V105.6Z M29 449H392V573H29Z M32.5 452.5V569.5H388.5V452.5Z'/%3E%3C/svg%3E");
-  --mascara-oro-premium: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 421 614' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H421V614H0Z M22.400000000000002 22.400000000000002V591.6H398.6V22.400000000000002Z M35.8 97.6H380.6V441.5H35.8Z M43.8 105.6V433.5H372.6V105.6Z M29 449H392V573H29Z M34.6 454.6V567.4H386.4V454.6Z'/%3E%3C/svg%3E");
+  --mascara-oro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 421 614' preserveAspectRatio='none'%3E%3Cfilter id='s'%3E%3CfeGaussianBlur stdDeviation='0.7'/%3E%3C/filter%3E%3Cpath fill='white' fill-rule='evenodd' filter='url(%23s)' d='M-2 -2H423V616H-2Z M13.5 13.5V600.5H407.5V13.5Z M40.3 102.1H376.1V437.0H40.3Z M43.8 105.6V433.5H372.6V105.6Z M29 449H392V573H29Z M31.6 451.6V570.4H389.4V451.6Z'/%3E%3C/svg%3E");
+  --mascara-oro-premium: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 421 614' preserveAspectRatio='none'%3E%3Cfilter id='s'%3E%3CfeGaussianBlur stdDeviation='0.7'/%3E%3C/filter%3E%3Cpath fill='white' fill-rule='evenodd' filter='url(%23s)' d='M-2 -2H423V616H-2Z M14.5 14.5V599.5H406.5V14.5Z M39.3 101.1H377.1V438.0H39.3Z M43.8 105.6V433.5H372.6V105.6Z M29 449H392V573H29Z M32.4 452.4V569.6H388.6V452.4Z'/%3E%3C/svg%3E");
 
-  --sello-25: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 240 170%22%3E %3Cpath d=%22M28 30 Q120 6 212 30 L212 112 Q212 146 120 164 Q28 146 28 112 Z%22 fill=%22none%22 stroke=%22white%22 stroke-width=%226%22 stroke-linejoin=%22round%22/%3E %3Cpath d=%22M40 38 Q120 18 200 38 L200 110 Q200 136 120 151 Q40 136 40 110 Z%22 fill=%22none%22 stroke=%22white%22 stroke-width=%221.8%22 stroke-linejoin=%22round%22/%3E %3Ctext x=%22120%22 y=%2250%22 font-family=%22Arial Black, Arial, sans-serif%22 font-weight=%22900%22 font-size=%2217%22 letter-spacing=%220.5%22 fill=%22white%22 text-anchor=%22middle%22 transform=%22translate(120 50) scale(1.25 1) translate(-120 -50)%22%3EYU-GI-OH!%3C/text%3E %3Ctext x=%22112%22 y=%22121%22 font-family=%22Arial Black, Arial, sans-serif%22 font-weight=%22900%22 font-size=%2272%22 fill=%22white%22 text-anchor=%22middle%22%3E25%3C/text%3E %3Ctext x=%22166%22 y=%22121%22 font-family=%22Arial Black, Arial, sans-serif%22 font-weight=%22900%22 font-size=%2220%22 fill=%22white%22%3Eth%3C/text%3E %3Ctext x=%22120%22 y=%22140%22 font-family=%22Arial, sans-serif%22 font-weight=%22700%22 font-size=%2210.5%22 letter-spacing=%221.6%22 fill=%22white%22 text-anchor=%22middle%22%3EQUARTER CENTURY%3C/text%3E %3C/svg%3E");
+  /* Toda la carta menos la caja de texto (QCSR, Platinum Rare, Extra Secret). */
+  --mascara-sin-texto: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 421 614' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H421V614H0Z M29 449V573H392V449Z'/%3E%3C/svg%3E");
+
+  /* Champán moteado: el nombre de las Quarter Century. */
+  --metal-champan: radial-gradient(circle at 18% 38%, #fff4e0 0 7%, transparent 8%),
+    radial-gradient(circle at 46% 66%, #f6d9c4 0 6%, transparent 7%),
+    radial-gradient(circle at 74% 30%, #fffaf0 0 7%, transparent 8%),
+    radial-gradient(circle at 90% 70%, #e8dccd 0 6%, transparent 7%),
+    linear-gradient(100deg, #b49a72, #e9d6b0 30%, #fff1d8 46%, #d8c09a 62%, #b49a72);
+
+  --sello-25: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 270 230%22%3E %3Cdefs%3E %3Cpath id=%22arco%22 d=%22M58 204 Q140 188 230 192%22/%3E %3Cmask id=%22huecos%22 maskUnits=%22userSpaceOnUse%22 x=%220%22 y=%220%22 width=%22270%22 height=%22230%22%3E %3Crect width=%22270%22 height=%22230%22 fill=%22white%22/%3E %3Cg fill=%22black%22 font-family=%22Georgia, 'Times New Roman', serif%22 font-weight=%22700%22%3E %3Ctext x=%22120%22 y=%2268%22 font-family=%22Arial Black, Arial, sans-serif%22 font-weight=%22900%22 font-size=%2223%22 letter-spacing=%220.5%22 text-anchor=%22middle%22 transform=%22translate(120 68) scale(1.32 1) translate(-120 -68)%22%3EYU-GI-OH!%3C/text%3E %3Ctext x=%22122%22 y=%2284%22 font-size=%2210%22 letter-spacing=%222%22 text-anchor=%22middle%22%3ECARD GAME%3C/text%3E %3Ctext x=%22108%22 y=%22180%22 font-size=%22112%22 letter-spacing=%22-4%22 text-anchor=%22middle%22%3E25%3C/text%3E %3Ctext x=%22170%22 y=%22172%22 font-size=%2234%22%3Eth%3C/text%3E %3Ctext font-size=%2212%22 letter-spacing=%221.1%22%3E%3CtextPath href=%22%23arco%22 startOffset=%2250%25%22 text-anchor=%22middle%22%3EQUARTER CENTURY%3C/textPath%3E%3C/text%3E %3C/g%3E %3Cpolygon fill=%22black%22 points=%22214,90 217,103 238,106 217,109 214,122 211,109 190,106 211,103%22/%3E %3C/mask%3E %3C/defs%3E %3Cpath fill=%22white%22 mask=%22url(%23huecos)%22 d=%22M22 45 L88 43 L93 10 L222 42 L219 76 L222 160 L238 198 Q140 184 50 214 L48 76 L22 76 Z%22/%3E %3C/svg%3E");
 }
 
 /* =========================================================================
@@ -313,6 +323,11 @@
   --textura-tam: 80px 80px;
 }
 
+.foil-arte--platino {
+  --franja: var(--franja-plata);
+  --textura: var(--tex-diagonal);
+}
+
 .foil-arte--hieroglyph {
   --franja: var(--franja-oro);
   --textura: var(--tex-jeroglificos);
@@ -348,6 +363,13 @@
   --franja: var(--franja-hielo);
   --textura: var(--tex-cristal);
   --textura-tam: 90px 90px;
+}
+
+.foil-carta--millennium {
+  --franja: var(--franja-plata);
+  --textura: var(--tex-jeroglificos);
+  --textura-tam: 18px 30px;
+  --intensidad: 0.6;
 }
 
 .foil-carta--stars {
@@ -468,10 +490,14 @@
 }
 
 .foil-metal--gold { --metal: var(--metal-oro); }
+.foil-oro ~ .foil-letras .foil-metal--gold {
+  --metal: linear-gradient(100deg, #3f2804 0%, #6b4709 24%, #a8761a 40%, #f1d27a 49%, #b5842a 58%, #5f3f07 78%, #3f2804 100%);
+}
 .foil-metal--silver { --metal: var(--metal-plata); }
 .foil-metal--platinum { --metal: var(--metal-platino); }
 .foil-metal--rainbow { --metal: var(--metal-arcoiris); }
 .foil-metal--speckled { --metal: var(--metal-moteado); --metal-luz-oscura: 0.85; }
+.foil-metal--champan { --metal: var(--metal-champan); --metal-luz-oscura: 0.85; }
 
 /* =========================================================================
    SERIE DORADA (Gold, Gold Secret, Premium Gold, Ghost/Gold)
@@ -516,7 +542,8 @@
   );
   background-size: 260% 260%;
   background-position: calc(100% - var(--background-x, 40%)) calc(100% - var(--background-y, 35%));
-  opacity: 0.94;
+  mix-blend-mode: hard-light;
+  opacity: 0.92;
   transition: background-position 0.6s cubic-bezier(0.23, 1, 0.32, 1);
 }
 .card-container:hover .foil-oro__metal {
@@ -534,6 +561,34 @@
   mix-blend-mode: screen;
   opacity: calc(0.25 + var(--card-active, 0) * 0.65);
   transition: opacity 0.3s ease;
+}
+
+/* Platinum Secret: los mismos marcos, en platino. */
+.foil-oro--platino .foil-oro__metal {
+  background-image: linear-gradient(
+    115deg,
+    #4d5c6a 0%,
+    #8fa3b5 16%,
+    #d6e4ef 30%,
+    #ffffff 38%,
+    #b9cad8 50%,
+    #6f8293 64%,
+    #c4d4e2 80%,
+    #56687a 100%
+  );
+}
+
+/* Collector's: arco iris de "huella dactilar" en los marcos, que se mueve con la luz. */
+.foil-oro--collector .foil-oro__metal {
+  background: repeating-radial-gradient(
+    circle at var(--pointer-x, 30%) var(--pointer-y, 25%),
+    #f6b6d8 0 2px,
+    #b6e3f6 2px 4px,
+    #f6ecb0 4px 6px,
+    #c4f2c0 6px 8px
+  );
+  mix-blend-mode: color-dodge;
+  opacity: calc(0.45 + var(--card-active, 0) * 0.35);
 }
 
 /* Gold Secret: la trama diagonal fina de las Secret, sobre el oro. */
@@ -557,6 +612,76 @@
   opacity: 0.22;
   -webkit-mask-position: -0.8px -0.9px !important;
   mask-position: -0.8px -0.9px !important;
+}
+
+/* =========================================================================
+   FOIL EN TODA LA CARTA MENOS LA CAJA DE TEXTO
+   Quarter Century (trama de Secret), Platinum Rare (platino) y Extra Secret
+   (arco iris). Como en la carta real, el texto queda limpio. Máscara y mezcla
+   en el mismo elemento (ver la nota de la serie dorada).
+   ========================================================================= */
+
+.foil-cubierta {
+  position: absolute;
+  inset: 0;
+  background-image: var(--textura), var(--franja);
+  background-size: var(--textura-tam, auto), 250% 250%;
+  background-position:
+    center,
+    calc(100% - var(--background-x, 34%)) calc(100% - var(--background-y, 30%));
+  background-blend-mode: multiply;
+  mix-blend-mode: color-dodge;
+  opacity: calc(0.42 + var(--card-active, 0) * 0.33);
+  -webkit-mask: var(--mascara-sin-texto) 0 0 / 100% 100% no-repeat;
+  mask: var(--mascara-sin-texto) 0 0 / 100% 100% no-repeat;
+  transition: opacity 0.3s ease;
+}
+/*
+ * Quarter Century, mirada en fotos de cartas reales (blog oficial de Konami):
+ * no lleva las diagonales de la Secret clásica, sino PURPURINA multicolor muy
+ * densa ordenada en líneas verticales finas, por toda la carta menos la caja
+ * de texto. Aquí va la base: un velo arcoíris tenue con estrías verticales. La
+ * purpurina es la capa .foil-purpurina.
+ */
+.foil-cubierta--qcsr {
+  --franja: var(--franja-arcoiris);
+  --textura: var(--tex-vertical);
+  opacity: calc(0.22 + var(--card-active, 0) * 0.28);
+}
+
+/*
+ * Purpurina de la Quarter Century: puntitos blancos sobre negro (textura que se
+ * genera una vez, ver CardFoilOverlay.tsx) multiplicados por un arcoíris que se
+ * desplaza con la luz: cada punto toma el color de la banda que le toca, como en
+ * la carta real. En `screen`, el negro no aporta nada y los puntos brillan.
+ */
+.foil-purpurina {
+  position: absolute;
+  inset: 0;
+  background-image:
+    var(--tex-purpurina, none),
+    radial-gradient(circle at var(--pointer-x, 30%) var(--pointer-y, 22%), #fff 0%, rgba(255, 255, 255, 0.55) 22%, rgba(255, 255, 255, 0.25) 55%),
+    linear-gradient(115deg, #ff5a5a, #ffb84a, #f3ff52, #5cff8a, #52d6ff, #8a66ff, #ff66d6, #ff5a5a, #ffb84a, #f3ff52);
+  background-size: 54px 54px, 100% 100%, 300% 300%;
+  background-position:
+    0 0,
+    0 0,
+    calc(100% - var(--background-x, 40%)) calc(100% - var(--background-y, 35%));
+  background-blend-mode: multiply;
+  mix-blend-mode: screen;
+  opacity: calc(0.6 + var(--card-active, 0) * 0.4);
+  -webkit-mask: var(--mascara-sin-texto) 0 0 / 100% 100% no-repeat;
+  mask: var(--mascara-sin-texto) 0 0 / 100% 100% no-repeat;
+  transition: opacity 0.3s ease;
+}
+.foil-cubierta--extra {
+  --franja: var(--franja-arcoiris);
+  --textura: var(--tex-diagonal);
+}
+.foil-cubierta--platino {
+  --franja: var(--franja-hielo);
+  --textura: var(--tex-cristal);
+  --textura-tam: 90px 90px;
 }
 
 /* =========================================================================
@@ -589,10 +714,10 @@
  */
 .foil-sello {
   position: absolute;
-  left: 29%;
-  right: 29%;
-  top: 73.5%;
-  bottom: 8.5%;
+  left: 27%;
+  right: 25%;
+  top: 72.4%;
+  bottom: 7.2%;
 }
 /* En las Péndulo la caja de texto es más baja y más estrecha. */
 .foil--pendulo .foil-sello {
@@ -609,11 +734,14 @@
   mask: var(--sello-25) center / contain no-repeat;
 }
 
-/* El sello real es más claro que la caja de texto: plata blanquecina, en relieve. */
+/*
+ * Como en la carta real: la forma del sello es MÁS OSCURA y brillante que la caja
+ * de texto (oro viejo satinado) y las letras quedan caladas, del color de la caja.
+ */
 .foil-sello__tinta {
-  background: linear-gradient(160deg, #ffffff, #eef0f2 55%, #ffffff);
-  mix-blend-mode: screen;
-  opacity: 0.5;
+  background: linear-gradient(160deg, #c19a3e, #9a7429 50%, #c9a552);
+  mix-blend-mode: multiply;
+  opacity: 0.85;
 }
 
 .foil-sello__sombra {
@@ -627,7 +755,7 @@
 .foil-sello__luz {
   background: #fff;
   mix-blend-mode: screen;
-  opacity: calc(0.22 + var(--card-active, 0) * 0.18);
+  opacity: calc(0.1 + var(--card-active, 0) * 0.14);
   -webkit-mask-position: calc(50% - 1px) calc(50% - 1px) !important;
   mask-position: calc(50% - 1px) calc(50% - 1px) !important;
 }
@@ -646,7 +774,7 @@
     );
   mix-blend-mode: color-dodge;
   /* En reposo apenas se intuye; al mover la carta, brilla. */
-  opacity: calc(0.18 + var(--card-active, 0) * 0.4);
+  opacity: calc(var(--card-active, 0) * 0.3);
   transition: opacity 0.3s ease;
 }
 

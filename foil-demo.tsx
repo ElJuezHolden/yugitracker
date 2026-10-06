@@ -21,7 +21,7 @@ const GRUPOS: { titulo: string; rarezas: string[] }[] = [
   { titulo: 'Escalera clásica', rarezas: ['Rare', 'Super Rare', 'Ultra Rare', 'Secret Rare', 'Ultimate Rare'] },
   {
     titulo: 'Familia Secret',
-    rarezas: ['Ultra Secret Rare', 'Prismatic Secret Rare', 'Platinum Secret Rare', 'Platinum Rare'],
+    rarezas: ['Ultra Secret Rare', 'Extra Secret Rare', 'Prismatic Secret Rare', 'Platinum Secret Rare', 'Platinum Rare'],
   },
   {
     titulo: 'Premium y aniversario',
@@ -36,6 +36,7 @@ const GRUPOS: { titulo: string; rarezas: string[] }[] = [
     ],
   },
   { titulo: 'Serie dorada', rarezas: ['Gold Rare', 'Gold Secret Rare', 'Premium Gold Rare'] },
+  { titulo: 'Millennium', rarezas: ['Millennium Rare'] },
   { titulo: 'Tramas en toda la carta', rarezas: ['Starfoil Rare', 'Mosaic Rare', 'Shatterfoil Rare'] },
   {
     titulo: 'Parallel y Duel Terminal',

@@ -152,6 +152,57 @@ export const searchCards = async (query: string, signal?: AbortSignal): Promise<
   return [...enEspanol, ...enIngles.filter((c) => !espanolPorId.has(c.id))];
 };
 
+/*
+ * Impresiones que le faltan a YGOPRODeck. Su base de datos no tiene todas: p. ej.
+ * Number 39: Utopia no trae la TN23-EN013 (Quarter Century). La ficha de cada
+ * carta en Yugipedia sí lista todas sus impresiones en inglés (campos en_sets,
+ * na_sets y eu_sets), así que se piden ahí y se añaden las que falten.
+ */
+export interface Printing {
+  code: string;
+  set: string;
+  rarity: string;
+}
+const impresionesPedidas = new Map<string, Promise<Printing[]>>();
+const YUGIPEDIA = 'https://yugipedia.com/api.php';
+
+async function textoDeYugipedia(titulo: string, signal?: AbortSignal): Promise<string | null> {
+  const url = new URL(YUGIPEDIA);
+  const params = { action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', redirects: '1', origin: '*', titles: titulo };
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await fetch(url, { signal, headers: { 'Api-User-Agent': 'YugiTracker (coleccion personal)' } });
+  if (!res.ok) return null;
+  const json = (await res.json()) as { query?: { pages?: { revisions?: { content?: string }[] }[] } };
+  const texto = json.query?.pages?.[0]?.revisions?.[0]?.content ?? null;
+  return texto && texto.includes('CardTable2') ? texto : null;
+}
+
+/** Impresiones en inglés de una carta según Yugipedia (vacío si no se pudo consultar). */
+export function getYugipediaPrintings(nombreIngles: string, signal?: AbortSignal): Promise<Printing[]> {
+  let p = impresionesPedidas.get(nombreIngles);
+  if (!p) {
+    p = (async () => {
+      // Algunas cartas tienen página de desambiguación: la ficha es "Nombre (card)".
+      const texto = (await textoDeYugipedia(nombreIngles, signal)) ?? (await textoDeYugipedia(`${nombreIngles} (card)`, signal));
+      if (!texto) return [];
+      const impresiones: Printing[] = [];
+      for (const campo of texto.matchAll(/\|\s*(?:en|na|eu)_sets\s*=([\s\S]*?)(?=\n\s*\||\n\}\})/g)) {
+        for (const linea of campo[1]!.split('\n')) {
+          const [code, set, rarezas] = linea.split(';').map((x) => x.trim());
+          if (!code || !set || !rarezas) continue;
+          for (const rarity of rarezas.split(',').map((r) => r.trim()).filter(Boolean)) impresiones.push({ code, set, rarity });
+        }
+      }
+      return impresiones;
+    })().catch(() => {
+      impresionesPedidas.delete(nombreIngles);
+      return [];
+    });
+    impresionesPedidas.set(nombreIngles, p);
+  }
+  return p;
+}
+
 /** Ficha completa de una carta: primero por nombre exacto, luego aproximado. */
 export const getCardDetails = async (
   name: string,

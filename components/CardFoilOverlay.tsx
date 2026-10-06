@@ -28,15 +28,17 @@ import './CardFoilOverlay.css';
  *   Ultra Rare                    oro        holo de puntos      —
  *   Secret Rare                   arcoíris   diagonales finas    —
  *   Ultra / Extra Secret Rare     oro        diagonales finas    —
- *   Prismatic Secret / Millennium moteado    trama cruzada       —
- *   Platinum Secret Rare          platino    —                   platino
- *   Platinum Rare                 —          —                   platino
+ *   Prismatic Secret              moteado    trama cruzada       —
+ *   Millennium Rare               —          —                   jeroglíficos y grano
+ *   Platinum Secret Rare          platino    trama Secret plata  marcos de platino con trama
+ *   Platinum Rare                 arcoíris   —                   platino (menos el texto)
+ *   Extra Secret Rare             arcoíris   —                   arcoíris (menos el texto)
  *   Ultimate Rare                 oro        relieve             —        + marco en relieve
  *   Ghost Rare / Holographic      plata      desaturada y pálida —
  *   Ghost/Gold Rare               oro        desaturada y pálida marcos de oro
- *   Collector's Rare              arcoíris   mancha de aceite    —        + marco en relieve
+ *   Collector's Rare              arcoíris   mancha de aceite    marcos con huella  + relieve
  *   Starlight / Alternate Rare    arcoíris   —                   trama horizontal
- *   Quarter Century Secret Rare   oro        —                   paralelo + sello 25
+ *   Quarter Century Secret Rare   champán    —                   purpurina multicolor (menos el texto) + sello 25
  *   10000 Secret Rare             oro        —                   paralelo
  *   Grand Master Rare             oro        —                   jeroglíficos + relieve
  *   Pharaoh's Rare                oro        jeroglíficos        paralelo
@@ -47,8 +49,8 @@ import './CardFoilOverlay.css';
  *   Parallel y Duel Terminal      según su rareza base            + líneas paralelas
  */
 
-type NameFoil = 'silver' | 'gold' | 'rainbow' | 'speckled' | 'platinum';
-type ArtFoil = 'holo' | 'diagonal' | 'grid' | 'emboss' | 'ghost' | 'oilslick' | 'hieroglyph';
+type NameFoil = 'silver' | 'gold' | 'rainbow' | 'speckled' | 'platinum' | 'champan';
+type ArtFoil = 'holo' | 'diagonal' | 'grid' | 'emboss' | 'ghost' | 'oilslick' | 'hieroglyph' | 'platino';
 type CardFoil =
   | 'parallel'
   | 'starlight'
@@ -57,6 +59,7 @@ type CardFoil =
   | 'stars'
   | 'mosaic'
   | 'shatter'
+  | 'millennium'
   | 'grandmaster';
 
 interface FoilSpec {
@@ -71,7 +74,9 @@ interface FoilSpec {
   /** Marca de agua del 25.º aniversario. */
   seal25?: boolean;
   /** Oro en canto, marco de la ilustración y caja de texto (serie Gold). */
-  oro?: 'gold' | 'secret' | 'premium';
+  oro?: 'gold' | 'secret' | 'premium' | 'platino' | 'collector';
+  /** Foil en toda la carta MENOS la caja de texto. */
+  cubierta?: 'qcsr' | 'platino' | 'extra';
 }
 
 /**
@@ -107,9 +112,12 @@ function resolveFoil(rarity: string): FoilSpec | null {
   // 10000 Secret Rare: la más extrema del OCG, foil sobre toda la carta.
   if (r.includes('10000')) return { name: 'gold', card: 'qcr' };
 
-  // Quarter Century: foil paralelo, nombre en oro y la marca de agua del 25.
+  /*
+   * Quarter Century: nombre en champán moteado, foil de Secret en toda la carta
+   * menos la caja de texto, y el sello del 25 en relieve dentro de ella.
+   */
   if (r.includes('quarter century') || r.includes('25th')) {
-    return { name: 'gold', card: 'qcr', seal25: true };
+    return { name: 'champan', cubierta: 'qcsr', seal25: true };
   }
 
   /*
@@ -134,24 +142,30 @@ function resolveFoil(rarity: string): FoilSpec | null {
   // Ghost Rare (Holographic Rare en el OCG): la ilustración sale casi blanca.
   if (r.includes('ghost') || r.includes('holographic')) return { name: 'silver', art: 'ghost' };
 
-  // Collector's: arco iris de mancha de aceite, con relieve.
-  if (r.includes('collector')) return { name: 'rainbow', art: 'oilslick', emboss: true };
+  // Collector's: arco iris de "huella dactilar" en ilustración y marcos, con relieve.
+  if (r.includes('collector')) return { name: 'rainbow', art: 'oilslick', emboss: true, oro: 'collector' };
 
   // Ultimate: la única que se nota con el dedo. Relieve, sin diagonales.
   if (r.includes('ultimate')) return { name: 'gold', art: 'emboss', emboss: true };
 
   // --- Familia Secret (antes que "secret" a secas y que "ultra") ---
 
-  if (r.includes('platinum') && r.includes('secret')) return { name: 'platinum', card: 'platinum' };
-  if (r.includes('platinum')) return { card: 'platinum' };
+  // Platinum Secret: platino con trama de Secret en ilustración y marcos; nombre en platino.
+  if (r.includes('platinum') && r.includes('secret')) return { name: 'platinum', art: 'platino', oro: 'platino' };
+  // Platinum Rare: platino en toda la carta menos el texto, nombre de Secret.
+  if (r.includes('platinum')) return { name: 'rainbow', cubierta: 'platino' };
 
-  // Prismatic y Millennium: trama horizontal+vertical y nombre moteado.
-  if (r.includes('prismatic') || r.includes('millennium')) return { name: 'speckled', art: 'grid' };
+  // Millennium: un Parallel con jeroglíficos en vertical y grano.
+  if (r.includes('millennium')) return { card: 'millennium' };
 
-  // Ultra Secret / Extra Secret: foil de Secret con el nombre en oro.
-  if (r.includes('secret') && (r.includes('ultra') || r.includes('extra'))) {
-    return { name: 'gold', art: 'diagonal' };
-  }
+  // Prismatic: trama horizontal+vertical y nombre moteado.
+  if (r.includes('prismatic')) return { name: 'speckled', art: 'grid' };
+
+  // Extra Secret: arco iris en todo menos la caja de texto.
+  if (r.includes('secret') && r.includes('extra')) return { name: 'rainbow', cubierta: 'extra' };
+
+  // Ultra Secret: foil de Secret con el nombre en oro.
+  if (r.includes('secret') && r.includes('ultra')) return { name: 'gold', art: 'diagonal' };
 
   // --- Serie dorada (antes que los genéricos "gold" y "secret") ---
 
@@ -251,9 +265,49 @@ interface Props {
  * Capas de foil de una carta. Solo pinta: el seguimiento del puntero y la
  * inclinación viven en `useCardPointer`, sobre el contenedor de la carta.
  */
+/*
+ * Textura de purpurina de la Quarter Century: puntitos de brillo variable sobre
+ * negro, alineados en columnas (las estrías verticales de la carta real). Se
+ * genera una sola vez con canvas y se deja en una variable CSS de la raíz, así
+ * la comparten todas las cartas.
+ */
+let purpurinaLista = false;
+function asegurarPurpurina() {
+  if (purpurinaLista || typeof document === 'undefined') return;
+  purpurinaLista = true;
+  try {
+    const lado = 108;
+    const canvas = document.createElement('canvas');
+    canvas.width = lado;
+    canvas.height = lado;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, lado, lado);
+    let semilla = 25;
+    const rnd = () => ((semilla = (semilla * 16807) % 2147483647) / 2147483647);
+    for (let x = 1; x < lado; x += 3) {
+      for (let y = 0; y < lado; y++) {
+        if (rnd() > 0.3) continue;
+        const brillo = 0.45 + rnd() * 0.55;
+        const v = Math.round(brillo * 255);
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
+        ctx.fillRect(x, y, rnd() > 0.7 ? 2 : 1, rnd() > 0.6 ? 2 : 1);
+      }
+    }
+    document.documentElement.style.setProperty('--tex-purpurina', `url("${canvas.toDataURL('image/png')}")`);
+  } catch {
+    // Sin canvas: queda el velo de base, sin purpurina.
+  }
+}
+
 export default function CardFoilOverlay({ rarity, img, cardType }: Props) {
   const spec = useMemo(() => resolveFoil(rarity), [rarity]);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (spec?.cubierta === 'qcsr') asegurarPurpurina();
+  }, [spec]);
 
   useEffect(() => {
     const el = ref.current;
@@ -271,13 +325,15 @@ export default function CardFoilOverlay({ rarity, img, cardType }: Props) {
   return (
     <div ref={ref} className={`foil${/pendulum/i.test(cardType ?? '') ? ' foil--pendulo' : ''}`} aria-hidden="true" style={estilo}>
       {spec.card && <div className={`foil-zona foil-zona--carta foil-carta--${spec.card}`} />}
+      {spec.cubierta && <div className={`foil-cubierta foil-cubierta--${spec.cubierta}`} />}
+      {spec.cubierta === 'qcsr' && <div className="foil-purpurina" />}
       {spec.art && <div className={`foil-zona foil-zona--arte foil-arte--${spec.art}`} />}
       {spec.oro && (
         <div className={`foil-oro foil-oro--${spec.oro}`}>
           <div className="foil-oro__metal" />
           {spec.oro === 'premium' && <div className="foil-oro__sombra" />}
           {spec.oro === 'premium' && <div className="foil-oro__luz" />}
-          {spec.oro === 'secret' && <div className="foil-oro__trama" />}
+          {(spec.oro === 'secret' || spec.oro === 'platino') && <div className="foil-oro__trama" />}
           <div className="foil-oro__brillo" />
         </div>
       )}

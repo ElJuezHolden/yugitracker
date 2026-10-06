@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../../context/StoreContext';
 import type { ApiCard, Card, CardSet, CardCondition } from '../../types';
 import { formatMoney, normalizeStr, generateId, getCardMarketLink, getCardMarketProductLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
-import { getCardDetails } from '../../services/cardService';
+import { getCardDetails, getYugipediaPrintings } from '../../services/cardService';
 import { CardMarketValue } from '../CardMarketValue';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
@@ -122,7 +122,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
             // Una versión añadida a mano no está en la API: se reconstruye para no perderla al editar.
             const aMano: CardSet | null =
               !foundSet && existingCard.setCode && existingCard.setCode !== '---'
-                ? { set_name: 'Añadida a mano', set_code: existingCard.setCode, set_rarity: existingCard.rarity, set_rarity_code: existingCard.rarityCode || '', set_price: '0' }
+                ? { set_name: 'Añadida a mano', set_code: existingCard.setCode, set_rarity: existingCard.rarity, set_rarity_code: existingCard.rarityCode || '', set_price: '0', origen: 'mano' }
                 : null;
             setVersionesExtra(aMano ? [aMano] : []);
             setSelectedSet(foundSet || aMano);
@@ -320,7 +320,29 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   const isValidSelection = formData.moveToFolder && formData.moveToFolder !== ID_ALL && state.db.folders.some(f => f.id === formData.moveToFolder);
   const selectValue = isValidSelection ? formData.moveToFolder : '';
   
-  // Todas las versiones: las de la API y las añadidas a mano.
+  // Versiones que le faltan a YGOPRODeck (p. ej. TN23 de Number 39): se piden a Yugipedia.
+  useEffect(() => {
+    if (!apiData?.name) return;
+    let vivo = true;
+    const clave = (code: string, rarity: string) => `${code}|${rarity}`.toLowerCase();
+    getYugipediaPrintings(apiData.name).then(lista => {
+      if (!vivo || lista.length === 0) return;
+      const ya = new Set((apiData.card_sets ?? []).map(s => clave(s.set_code, s.set_rarity)));
+      const nuevas: CardSet[] = lista
+        .filter(p => !ya.has(clave(p.code, p.rarity)))
+        .map(p => ({ set_name: p.set, set_code: p.code, set_rarity: p.rarity, set_rarity_code: '', set_price: '0', origen: 'yugipedia' }));
+      if (nuevas.length === 0) return;
+      setVersionesExtra(prev => {
+        const tiene = new Set(prev.map(v => clave(v.set_code, v.set_rarity)));
+        return [...prev, ...nuevas.filter(n => !tiene.has(clave(n.set_code, n.set_rarity)))];
+      });
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [apiData]);
+
+  // Todas las versiones: las de la API, las de Yugipedia y las añadidas a mano.
   const todasVersiones = useMemo(() => [...(apiData?.card_sets ?? []), ...versionesExtra], [apiData, versionesExtra]);
 
   // Versiones que casan con el filtro (la elegida no se esconde nunca).
@@ -346,6 +368,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
       set_rarity: nuevaVersion.rareza,
       set_rarity_code: '',
       set_price: '0',
+      origen: 'mano',
     };
     setVersionesExtra(prev => [...prev, version]);
     setSelectedSet(version);
@@ -555,13 +578,18 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                         // Reset manual rarity to ensure clean state on switch
                                                         setManualRarity('');
                                                     }}
-                                                    title={set.set_name}
-                                                    className={`p-2 rounded cursor-pointer text-center border transition-all flex flex-col justify-center min-h-[50px] ${
+                                                    title={`${set.set_name}${set.origen === 'yugipedia' ? ' · no está en la base de datos; sacada de Yugipedia' : set.origen === 'mano' ? ' · añadida a mano' : ''}`}
+                                                    className={`relative p-2 rounded cursor-pointer text-center border transition-all flex flex-col justify-center min-h-[50px] ${
                                                         selectedSet === set 
                                                             ? 'bg-primary/10 border-primary' 
                                                             : 'bg-bg-surface border-transparent hover:bg-main/5'
                                                     }`}
                                                 >
+                                                    {set.origen && (
+                                                        <span className="absolute top-0.5 right-1 text-[8px] font-bold uppercase text-muted">
+                                                            {set.origen === 'yugipedia' ? 'wiki' : 'manual'}
+                                                        </span>
+                                                    )}
                                                     <div className="font-bold text-xs text-main">{set.set_code}</div>
                                                     <div className="text-[10px]" style={{ color: getRarityColor(set.set_rarity) }}>
                                                         {set.set_rarity}
