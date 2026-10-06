@@ -62,7 +62,8 @@ export function cruzarVersiones(api: CardSet[], yugipedia: PrintingYugipedia[]):
     // Las que coinciden (sin distinguir mayúsculas) ya están.
     const casadas = deApi.filter((s) => deYugipedia.some((p) => sameRarity(s.set_rarity, p.rarity)));
     const sueltasYp = deYugipedia.filter((p) => !deApi.some((s) => sameRarity(s.set_rarity, p.rarity))).map(desdeYugipedia);
-    const sueltasApi = deApi.filter((s) => !casadas.includes(s));
+    // La variante de letras plateadas no está en Yugipedia: no cuenta como suelta.
+    const sueltasApi = deApi.filter((s) => !casadas.includes(s) && !isSpecialRarity(s.set_rarity));
     const falsas = sueltasApi.filter((s) => isPlaceholderRarity(s.set_rarity));
 
     if (sueltasYp.length > 0 && sueltasApi.length === sueltasYp.length && falsas.length < sueltasApi.length) {
@@ -84,5 +85,32 @@ export function cruzarVersiones(api: CardSet[], yugipedia: PrintingYugipedia[]):
     const enSuLugar = sueltasYp[0] ?? casadas[0];
     if (enSuLugar) for (const s of falsas) sustituidas.set(claveVersion(s.set_code, s.set_rarity), enSuLugar);
   }
-  return { nuevas, sustituidas };
+  // Las versiones nuevas también llevan su variante de letras plateadas.
+  return { nuevas: conVariantesEspeciales(nuevas), sustituidas };
+}
+
+/*
+ * Ultra Rare con el nombre en letras plateadas. En Battles of Legend: Chapter 1
+ * cada Ultra Rare sale con letras normales y con letras plateadas (cada sobre
+ * trae 1 normal y 2 plateadas); Cardmarket las separa en "V.1" y "V.2 -
+ * Special". Ni YGOPRODeck ni Yugipedia las distinguen, así que se añade la
+ * versión aquí. La misma lista está en scripts/actualizar-precios.mjs, que es
+ * quien le pone el precio de su producto.
+ */
+export const RAREZA_ESPECIAL = 'Ultra Rare (Special)';
+const PREFIJOS_CON_ESPECIAL = ['BLC1'];
+
+export const isSpecialRarity = (rarity: string) => sameRarity(rarity, RAREZA_ESPECIAL);
+
+/** Las versiones con su variante de letras plateadas añadida, justo detrás de la normal. */
+export function conVariantesEspeciales(versiones: CardSet[]): CardSet[] {
+  const out: CardSet[] = [];
+  for (const v of versiones) {
+    out.push(v);
+    const prefijo = v.set_code.split('-')[0]?.toUpperCase() ?? '';
+    if (!PREFIJOS_CON_ESPECIAL.includes(prefijo) || !sameRarity(v.set_rarity, 'Ultra Rare')) continue;
+    if (versiones.some((x) => normalizar(x.set_code) === normalizar(v.set_code) && isSpecialRarity(x.set_rarity))) continue;
+    out.push({ ...v, set_rarity: RAREZA_ESPECIAL, set_rarity_code: '', set_price: '0' });
+  }
+  return out;
 }

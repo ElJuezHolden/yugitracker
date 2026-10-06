@@ -300,6 +300,69 @@ for (const [nombreSet, cartasSet] of setsCartas) {
 }
 
 /*
+ * Ultra Rare con letras plateadas. En Battles of Legend: Chapter 1 cada Ultra
+ * Rare sale con el nombre en letras normales y en plateadas (cada sobre trae 1
+ * normal y 2 plateadas), y Cardmarket las separa en "V.1" y "V.2 - Special".
+ * Ni YGOPRODeck ni Yugipedia las distinguen, y con una sola Ultra por carta se
+ * le daba el producto más barato, que suele ser la plateada.
+ *
+ * Cardmarket creó primero todas las normales y después, en otro bloque, las
+ * plateadas (Number 39: Utopia: 756011 la V.1 y 756047 la V.2), así que por
+ * número de producto: los más bajos son las versiones normales (las Secret y
+ * las Ultra, por orden de código) y los últimos, las plateadas. Comprobado con
+ * Utopia en la web de Cardmarket. Si una carta no tiene justo los productos
+ * esperados, se deja como estaba. La lista de cartas sale de Yugipedia, porque
+ * a YGOPRODeck le faltan algunas (Utopia no la tiene en BLC1). La misma lista
+ * de colecciones está en la web, en services/versiones.ts.
+ */
+const CON_ESPECIAL = [{ set: 'Battles of Legend: Chapter 1', lista: 'Set Card Lists:Battles of Legend: Chapter 1 (TCG-EN)' }];
+const RAREZA_ESPECIAL = 'Ultra Rare (Special)';
+let especiales = 0;
+try {
+  const idDeNombre = new Map(cartas.map((c) => [norm(c.name), c.id]));
+  for (const { set, lista } of CON_ESPECIAL) {
+    const exp = emparejados.find(([nombre]) => nombre === set)?.[1];
+    if (exp == null) continue;
+    const url = new URL('https://yugipedia.com/api.php');
+    for (const [k, v] of Object.entries({ action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', titles: lista })) url.searchParams.set(k, v);
+    const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
+    if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
+    const texto = (await res.json()).query.pages[0]?.revisions?.[0]?.content ?? '';
+    // "BLC1-EN039; Number 39: Utopia; Ultra Rare // description::…"
+    const porCarta = new Map();
+    for (const linea of texto.split('\n')) {
+      const [code, nombre, rareza] = linea.split(';').map((x) => x.split('//')[0].trim());
+      if (!/^[A-Z0-9]+-[A-Z]{2}\d+$/.test(code ?? '') || !nombre) continue;
+      const n = norm(nombre);
+      if (!porCarta.has(n)) porCarta.set(n, []);
+      porCarta.get(n).push({ code, rarity: rareza || 'Common' });
+    }
+    for (const [n, impresiones] of porCarta) {
+      const id = idDeNombre.get(n);
+      const ultras = impresiones.filter((i) => i.rarity === 'Ultra Rare').sort((a, b) => a.code.localeCompare(b.code));
+      if (id == null || ultras.length === 0) continue;
+      const normales = [...impresiones].sort((a, b) => a.code.localeCompare(b.code));
+      const productosCarta = (expansiones.get(exp).get(n) ?? []).filter((p) => precioProducto.has(p.idProduct)).sort((a, b) => a.idProduct - b.idProduct);
+      if (productosCarta.length !== normales.length + ultras.length) continue;
+      const asignar = (imp, rarity, producto) => {
+        const clave = `${imp.code}|${rarity}`;
+        const precio = precioProducto.get(producto.idProduct);
+        for (const m of [deHoy, cifrasDe, productoDe]) if (!m.has(id)) m.set(id, {});
+        deHoy.get(id)[clave] = precio.ref;
+        cifrasDe.get(id)[clave] = precio.cifras;
+        productoDe.get(id)[clave] = producto.idProduct;
+        asignados.add(producto.idProduct);
+      };
+      normales.forEach((imp, i) => asignar(imp, imp.rarity, productosCarta[i]));
+      ultras.forEach((imp, i) => asignar(imp, RAREZA_ESPECIAL, productosCarta[normales.length + i]));
+      especiales += ultras.length;
+    }
+  }
+} catch (e) {
+  console.warn(`No se pudieron separar las Ultra Rare de letras plateadas: ${e.message}`);
+}
+
+/*
  * Productos sobrantes. A YGOPRODeck le faltan impresiones (p. ej. Number 39:
  * Utopia en la lata TN23, aunque el set sí lo tiene con otras cartas). Esas
  * impresiones están en Cardmarket, en la expansión ya emparejada, pero sin
@@ -402,5 +465,5 @@ for (let i = 0; i < TROZOS; i++) {
 }
 
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas.`,
 );

@@ -145,6 +145,9 @@ function resolveFoil(rarity: string): FoilSpec | null {
   // Collector's: arco iris de "huella dactilar" en ilustración y marcos, con relieve.
   if (r.includes('collector')) return { name: 'rainbow', art: 'oilslick', emboss: true, oro: 'collector' };
 
+  // Ultra Rare "Special" (Battles of Legend: Chapter 1): una Ultra con el nombre en plata.
+  if (r.includes('ultra') && r.includes('special')) return { name: 'silver', art: 'holo' };
+
   // Ultimate: la única que se nota con el dedo. Relieve, sin diagonales.
   if (r.includes('ultimate')) return { name: 'gold', art: 'emboss', emboss: true };
 

@@ -9,7 +9,7 @@ import { IDIOMAS, LanguageFlag } from '../LanguageFlag';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
 import { leftoverFor, resolvePrintingKey, versionPrice } from '../../services/prices';
-import { claveVersion, cruzarVersiones, sameRarity } from '../../services/versiones';
+import { RAREZA_ESPECIAL, claveVersion, conVariantesEspeciales, cruzarVersiones, sameRarity } from '../../services/versiones';
 import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search } from 'lucide-react';
 
 interface Props {
@@ -27,6 +27,7 @@ const MANUAL_RARITIES = [
     'Rare',
     'Super Rare',
     'Ultra Rare',
+    RAREZA_ESPECIAL,
     'Secret Rare',
     'Platinum Secret Rare',
     'Quarter Century Secret Rare',
@@ -128,14 +129,14 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         
         const details = await getCardDetails(existingCard.name);
         if (details) {
-            data = details;
+            data = { ...details, card_sets: conVariantesEspeciales(details.card_sets ?? []) };
              // Match set
             // Primero por la rareza: por el código de rareza, una copia sin él (las de
             // Yugipedia) encajaba con cualquier versión que tampoco lo tuviera ("New").
             const foundSet =
-              details.card_sets?.find(s => s.set_code === existingCard.setCode && sameRarity(s.set_rarity, existingCard.rarity)) ??
+              data.card_sets?.find(s => s.set_code === existingCard.setCode && sameRarity(s.set_rarity, existingCard.rarity)) ??
               (existingCard.rarityCode
-                ? details.card_sets?.find(s => s.set_code === existingCard.setCode && s.set_rarity_code === existingCard.rarityCode)
+                ? data.card_sets?.find(s => s.set_code === existingCard.setCode && s.set_rarity_code === existingCard.rarityCode)
                 : undefined);
             // Una versión añadida a mano no está en la API: se reconstruye para no perderla al editar.
             const aMano: CardSet | null =
@@ -202,6 +203,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
             isWanted: false,
             moveToFolder: defaultFolder
           });
+          data = { ...data, card_sets: conVariantesEspeciales(data.card_sets ?? []) };
           setSelectedImg(data.card_images[0].image_url);
           setCustomImg('');
           setManualRarity('');

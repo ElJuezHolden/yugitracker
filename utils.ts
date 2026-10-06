@@ -120,6 +120,7 @@ export const getRarityColor = (rarityString: string): string => {
   if (r.includes('secret')) return '#e5e7eb'; // Silver/White (Secret text)
   if (r.includes('ultimate')) return '#f97316'; // Orange
   if (r.includes('ghost')) return '#f3f4f6'; // Ghost White
+  if (r.includes('ultra') && r.includes('special')) return '#cbd5e1'; // Ultra con letras plateadas
   if (r.includes('gold') || r.includes('ultra')) return '#ffd700'; // Gold
   if (r.includes('super')) return '#10b981'; // Green
   if (r.includes('rare')) return '#3b82f6'; // Blue
