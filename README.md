@@ -27,6 +27,8 @@ Los datos de las cartas vienen de la API pública de [YGOPRODeck](https://ygopro
 - **Buscador en español o inglés**: «Mago Oscuro» encuentra Dark Magician. YGOPRODeck no tiene
   nombres en español; los saca cada semana `scripts/actualizar-nombres.mjs` de Yugipedia (por el
   número de la carta) y se publican con la web en `/precios/nombres-es.json`.
+- **Nombres en el idioma de tu copia**: las cartas en español se ven con su nombre en español (y el
+  inglés debajo); el resto, en inglés. La búsqueda y el orden por nombre usan el nombre que se ve.
 - **Cartas buscadas**: márcalas como *wanted* para llevar la lista de lo que te falta.
 - **Filtros** por tipo de carta, tipo de monstruo, propiedad de mágica o trampa, set y rareza.
 - **Temas**: acento y fondo a elegir, con claro y oscuro automáticos, y colores propios guardados.

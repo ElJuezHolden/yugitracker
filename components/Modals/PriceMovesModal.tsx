@@ -5,6 +5,7 @@ import type { Card } from '../../types';
 import { useStore } from '../../context/StoreContext';
 import { findPrinting, loadCachedPrices, loadHistories, printingKey, type CardPrices, type PricePoint } from '../../services/prices';
 import { formatMoney, getRarityColor } from '../../utils';
+import { useCardName } from '../useCardName';
 
 interface Props {
   onClose: () => void;
@@ -235,6 +236,7 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
 }
 
 function Fila({ m, onOpen }: { m: Movimiento; onOpen: () => void }) {
+  const { nombre } = useCardName(m.card);
   const sube = m.pct >= 0;
   const color = sube ? '#34d399' : '#f87171';
   const diferencia = m.ahora - m.antes;
@@ -254,7 +256,7 @@ function Fila({ m, onOpen }: { m: Movimiento; onOpen: () => void }) {
       <img src={m.card.img} alt="" loading="lazy" className="w-9 h-[52px] object-cover rounded shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="text-sm font-bold text-main truncate">
-          {m.card.name}
+          {nombre}
           {m.copias > 1 && <span className="text-muted font-semibold"> ×{m.copias}</span>}
         </div>
         <div className="text-[11px] truncate">

@@ -78,6 +78,11 @@ function cargarNombresEs(): Promise<NombreEs[]> {
   return nombresEs;
 }
 
+/** Nombres en español de todas las cartas: id → nombre (vacío si no se pudieron cargar). */
+export async function loadSpanishNames(): Promise<Map<number, string>> {
+  return new Map((await cargarNombresEs()).map((n) => [n.id, n.nombre]));
+}
+
 /** Cartas cuyo nombre en español contiene todas las palabras buscadas. */
 async function buscarEnEspanol(tokens: string[], signal?: AbortSignal): Promise<ApiCard[]> {
   const lista = await cargarNombresEs();

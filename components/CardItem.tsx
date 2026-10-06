@@ -6,6 +6,7 @@ import { formatMoney, getConditionMeta, getRarityColor, ID_ALL, onCardImageError
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquareText, FolderOpen, CheckCircle2, Circle } from 'lucide-react';
 import CardFoilOverlay from './CardFoilOverlay';
+import { useCardName } from './useCardName';
 import { usePrices } from '../context/PricesContext';
 import { useCardPointer } from './useCardPointer';
 
@@ -78,6 +79,8 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
 
   const rarityColor = getRarityColor(card.rarity);
   // Valor de mercado de ESTA impresión (set y rareza), en euros; null si no hay precio.
+  // Nombre en el idioma de la copia (español si es ES) y, aparte, el otro.
+  const { nombre, otro: otroNombre } = useCardName(card);
   const precioCopia = usePrices().priceOf(card);
   const valor = precioCopia?.eur ?? null;
   const fuenteValor = precioCopia?.fuente;
@@ -216,7 +219,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         onError={onCardImageError} 
                         className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out ${card.isWanted ? 'grayscale brightness-75' : ''}`}
                         loading="lazy"
-                        alt={card.name}
+                        alt={nombre}
                    />
                    
                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
@@ -261,7 +264,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         onError={onCardImageError} 
                     className={`w-full h-full object-cover transition-transform duration-500 ${card.isWanted ? 'grayscale brightness-75' : ''}`}
                     loading="lazy"
-                    alt={card.name}
+                    alt={nombre}
                 />
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
 
@@ -294,7 +297,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
             {!isSelectionMode && (
                 <div className="absolute inset-0 flex items-end justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
                      <div className="w-full bg-black/80 backdrop-blur-md p-[2cqw] text-center border-t border-white/10">
-                         <div className="text-white truncate px-1" style={{ fontSize: '9cqw', fontWeight: 700 }}>{card.name}</div>
+                         <div className="text-white truncate px-1" style={{ fontSize: '9cqw', fontWeight: 700 }}>{nombre}</div>
                          {!card.isWanted && <div className="text-primary font-mono" style={{ fontSize: '8cqw' }} title={tituloValor}>{valor != null ? `≈ ${formatMoney(valor)}` : '—'}</div>}
                      </div>
                 </div>
@@ -364,7 +367,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 <div className={`flex flex-col gap-2 min-w-0 overflow-hidden z-30 pointer-events-none ${isSelectionMode ? 'pl-8' : ''}`}>
                     <div className="flex flex-col">
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className={`font-bold text-base md:text-xl leading-tight truncate ${card.isWanted ? 'text-muted' : 'text-main'}`}>{card.name}</span>
+                            <span className={`font-bold text-base md:text-xl leading-tight truncate ${card.isWanted ? 'text-muted' : 'text-main'}`}>{nombre}</span>
                             {!card.isWanted && <EtiquetasCopia card={card} edicion={showEditionFlags} estado={false} />}
                             {showFolderBadge && (
                                 <button className="flex items-center gap-1 text-[10px] bg-bg-panel text-muted px-2 py-0.5 rounded-full border border-border-base ml-2">
@@ -373,8 +376,8 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                                 </button>
                             )}
                         </div>
-                        {card.name_en && card.name_en !== card.name && (
-                            <span className="text-sm text-muted font-medium italic truncate">{card.name_en}</span>
+                        {otroNombre && (
+                            <span className="text-sm text-muted font-medium italic truncate">{otroNombre}</span>
                         )}
                     </div>
                     
@@ -430,7 +433,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                             <img src={card.img}
                         onError={onCardImageError} className={`w-full h-auto object-contain bg-black ${card.isWanted ? 'grayscale' : ''}`} alt="Zoom" />
                             <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/90 to-transparent">
-                                <div className="text-xs text-white text-center font-medium">{card.name}</div>
+                                <div className="text-xs text-white text-center font-medium">{nombre}</div>
                             </div>
                         </motion.div>
                     )}
@@ -479,7 +482,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out ${card.isWanted ? 'grayscale brightness-75' : ''}`} 
                     loading="lazy" 
                     decoding="async"
-                    alt={card.name} 
+                    alt={nombre} 
                 />
 
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
@@ -505,7 +508,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
             <div className="p-3 flex flex-col justify-between gap-2 bg-bg-surface relative z-30 flex-1 min-h-[80px]">
                 <div className="flex flex-col gap-1">
                     <div className="flex justify-between items-start gap-1">
-                        <div className={`font-bold text-sm leading-tight line-clamp-2 ${card.isWanted ? 'text-muted' : 'text-main'}`} title={card.name}>{card.name}</div>
+                        <div className={`font-bold text-sm leading-tight line-clamp-2 ${card.isWanted ? 'text-muted' : 'text-main'}`} title={otroNombre ? `${nombre} · ${otroNombre}` : nombre}>{nombre}</div>
                         {card.obs && !isSelectionMode && (
                             <div 
                                 className="text-muted hover:text-primary transition-colors cursor-help shrink-0 pt-0.5"
@@ -520,8 +523,8 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                             </div>
                         )}
                     </div>
-                    {card.name_en && card.name_en !== card.name && (
-                        <div className="text-[10px] text-muted italic truncate -mt-0.5">{card.name_en}</div>
+                    {otroNombre && (
+                        <div className="text-[10px] text-muted italic truncate -mt-0.5">{otroNombre}</div>
                     )}
                     {showFolderBadge && !isSelectionMode && (
                          <div 

@@ -14,6 +14,7 @@ import { useBackup } from './context/BackupContext';
 import { FoilFilters } from './components/FoilFilters';
 import { CollectionValue } from './components/CollectionValue';
 import { usePrices } from './context/PricesContext';
+import { displayName, useSpanishNames } from './components/useCardName';
 import { CardFilter } from './components/CardFilter';
 import { ToastContainer } from './components/Toast';
 import { ID_ALL, getTypeWeight, getRarityWeight, normalizeStr, analyzeCardType, compareNames } from './utils';
@@ -31,6 +32,8 @@ function App() {
   const { state, dispatch, toast } = useStore();
   const backup = useBackup();
   const { valueOf } = usePrices();
+  // Nombres en español: la búsqueda y el orden por nombre usan el nombre que se ve.
+  const nombresEs = useSpanishNames();
   const { activeFolderId, view, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, showWantedCards } = state.ui;
 
   // Modals State
@@ -257,13 +260,14 @@ function App() {
                 list = (list as Card[]).filter(c => {
                     const n = normalizeStr(c.name);
                     const nEn = normalizeStr(c.name_en || '');
-                    return n.includes(q) || nEn.includes(q);
+                    const nEs = normalizeStr(nombresEs?.get(c.apiId) ?? '');
+                    return n.includes(q) || nEn.includes(q) || nEs.includes(q);
                 });
             }
          }
      }
      return list;
-  }, [state.db, isHome, activeFolderId, searchQuery]);
+  }, [state.db, isHome, activeFolderId, searchQuery, nombresEs]);
 
   // 2. DERIVED OPTIONS: Extract Sets/Rarities from Base Data (only for Cards)
   const { availableSets, availableRarities } = useMemo(() => {
@@ -399,7 +403,7 @@ function App() {
             const dir = sortCardsDir === 'asc' ? 1 : -1;
             list.sort((a, b) => {
                 if (sortCards === 'name') {
-                    const nameDiff = compareNames(a.name, b.name) * dir;
+                    const nameDiff = compareNames(displayName(a, nombresEs), displayName(b, nombresEs)) * dir;
                     if (nameDiff !== 0) return nameDiff;
                     const attrDiff = compareAttributes(a, b);
                     if (attrDiff !== 0) return attrDiff;
@@ -413,7 +417,7 @@ function App() {
                     const tB = getTypeWeight(b.type);
                     const typeDiff = (tA - tB) * dir;
                     if (typeDiff !== 0) return typeDiff;
-                    const nameDiff = compareNames(a.name, b.name) * dir;
+                    const nameDiff = compareNames(displayName(a, nombresEs), displayName(b, nombresEs)) * dir;
                     if (nameDiff !== 0) return nameDiff;
                     return compareAttributes(a, b);
                 }
@@ -422,7 +426,7 @@ function App() {
                     const wB = getRarityWeight(b.rarity);
                     const rarityDiff = (wB - wA) * dir;
                     if (rarityDiff !== 0) return rarityDiff;
-                    const nameDiff = compareNames(a.name, b.name) * dir;
+                    const nameDiff = compareNames(displayName(a, nombresEs), displayName(b, nombresEs)) * dir;
                     if (nameDiff !== 0) return nameDiff;
                     const attrDiff = compareAttributes(a, b);
                     if (attrDiff !== 0) return attrDiff;
@@ -433,7 +437,7 @@ function App() {
                      const wB = getTypeWeight(b.type);
                      const typeDiff = (wA - wB) * dir;
                      if (typeDiff !== 0) return typeDiff;
-                     const nameDiff = compareNames(a.name, b.name) * dir;
+                     const nameDiff = compareNames(displayName(a, nombresEs), displayName(b, nombresEs)) * dir;
                      if (nameDiff !== 0) return nameDiff;
                      const attrDiff = compareAttributes(a, b);
                      if (attrDiff !== 0) return attrDiff;
@@ -444,7 +448,7 @@ function App() {
         }
         return list;
     }
-  }, [baseData, isHome, sortFolders, sortFoldersDir, sortCards, sortCardsDir, filters, state.db.cards, showWantedCards, valueOf]);
+  }, [baseData, isHome, sortFolders, sortFoldersDir, sortCards, sortCardsDir, filters, state.db.cards, showWantedCards, valueOf, nombresEs]);
 
   // Derived Values for Selection UI
   const totalSelectable = isHome 
