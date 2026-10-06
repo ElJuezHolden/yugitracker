@@ -5,11 +5,22 @@ import {
   PRICE_TTL_MS,
   fetchPrices,
   findPrinting,
+  forgetMarketData,
   getExchangeRate,
   loadCachedPrices,
+  loadMarketPrices,
+  printingKey,
   type CardPrices,
   type ExchangeRate,
+  type MarketPrices,
 } from '../services/prices';
+
+/** Precio de una copia y de dónde sale. */
+export interface CopyPrice {
+  eur: number;
+  /** Cardmarket casi siempre; TCGplayer si la versión no está en Cardmarket. */
+  fuente: 'cardmarket' | 'tcgplayer';
+}
 
 /** Resumen de valor de un grupo de cartas (una carpeta, la colección…). */
 export interface ValueSummary {
@@ -28,6 +39,10 @@ interface PricesContextValue {
   error: string | null;
   /** Momento del dato más antiguo de los que se están usando. */
   oldestFetch: number | null;
+  /** Día de los precios de Cardmarket (ms), o `null` si no hay (p. ej. en local). */
+  marketDate: number | null;
+  /** Precio de una copia, con su fuente, o `null` si no hay. */
+  priceOf: (card: Card) => CopyPrice | null;
   /** Valor de mercado de una copia, en euros, o `null` si no hay precio. */
   valueOf: (card: Card) => number | null;
   summarize: (cards: Card[]) => ValueSummary;
@@ -46,6 +61,7 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forzar, setForzar] = useState(0);
+  const [mercado, setMercado] = useState<MarketPrices>(() => ({ porCarta: new Map(), fecha: null }));
 
   /*
    * Las ids de la colección, como texto ordenado: así el efecto solo se dispara
@@ -79,6 +95,12 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ultimoForzado.current = forzar;
 
     const t = window.setTimeout(async () => {
+      // 0. Cardmarket: lo publicado hoy por GitHub Actions (en local no hay).
+      if (forzado) forgetMarketData();
+      loadMarketPrices(ids).then((m) => {
+        if (!controller.signal.aborted) setMercado(m);
+      });
+
       // 1. Lo guardado, al momento: así los valores aparecen sin esperar a la red.
       const guardados = await loadCachedPrices(ids);
       if (controller.signal.aborted) return;
@@ -119,16 +141,22 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, [claveIds, forzar]);
 
-  const valueOf = useCallback(
-    (card: Card): number | null => {
-      if (!rate) return null;
+  const priceOf = useCallback(
+    (card: Card): CopyPrice | null => {
+      if (!card.setCode || card.setCode === '---') return null;
       const info = prices.get(card.apiId);
-      if (!info) return null;
-      const impresion = findPrinting(info.printings, card.setCode, card.rarity, card.rarityCode);
-      return impresion?.usd != null ? impresion.usd * rate.usdToEur : null;
+      const impresion = info ? findPrinting(info.printings, card.setCode, card.rarity, card.rarityCode) : null;
+      const cm = mercado.porCarta.get(card.apiId);
+      const clave = impresion ? printingKey(impresion.code, impresion.rarity) : printingKey(card.setCode, card.rarity);
+      const eur = cm?.[clave];
+      if (eur != null) return { eur, fuente: 'cardmarket' };
+      if (impresion?.usd != null && rate) return { eur: impresion.usd * rate.usdToEur, fuente: 'tcgplayer' };
+      return null;
     },
-    [prices, rate],
+    [prices, rate, mercado],
   );
+
+  const valueOf = useCallback((card: Card): number | null => priceOf(card)?.eur ?? null, [priceOf]);
 
   const summarize = useCallback(
     (cards: Card[]): ValueSummary => {
@@ -157,8 +185,8 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const refresh = useCallback(() => setForzar((n) => n + 1), []);
 
   const value = useMemo<PricesContextValue>(
-    () => ({ rate, loading, error, oldestFetch, valueOf, summarize, refresh }),
-    [rate, loading, error, oldestFetch, valueOf, summarize, refresh],
+    () => ({ rate, loading, error, oldestFetch, marketDate: mercado.fecha, priceOf, valueOf, summarize, refresh }),
+    [rate, loading, error, oldestFetch, mercado.fecha, priceOf, valueOf, summarize, refresh],
   );
 
   return <PricesContext.Provider value={value}>{children}</PricesContext.Provider>;

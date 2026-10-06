@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import { TrendingDown, TrendingUp, X } from 'lucide-react';
 import type { Card } from '../../types';
 import { useStore } from '../../context/StoreContext';
-import { usePrices } from '../../context/PricesContext';
 import { findPrinting, loadCachedPrices, loadHistories, printingKey, type CardPrices, type PricePoint } from '../../services/prices';
 import { formatMoney, getRarityColor } from '../../utils';
 
@@ -30,8 +29,8 @@ interface Movimiento {
   card: Card;
   /** Copias de esa misma versión en la colección. */
   copias: number;
-  /** Precios del rango, en dólares, del más antiguo al más reciente. */
-  serie: { t: number; usd: number }[];
+  /** Precios del rango, en euros, del más antiguo al más reciente. */
+  serie: { t: number; eur: number }[];
   antes: number;
   ahora: number;
   pct: number;
@@ -46,7 +45,6 @@ interface Movimiento {
  */
 export function PriceMovesModal({ onClose, onOpenCard }: Props) {
   const { state } = useStore();
-  const { rate } = usePrices();
   const [historiales, setHistoriales] = useState<Map<number, PricePoint[]> | null>(null);
   const [precios, setPrecios] = useState<Map<number, CardPrices>>(new Map());
   const [rango, setRango] = useState<Rango>('7D');
@@ -88,19 +86,19 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
 
     for (const card of cartas) {
       const info = precios.get(card.apiId);
-      const impresion = info && findPrinting(info.printings, card.setCode, card.rarity, card.rarityCode);
-      if (!impresion) continue;
-      const clave = `${card.apiId}|${printingKey(impresion.code, impresion.rarity)}`;
+      if (!card.setCode || card.setCode === '---') continue;
+      const impresion = info ? findPrinting(info.printings, card.setCode, card.rarity, card.rarityCode) : null;
+      const k = impresion ? printingKey(impresion.code, impresion.rarity) : printingKey(card.setCode, card.rarity);
+      const clave = `${card.apiId}|${k}`;
       const ya = porVersion.get(clave);
       if (ya) {
         ya.copias++;
         continue;
       }
 
-      const k = printingKey(impresion.code, impresion.rarity);
       const puntos = (historiales.get(card.apiId) ?? [])
-        .map((p) => ({ t: diaATiempo(p.d), usd: p.p[k] }))
-        .filter((p): p is { t: number; usd: number } => p.usd != null);
+        .map((p) => ({ t: diaATiempo(p.d), eur: p.p[k] }))
+        .filter((p): p is { t: number; eur: number } => p.eur != null);
       if (puntos.length < 2) continue;
 
       const ultimo = puntos[puntos.length - 1]!;
@@ -108,8 +106,8 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
       const serie = puntos.filter((p) => p.t >= desde);
       if (serie.length < 2) continue;
 
-      const antes = serie[0]!.usd;
-      const ahora = ultimo.usd;
+      const antes = serie[0]!.eur;
+      const ahora = ultimo.eur;
       porVersion.set(clave, { card, copias: 1, serie, antes, ahora, pct: ((ahora - antes) / antes) * 100 });
     }
     return [...porVersion.values()];
@@ -120,7 +118,6 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
     .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
   const cuantasSuben = movimientos.filter((m) => m.pct > 0 && m.pct >= umbral).length;
   const cuantasBajan = movimientos.filter((m) => m.pct < 0 && -m.pct >= umbral).length;
-  const eur = (usd: number) => usd * (rate?.usdToEur ?? 0);
 
   return (
     <div
@@ -223,13 +220,13 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
           ) : (
             <div className="divide-y divide-border-base rounded-lg border border-border-base bg-bg-panel overflow-hidden">
               {lista.map((m) => (
-                <Fila key={`${m.card.apiId}-${m.card.setCode}-${m.card.rarity}`} m={m} eur={eur} onOpen={() => onOpenCard(m.card)} />
+                <Fila key={`${m.card.apiId}-${m.card.setCode}-${m.card.rarity}`} m={m} onOpen={() => onOpenCard(m.card)} />
               ))}
             </div>
           )}
           <p className="text-[10px] text-sub leading-relaxed mt-3">
-            Compara el primer precio apuntado del periodo con el último, por versión. Precios de TCGplayer pasados a euros
-            al cambio actual: orientativos, no distinguen idioma, edición ni estado.
+            Compara el primer precio apuntado del periodo con el último, por versión. Precios de Cardmarket:
+            orientativos, mezclan idiomas y estados.
           </p>
         </div>
       </motion.div>
@@ -237,19 +234,19 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
   );
 }
 
-function Fila({ m, eur, onOpen }: { m: Movimiento; eur: (usd: number) => number; onOpen: () => void }) {
+function Fila({ m, onOpen }: { m: Movimiento; onOpen: () => void }) {
   const sube = m.pct >= 0;
   const color = sube ? '#34d399' : '#f87171';
-  const diferencia = eur(m.ahora) - eur(m.antes);
+  const diferencia = m.ahora - m.antes;
 
   // Mini gráfica: 64×24.
-  const vals = m.serie.map((s) => s.usd);
+  const vals = m.serie.map((s) => s.eur);
   const min = Math.min(...vals);
   const max = Math.max(...vals);
   const t0 = m.serie[0]!.t;
   const t1 = m.serie[m.serie.length - 1]!.t;
   const puntos = m.serie
-    .map((s) => `${(((s.t - t0) / Math.max(1, t1 - t0)) * 64).toFixed(1)},${(22 - ((s.usd - min) / Math.max(0.0001, max - min)) * 20).toFixed(1)}`)
+    .map((s) => `${(((s.t - t0) / Math.max(1, t1 - t0)) * 64).toFixed(1)},${(22 - ((s.eur - min) / Math.max(0.0001, max - min)) * 20).toFixed(1)}`)
     .join(' ');
 
   return (
@@ -270,7 +267,7 @@ function Fila({ m, eur, onOpen }: { m: Movimiento; eur: (usd: number) => number;
         <polyline points={puntos} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
       </svg>
       <div className="text-right shrink-0 w-28">
-        <div className="text-sm font-black text-main">{formatMoney(eur(m.ahora))}</div>
+        <div className="text-sm font-black text-main">{formatMoney(m.ahora)}</div>
         <div className={`text-[11px] font-bold ${sube ? 'text-emerald-400' : 'text-red-400'}`}>
           {sube ? '+' : '−'}
           {formatMoney(Math.abs(diferencia))} ({sube ? '+' : '−'}

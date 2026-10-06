@@ -3,26 +3,19 @@ import type { ApiCard, CardSet } from '../types';
 /*
  * Precios de mercado de las cartas.
  *
- * De dónde sale cada cifra (comprobado en la documentación de YGOPRODeck):
+ * La fuente principal es Cardmarket (en euros, el mercado europeo): cada día
+ * GitHub Actions empareja su guía pública de precios con cada versión de cada
+ * carta (scripts/actualizar-precios.mjs) y lo publica con la web en /precios/.
+ * Cubre más del 95 % de las versiones.
  *
+ * Si una versión no está en Cardmarket se usa TCGplayer, que da YGOPRODeck:
  *   - `card_sets[].set_price`: el precio de UNA IMPRESIÓN concreta (set y
- *     rareza), en DÓLARES. Es el que sirve para valorar una copia.
- *   - `card_prices[0].cardmarket_price`: "el precio más bajo de todas las
- *     versiones de la carta", en euros. NO sirve para valorar una copia: con él
- *     un Dark Magician Ghost Rare (742 $) saldría a 0,02 €.
+ *     rareza), en DÓLARES, pasado a euros al cambio del BCE (vía Frankfurter).
+ *   - `card_prices[0].cardmarket_price` NO se usa: es el de la versión más
+ *     barata de la carta, y con él un Dark Magician Ghost Rare saldría a 0,02 €.
  *
- * Así que el valor de cada copia es el `set_price` de su impresión, pasado a
- * euros al cambio del Banco Central Europeo (vía Frankfurter: gratis, sin clave
- * y con CORS). Si el cambio no se puede consultar se usa uno aproximado y se
- * avisa.
- *
- * Los precios se guardan un día en IndexedDB: cambian despacio, y una colección
- * de mil cartas costaría decenas de peticiones cada vez que se abre la página.
- *
- * La API solo da el precio de hoy, sin historial. El historial sale de dos
- * sitios: el público, que GitHub Actions apunta cada día para todas las cartas
- * (ver loadHistories), y el de cada navegador, que apunta un precio por día y
- * carta cada vez que llega uno.
+ * Los datos de YGOPRODeck se guardan un día en IndexedDB: también dan la lista
+ * de versiones de cada carta, que hace falta para saber cuál es la de cada copia.
  */
 
 const API = 'https://db.ygoprodeck.com/api/v7/cardinfo.php';
@@ -53,7 +46,7 @@ export interface CardPrices {
   printings: Printing[];
 }
 
-/** Precios de un día: dólares por impresión, con la clave de `printingKey`. */
+/** Precios de un día: euros de Cardmarket por impresión, con la clave de `printingKey`. */
 export interface PricePoint {
   /** Día, como AAAA-MM-DD. */
   d: string;
@@ -61,9 +54,6 @@ export interface PricePoint {
 }
 
 export const printingKey = (code: string, rarity: string) => `${code}|${rarity}`;
-
-/** Días de historial que se guardan por carta (unos dos años). */
-const MAX_HISTORY_DAYS = 800;
 
 export interface ExchangeRate {
   usdToEur: number;
@@ -169,68 +159,69 @@ export async function loadCachedPrices(ids: number[]): Promise<Map<number, CardP
   return out;
 }
 
-/** Día local como AAAA-MM-DD (el formato sueco es justo ese). */
-const hoy = () => new Date().toLocaleDateString('sv-SE');
-
-/** Apunta los precios de hoy en el historial de cada carta (si ya había uno de hoy, lo sustituye). */
-function recordHistory(tx: IDBTransaction, prices: CardPrices[]) {
-  const store = tx.objectStore(STORE_HISTORY);
-  const d = hoy();
-  for (const c of prices) {
-    const p: Record<string, number> = {};
-    for (const pr of c.printings) if (pr.usd != null) p[printingKey(pr.code, pr.rarity)] = pr.usd;
-    if (Object.keys(p).length === 0) continue;
-
-    const req = store.get(c.id) as IDBRequest<{ id: number; points: PricePoint[] } | undefined>;
-    req.onsuccess = () => {
-      const points = (req.result?.points ?? []).filter((x) => x.d !== d);
-      points.push({ d, p });
-      store.put({ id: c.id, points: points.slice(-MAX_HISTORY_DAYS) });
-    };
-  }
-}
-
-/** Lo que ha apuntado este navegador. */
-async function loadLocalHistories(ids: number[]): Promise<Map<number, PricePoint[]>> {
-  const out = new Map<number, PricePoint[]>();
-  try {
-    const idb = await openIdb();
-    const store = idb.transaction(STORE_HISTORY, 'readonly').objectStore(STORE_HISTORY);
-    const filas = await Promise.all(
-      ids.map((id) => asPromise(store.get(id) as IDBRequest<{ id: number; points: PricePoint[] } | undefined>)),
-    );
-    for (const f of filas) if (f?.points.length) out.set(f.id, f.points);
-  } catch (e) {
-    console.error('No se pudo leer el historial de precios:', e);
-  }
-  return out;
-}
-
 /*
- * Historial público: lo genera cada día GitHub Actions con los precios de todas
- * las cartas (scripts/actualizar-precios.mjs) y se publica con la web en
- * /precios/NN.json. Así hay historial aunque nadie haya abierto la web esos días.
+ * Cardmarket: lo genera cada día GitHub Actions (scripts/actualizar-precios.mjs)
+ * y se publica con la web. En local no existe: solo hay TCGplayer.
+ *   precios/actual-NN.json  el precio de hoy de cada versión
+ *   precios/NN.json         su historial (solo los días en que cambia)
+ * Las cartas van repartidas en 100 archivos por `id % 100`.
  */
 const TROZOS = 100;
 const DIA_MS = 24 * 60 * 60 * 1000;
+const FORMATO = 2;
 
-interface Trozo {
+interface TrozoActual {
+  v: number;
   actualizado: number;
-  /** id → clave de impresión → [día, dólares] solo cuando cambia el precio. */
+  /** id → clave de impresión → euros */
+  cartas: Record<string, Record<string, number>>;
+}
+interface TrozoHistorial {
+  v: number;
+  actualizado: number;
+  /** id → clave de impresión → [día, euros], solo cuando cambia el precio. */
   cartas: Record<string, Record<string, [number, number][]>>;
 }
 
-const trozosPedidos = new Map<number, Promise<Trozo | null>>();
+const pedidos = new Map<string, Promise<unknown>>();
 
-function pedirTrozo(n: number): Promise<Trozo | null> {
-  let p = trozosPedidos.get(n);
+function pedir<T extends { v: number }>(archivo: string): Promise<T | null> {
+  let p = pedidos.get(archivo) as Promise<T | null> | undefined;
   if (!p) {
-    p = fetch(`${import.meta.env.BASE_URL}precios/${n}.json`)
-      .then((r) => (r.ok ? (r.json() as Promise<Trozo>) : null))
-      .catch(() => null); // En local (o antes de la primera ejecución) no existe: solo cuenta lo del navegador.
-    trozosPedidos.set(n, p);
+    p = fetch(`${import.meta.env.BASE_URL}precios/${archivo}`)
+      .then((r) => (r.ok ? (r.json() as Promise<T>) : null))
+      .then((t) => (t?.v === FORMATO ? t : null))
+      .catch(() => null);
+    pedidos.set(archivo, p);
   }
   return p;
+}
+
+/** Olvida lo descargado de Cardmarket, para volver a pedirlo. */
+export function forgetMarketData() {
+  pedidos.clear();
+}
+
+const trozosDe = (ids: number[]) => [...new Set(ids.map((id) => id % TROZOS))];
+
+export interface MarketPrices {
+  /** id → clave de impresión → euros */
+  porCarta: Map<number, Record<string, number>>;
+  /** Día de los precios (ms), o `null` si no hay datos de Cardmarket. */
+  fecha: number | null;
+}
+
+/** Precio de hoy en Cardmarket de cada versión de estas cartas. */
+export async function loadMarketPrices(ids: number[]): Promise<MarketPrices> {
+  const trozos = await Promise.all(trozosDe(ids).map((n) => pedir<TrozoActual>(`actual-${n}.json`)));
+  const porCarta = new Map<number, Record<string, number>>();
+  let fecha: number | null = null;
+  for (const t of trozos) {
+    if (!t) continue;
+    fecha = fecha == null ? t.actualizado * DIA_MS : Math.min(fecha, t.actualizado * DIA_MS);
+    for (const [id, precios] of Object.entries(t.cartas)) porCarta.set(Number(id), precios);
+  }
+  return { porCarta, fecha };
 }
 
 const diaTexto = (dia: number) => new Date(dia * DIA_MS).toISOString().slice(0, 10);
@@ -239,43 +230,30 @@ const diaTexto = (dia: number) => new Date(dia * DIA_MS).toISOString().slice(0, 
 function expandir(historial: Record<string, [number, number][]>, hasta: number): Map<string, Record<string, number>> {
   const dias = new Map<string, Record<string, number>>();
   for (const [clave, puntos] of Object.entries(historial)) {
-    puntos.forEach(([dia, usd], i) => {
+    puntos.forEach(([dia, eur], i) => {
       const fin = i + 1 < puntos.length ? puntos[i + 1]![0] : hasta + 1;
       for (let d = dia; d < fin; d++) {
         const texto = diaTexto(d);
         let p = dias.get(texto);
         if (!p) dias.set(texto, (p = {}));
-        p[clave] = usd;
+        p[clave] = eur;
       }
     });
   }
   return dias;
 }
 
-/** Historial de varias cartas: el público y el de este navegador, juntos. */
+/** Historial de precios de Cardmarket de varias cartas, un punto por día. */
 export async function loadHistories(ids: number[]): Promise<Map<number, PricePoint[]>> {
-  const [locales, trozos] = await Promise.all([
-    loadLocalHistories(ids),
-    Promise.all([...new Set(ids.map((id) => id % TROZOS))].map(async (n) => [n, await pedirTrozo(n)] as const)),
-  ]);
+  const trozos = await Promise.all(trozosDe(ids).map(async (n) => [n, await pedir<TrozoHistorial>(`${n}.json`)] as const));
   const porTrozo = new Map(trozos);
-
   const out = new Map<number, PricePoint[]>();
   for (const id of ids) {
     const trozo = porTrozo.get(id % TROZOS);
-    const remoto = trozo?.cartas[id];
-    const dias = remoto ? expandir(remoto, trozo.actualizado) : new Map<string, Record<string, number>>();
-    // Lo del navegador rellena los huecos (días o versiones que el público no tenga).
-    for (const punto of locales.get(id) ?? []) {
-      const p = dias.get(punto.d);
-      if (!p) dias.set(punto.d, { ...punto.p });
-      else for (const [clave, usd] of Object.entries(punto.p)) p[clave] ??= usd;
-    }
-    if (dias.size === 0) continue;
-    out.set(
-      id,
-      [...dias.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([d, p]) => ({ d, p })),
-    );
+    const historial = trozo?.cartas[id];
+    if (!trozo || !historial) continue;
+    const dias = expandir(historial, trozo.actualizado);
+    out.set(id, [...dias.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([d, p]) => ({ d, p })));
   }
   return out;
 }
@@ -285,23 +263,11 @@ export async function loadHistory(id: number): Promise<PricePoint[]> {
   return (await loadHistories([id])).get(id) ?? [];
 }
 
-/**
- * Apunta en el historial los precios que trae la ficha de una carta.
- * Se usa al abrir sus detalles: así también se guarda el de las cartas que se
- * consultan sin tenerlas. Devuelve el historial ya actualizado.
- */
-export async function recordCardPrices(id: number, sets: CardSet[] | undefined): Promise<PricePoint[]> {
-  const printings = printingsFromApi(sets);
-  if (printings.length > 0) await savePrices([{ id, fetchedAt: Date.now(), printings }]);
-  return loadHistory(id);
-}
-
 async function savePrices(prices: CardPrices[]) {
   try {
     const idb = await openIdb();
-    const tx = idb.transaction([STORE_CARDS, STORE_HISTORY], 'readwrite');
+    const tx = idb.transaction(STORE_CARDS, 'readwrite');
     for (const p of prices) tx.objectStore(STORE_CARDS).put(p);
-    recordHistory(tx, prices);
     await new Promise<void>((resolve, reject) => {
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);

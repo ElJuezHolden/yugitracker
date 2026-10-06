@@ -78,10 +78,12 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
 
   const rarityColor = getRarityColor(card.rarity);
   // Valor de mercado de ESTA impresión (set y rareza), en euros; null si no hay precio.
-  const valor = usePrices().valueOf(card);
+  const precioCopia = usePrices().priceOf(card);
+  const valor = precioCopia?.eur ?? null;
+  const fuenteValor = precioCopia?.fuente;
   const tituloValor = valor == null
     ? 'Sin precio de mercado para esta versión'
-    : `Valor de mercado aproximado de esta versión (${card.setCode} · ${card.rarity})`;
+    : `Precio de ${fuenteValor === 'tcgplayer' ? 'TCGplayer (no está en Cardmarket)' : 'Cardmarket'} de esta versión (${card.setCode} · ${card.rarity})`;
 
   const folder = state.db.folders.find(f => f.id === card.folderId);
   const showFolderBadge = state.ui.activeFolderId === ID_ALL && folder && folder.id !== ID_ALL;

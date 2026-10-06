@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type PointerEvent } from 'react';
 import { ExternalLink, TrendingDown, TrendingUp } from 'lucide-react';
 import type { CardSet } from '../types';
 import { usePrices } from '../context/PricesContext';
-import { printingKey, printingsFromApi, recordCardPrices, type PricePoint } from '../services/prices';
+import { loadHistory, loadMarketPrices, printingKey, printingsFromApi, type PricePoint } from '../services/prices';
 import { formatMoney, getCardMarketLink, getRarityColor } from '../utils';
 
 interface Props {
@@ -36,53 +36,61 @@ const tcgplayerLink = (name: string) => `https://www.tcgplayer.com/search/yugioh
  * la versión elegida en grande, cuánto ha cambiado, su gráfica y, debajo, todas
  * las demás versiones para ver si hay impresiones más caras o más baratas.
  *
- * La API no da historial: la gráfica sale de los precios que la app va
- * apuntando cada día (ver services/prices.ts).
+ * Los precios son de Cardmarket, y la gráfica, del historial que GitHub Actions
+ * apunta cada día (ver services/prices.ts). Si una versión no está en
+ * Cardmarket se usa TCGplayer y se marca con un asterisco.
  */
 export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, paid = 0 }: Props) {
   const { rate } = usePrices();
   const [historial, setHistorial] = useState<PricePoint[]>([]);
+  const [cardmarket, setCardmarket] = useState<Record<string, number>>({});
   const [rango, setRango] = useState<Rango>('30D');
 
-  // Al abrir la carta se apunta su precio de hoy y se lee lo que haya de otros días.
   useEffect(() => {
     let vivo = true;
-    recordCardPrices(cardId, sets).then((h) => {
+    loadHistory(cardId).then((h) => {
       if (vivo) setHistorial(h);
+    });
+    loadMarketPrices([cardId]).then((m) => {
+      if (vivo) setCardmarket(m.porCarta.get(cardId) ?? {});
     });
     return () => {
       vivo = false;
     };
-  }, [cardId, sets]);
+  }, [cardId]);
 
   const versiones = useMemo(() => {
-    const lista = printingsFromApi(sets).map((p, i) => ({ ...p, set: sets![i]! }));
+    const lista = printingsFromApi(sets).map((p, i) => {
+      const cm = cardmarket[printingKey(p.code, p.rarity)];
+      const eur = cm ?? (p.usd != null && rate ? p.usd * rate.usdToEur : null);
+      return { ...p, set: sets![i]!, eur, deTcgplayer: cm == null && eur != null };
+    });
     // Las que tienen precio primero, de la más cara a la más barata; luego las demás.
-    return lista.sort((a, b) => (b.usd ?? -1) - (a.usd ?? -1));
-  }, [sets]);
+    return lista.sort((a, b) => (b.eur ?? -1) - (a.eur ?? -1));
+  }, [sets, cardmarket, rate]);
 
-  const eur = (usd: number) => usd * (rate?.usdToEur ?? 0);
-  const conPrecio = versiones.filter((v) => v.usd != null);
+  const conPrecio = versiones.filter((v) => v.eur != null);
+  const hayTcgplayer = versiones.some((v) => v.deTcgplayer);
   const masCara = conPrecio.length > 1 ? conPrecio[0] : undefined;
   const masBarata = conPrecio.length > 1 ? conPrecio[conPrecio.length - 1] : undefined;
   const actual = versiones.find((v) => esMisma(selected, v.code, v.rarity));
 
   // Serie de la versión elegida dentro del rango.
   const serie = useMemo(() => {
-    if (!actual || !rate) return [];
+    if (!actual) return [];
     const clave = printingKey(actual.code, actual.rarity);
     const dias = RANGOS.find((r) => r.id === rango)!.dias;
     const puntos = historial
-      .map((pt) => ({ t: new Date(`${pt.d}T12:00:00`).getTime(), usd: pt.p[clave] }))
-      .filter((x): x is { t: number; usd: number } => x.usd != null);
-    // El rango se cuenta hacia atrás desde el último día apuntado (que al abrir la carta es hoy).
+      .map((pt) => ({ t: new Date(`${pt.d}T12:00:00`).getTime(), eur: pt.p[clave] }))
+      .filter((x): x is { t: number; eur: number } => x.eur != null);
+    // El rango se cuenta hacia atrás desde el último día apuntado (normalmente hoy).
     const desde = (puntos[puntos.length - 1]?.t ?? 0) - dias * DIA_MS;
-    return puntos.filter((x) => x.t >= desde).map((x) => ({ t: x.t, eur: x.usd * rate.usdToEur }));
-  }, [actual, historial, rango, rate]);
+    return puntos.filter((x) => x.t >= desde);
+  }, [actual, historial, rango]);
 
   if (versiones.length === 0) return null;
 
-  const precio = actual?.usd != null && rate ? eur(actual.usd) : null;
+  const precio = actual?.eur ?? null;
   const cambio = serie.length >= 2 ? serie[serie.length - 1]!.eur - serie[0]!.eur : null;
   const cambioPct = cambio != null && serie[0]!.eur > 0 ? (cambio / serie[0]!.eur) * 100 : null;
   const sube = (cambio ?? 0) >= 0;
@@ -97,7 +105,7 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
             <div className="text-xs text-muted truncate mt-0.5">{actual ? actual.name : 'Elige una versión'}</div>
           </div>
           <span className="shrink-0 text-[10px] font-bold uppercase tracking-wider text-muted bg-bg-surface border border-border-base rounded px-2 py-1">
-            TCGplayer
+            {actual?.deTcgplayer ? 'TCGplayer' : 'Cardmarket'}
           </span>
         </div>
         {actual && (
@@ -119,7 +127,7 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
       <div className="p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className="text-3xl font-black text-main tracking-tight">
-            {precio != null ? `≈ ${formatMoney(precio)}` : actual ? (actual.usd == null ? 'Sin precio' : '…') : '—'}
+            {precio != null ? `≈ ${formatMoney(precio)}` : actual ? 'Sin precio' : '—'}
           </span>
           {cambio != null && (
             <span
@@ -203,17 +211,17 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
             {versiones.length} versiones · {conPrecio.length} con precio
           </span>
         </div>
-        {masCara && masBarata && rate && (
+        {masCara && masBarata && (
           <div className="text-[11px] text-muted mb-2">
-            De <span className="text-emerald-400 font-bold">{formatMoney(eur(masBarata.usd!))}</span> a{' '}
-            <span className="text-amber-400 font-bold">{formatMoney(eur(masCara.usd!))}</span> según la versión.
+            De <span className="text-emerald-400 font-bold">{formatMoney(masBarata.eur!)}</span> a{' '}
+            <span className="text-amber-400 font-bold">{formatMoney(masCara.eur!)}</span> según la versión.
           </div>
         )}
         <div className="max-h-44 overflow-y-auto rounded-lg border border-border-base divide-y divide-border-base bg-bg-surface">
           {versiones.map((v, i) => {
             const esActual = esMisma(selected, v.code, v.rarity);
             const etiqueta = v === masCara ? 'la más cara' : v === masBarata ? 'la más barata' : null;
-            const diferencia = precio != null && v.usd != null && !esActual ? eur(v.usd) - precio : null;
+            const diferencia = precio != null && v.eur != null && !esActual ? v.eur - precio : null;
             return (
               <button
                 key={`${v.code}-${v.rarity}-${i}`}
@@ -240,8 +248,12 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
                   <div className="text-[10px] text-sub truncate">{v.name}</div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className={`text-xs font-bold ${v.usd != null ? 'text-main' : 'text-sub'}`}>
-                    {v.usd != null ? (rate ? formatMoney(eur(v.usd)) : '…') : '—'}
+                  <div
+                    className={`text-xs font-bold ${v.eur != null ? 'text-main' : 'text-sub'}`}
+                    title={v.deTcgplayer ? 'No está en Cardmarket: precio de TCGplayer' : undefined}
+                  >
+                    {v.eur != null ? formatMoney(v.eur) : '—'}
+                    {v.deTcgplayer && <span className="text-muted">*</span>}
                   </div>
                   {diferencia != null && Math.abs(diferencia) >= 0.01 && (
                     <div className={`text-[10px] font-semibold ${diferencia > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
@@ -255,9 +267,8 @@ export function CardMarketValue({ cardId, cardName, sets, selected, onSelect, pa
           })}
         </div>
         <p className="text-[10px] text-sub leading-relaxed mt-2">
-          Precios de TCGplayer (EE. UU.) por versión, pasados a euros
-          {rate?.fallback ? ' con un cambio aproximado' : ' al cambio del BCE'}. Orientativos: no distinguen idioma, edición
-          ni estado.
+          Precios de Cardmarket por versión, actualizados cada día. Orientativos: mezclan idiomas y estados.
+          {hayTcgplayer && ' * No está en Cardmarket: precio de TCGplayer (EE. UU.) pasado a euros.'}
         </p>
       </div>
     </div>
