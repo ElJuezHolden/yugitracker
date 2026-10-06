@@ -33,22 +33,22 @@ import './CardFoilOverlay.css';
  *   Platinum Rare                 —          —                   platino
  *   Ultimate Rare                 oro        relieve             —        + marco en relieve
  *   Ghost Rare / Holographic      plata      desaturada y pálida —
- *   Ghost/Gold Rare               oro        desaturada y pálida —        + marco en relieve
+ *   Ghost/Gold Rare               oro        desaturada y pálida marcos de oro
  *   Collector's Rare              arcoíris   mancha de aceite    —        + marco en relieve
  *   Starlight / Alternate Rare    arcoíris   —                   trama horizontal
  *   Quarter Century Secret Rare   oro        —                   paralelo + sello 25
  *   10000 Secret Rare             oro        —                   paralelo
  *   Grand Master Rare             oro        —                   jeroglíficos + relieve
  *   Pharaoh's Rare                oro        jeroglíficos        paralelo
- *   Gold Rare                     oro        oro                 oro
- *   Gold Secret Rare              oro        diagonales finas    oro
- *   Premium Gold Rare             oro        holo de puntos      oro      + relieve
+ *   Gold Rare                     oro        holo de puntos      marcos de oro (canto, ilustración, texto)
+ *   Gold Secret Rare              oro        diagonales finas    marcos de oro con trama de Secret
+ *   Premium Gold Rare             oro        holo de puntos      marcos de oro gruesos y en relieve
  *   Starfoil / Mosaic / Shatterfoil  —       —                   estrellas / cuadros / cristal
  *   Parallel y Duel Terminal      según su rareza base            + líneas paralelas
  */
 
 type NameFoil = 'silver' | 'gold' | 'rainbow' | 'speckled' | 'platinum';
-type ArtFoil = 'holo' | 'diagonal' | 'grid' | 'emboss' | 'ghost' | 'oilslick' | 'gold' | 'hieroglyph';
+type ArtFoil = 'holo' | 'diagonal' | 'grid' | 'emboss' | 'ghost' | 'oilslick' | 'hieroglyph';
 type CardFoil =
   | 'parallel'
   | 'starlight'
@@ -57,7 +57,6 @@ type CardFoil =
   | 'stars'
   | 'mosaic'
   | 'shatter'
-  | 'gold'
   | 'grandmaster';
 
 interface FoilSpec {
@@ -71,6 +70,8 @@ interface FoilSpec {
   emboss?: boolean;
   /** Marca de agua del 25.º aniversario. */
   seal25?: boolean;
+  /** Oro en canto, marco de la ilustración y caja de texto (serie Gold). */
+  oro?: 'gold' | 'secret' | 'premium';
 }
 
 /**
@@ -128,7 +129,7 @@ function resolveFoil(rarity: string): FoilSpec | null {
   if (r.includes('pharaoh')) return { name: 'gold', art: 'hieroglyph', card: 'parallel' };
 
   // Ghost/Gold Rare: ilustración vaciada de Ghost con el nombre perfilado en oro.
-  if (r.includes('ghost') && r.includes('gold')) return { name: 'gold', art: 'ghost', emboss: true };
+  if (r.includes('ghost') && r.includes('gold')) return { name: 'gold', art: 'ghost', oro: 'gold' };
 
   // Ghost Rare (Holographic Rare en el OCG): la ilustración sale casi blanca.
   if (r.includes('ghost') || r.includes('holographic')) return { name: 'silver', art: 'ghost' };
@@ -154,9 +155,10 @@ function resolveFoil(rarity: string): FoilSpec | null {
 
   // --- Serie dorada (antes que los genéricos "gold" y "secret") ---
 
-  if (r.includes('premium gold')) return { name: 'gold', art: 'holo', card: 'gold', emboss: true };
-  if (r.includes('gold') && r.includes('secret')) return { name: 'gold', art: 'diagonal', card: 'gold' };
-  if (r.includes('gold')) return { name: 'gold', art: 'gold', card: 'gold' };
+  // Oro solo en canto, marco de la ilustración y caja de texto; la ilustración, holo.
+  if (r.includes('premium gold')) return { name: 'gold', art: 'holo', oro: 'premium' };
+  if (r.includes('gold') && r.includes('secret')) return { name: 'gold', art: 'diagonal', oro: 'secret' };
+  if (r.includes('gold')) return { name: 'gold', art: 'holo', oro: 'gold' };
 
   // --- Tramas que cubren la carta entera ---
 
@@ -270,6 +272,15 @@ export default function CardFoilOverlay({ rarity, img, cardType }: Props) {
     <div ref={ref} className={`foil${/pendulum/i.test(cardType ?? '') ? ' foil--pendulo' : ''}`} aria-hidden="true" style={estilo}>
       {spec.card && <div className={`foil-zona foil-zona--carta foil-carta--${spec.card}`} />}
       {spec.art && <div className={`foil-zona foil-zona--arte foil-arte--${spec.art}`} />}
+      {spec.oro && (
+        <div className={`foil-oro foil-oro--${spec.oro}`}>
+          <div className="foil-oro__metal" />
+          {spec.oro === 'premium' && <div className="foil-oro__sombra" />}
+          {spec.oro === 'premium' && <div className="foil-oro__luz" />}
+          {spec.oro === 'secret' && <div className="foil-oro__trama" />}
+          <div className="foil-oro__brillo" />
+        </div>
+      )}
       {spec.name && img && (
         <div className={`foil-letras foil-letras--tinta-${tinta}`}>
           <div className="foil-letras__mascara" />

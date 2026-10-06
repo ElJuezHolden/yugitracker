@@ -91,7 +91,15 @@
    * versión propia inspirada en el logo ("25th Quarter Century"), no una copia:
    * solo se usa como máscara, así que da igual el color.
    */
-  --sello-25: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 240 160%22%3E %3Cellipse cx=%22120%22 cy=%2280%22 rx=%22104%22 ry=%2270%22 fill=%22none%22 stroke=%22white%22 stroke-width=%225%22/%3E %3Cellipse cx=%22120%22 cy=%2280%22 rx=%2294%22 ry=%2261%22 fill=%22none%22 stroke=%22white%22 stroke-width=%221.6%22/%3E %3Ctext x=%22120%22 y=%2242%22 font-family=%22Arial Black, Arial, sans-serif%22 font-weight=%22900%22 font-size=%2215%22 letter-spacing=%222%22 fill=%22white%22 text-anchor=%22middle%22%3EYU-GI-OH!%3C/text%3E %3Ctext x=%22112%22 y=%22110%22 font-family=%22Georgia, 'Times New Roman', serif%22 font-weight=%22700%22 font-size=%2274%22 fill=%22white%22 text-anchor=%22middle%22%3E25%3C/text%3E %3Ctext x=%22165%22 y=%2270%22 font-family=%22Georgia, 'Times New Roman', serif%22 font-weight=%22700%22 font-size=%2222%22 fill=%22white%22%3Eth%3C/text%3E %3Cpath d=%22M30 116 h180 l-10 10 l10 10 h-180 l10 -10 z%22 fill=%22none%22 stroke=%22white%22 stroke-width=%222.4%22/%3E %3Ctext x=%22120%22 y=%22131%22 font-family=%22Arial, sans-serif%22 font-weight=%22700%22 font-size=%2212%22 letter-spacing=%222.5%22 fill=%22white%22 text-anchor=%22middle%22%3EQUARTER CENTURY%3C/text%3E %3C/svg%3E");
+  /*
+   * Zonas doradas de las Gold Rare: canto de la carta, marco de la ilustración y
+   * borde de la caja de texto (el nombre va aparte, con sus letras). La segunda,
+   * más gruesa, es la de las Premium Gold, donde el oro va en relieve.
+   */
+  --mascara-oro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 421 614' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H421V614H0Z M14 14V600H407V14Z M38.8 100.6H377.6V438.5H38.8Z M43.8 105.6V433.5H372.6V105.6Z M29 449H392V573H29Z M32.5 452.5V569.5H388.5V452.5Z'/%3E%3C/svg%3E");
+  --mascara-oro-premium: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 421 614' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H421V614H0Z M22.400000000000002 22.400000000000002V591.6H398.6V22.400000000000002Z M35.8 97.6H380.6V441.5H35.8Z M43.8 105.6V433.5H372.6V105.6Z M29 449H392V573H29Z M34.6 454.6V567.4H386.4V454.6Z'/%3E%3C/svg%3E");
+
+  --sello-25: url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 240 170%22%3E %3Cpath d=%22M28 30 Q120 6 212 30 L212 112 Q212 146 120 164 Q28 146 28 112 Z%22 fill=%22none%22 stroke=%22white%22 stroke-width=%226%22 stroke-linejoin=%22round%22/%3E %3Cpath d=%22M40 38 Q120 18 200 38 L200 110 Q200 136 120 151 Q40 136 40 110 Z%22 fill=%22none%22 stroke=%22white%22 stroke-width=%221.8%22 stroke-linejoin=%22round%22/%3E %3Ctext x=%22120%22 y=%2250%22 font-family=%22Arial Black, Arial, sans-serif%22 font-weight=%22900%22 font-size=%2217%22 letter-spacing=%220.5%22 fill=%22white%22 text-anchor=%22middle%22 transform=%22translate(120 50) scale(1.25 1) translate(-120 -50)%22%3EYU-GI-OH!%3C/text%3E %3Ctext x=%22112%22 y=%22121%22 font-family=%22Arial Black, Arial, sans-serif%22 font-weight=%22900%22 font-size=%2272%22 fill=%22white%22 text-anchor=%22middle%22%3E25%3C/text%3E %3Ctext x=%22166%22 y=%22121%22 font-family=%22Arial Black, Arial, sans-serif%22 font-weight=%22900%22 font-size=%2220%22 fill=%22white%22%3Eth%3C/text%3E %3Ctext x=%22120%22 y=%22140%22 font-family=%22Arial, sans-serif%22 font-weight=%22700%22 font-size=%2210.5%22 letter-spacing=%221.6%22 fill=%22white%22 text-anchor=%22middle%22%3EQUARTER CENTURY%3C/text%3E %3C/svg%3E");
 }
 
 /* =========================================================================
@@ -305,11 +313,6 @@
   --textura-tam: 80px 80px;
 }
 
-.foil-arte--gold {
-  --franja: var(--franja-oro);
-  --textura: var(--tex-diagonal);
-}
-
 .foil-arte--hieroglyph {
   --franja: var(--franja-oro);
   --textura: var(--tex-jeroglificos);
@@ -366,11 +369,6 @@
   --textura: var(--tex-cristal);
   --textura-tam: 90px 90px;
   --intensidad: 0.7;
-}
-
-.foil-carta--gold {
-  --franja: var(--franja-oro);
-  --intensidad: 0.4;
 }
 
 .foil-carta--grandmaster {
@@ -476,6 +474,92 @@
 .foil-metal--speckled { --metal: var(--metal-moteado); --metal-luz-oscura: 0.85; }
 
 /* =========================================================================
+   SERIE DORADA (Gold, Gold Secret, Premium Gold, Ghost/Gold)
+   En la carta real el oro va SOLO en el canto, el marco de la ilustración y el
+   borde de la caja de texto (y en el nombre): oro casi espejo que refleja la
+   luz al moverla. La Gold Secret añade la trama fina de Secret sobre ese oro y
+   la Premium Gold lo lleva más grueso y en relieve.
+
+   Cada capa lleva su máscara y su mezcla en el MISMO elemento: una máscara en
+   un padre aislaría la mezcla de los hijos con la carta.
+   ========================================================================= */
+
+.foil-oro {
+  position: absolute;
+  inset: 0;
+}
+
+.foil-oro > div {
+  position: absolute;
+  inset: 0;
+  -webkit-mask: var(--mascara-oro) 0 0 / 100% 100% no-repeat;
+  mask: var(--mascara-oro) 0 0 / 100% 100% no-repeat;
+}
+.foil-oro--premium > div {
+  -webkit-mask-image: var(--mascara-oro-premium);
+  mask-image: var(--mascara-oro-premium);
+}
+
+/* El metal: degradado de oro que se desliza con la luz. */
+.foil-oro__metal {
+  background: linear-gradient(
+    115deg,
+    #5e410f 0%,
+    #a87c26 14%,
+    #e8c766 28%,
+    #fff2c4 36%,
+    #d9a940 46%,
+    #8a6216 60%,
+    #c99d40 74%,
+    #f4dc8c 84%,
+    #7a5512 100%
+  );
+  background-size: 260% 260%;
+  background-position: calc(100% - var(--background-x, 40%)) calc(100% - var(--background-y, 35%));
+  opacity: 0.94;
+  transition: background-position 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.card-container:hover .foil-oro__metal {
+  transition: none;
+}
+
+/* El reflejo: un punto de luz donde apunta la mano. */
+.foil-oro__brillo {
+  background: radial-gradient(
+    circle at var(--pointer-x, 30%) var(--pointer-y, 20%),
+    rgba(255, 252, 235, 0.95) 0%,
+    rgba(255, 236, 180, 0.35) 18%,
+    transparent 42%
+  );
+  mix-blend-mode: screen;
+  opacity: calc(0.25 + var(--card-active, 0) * 0.65);
+  transition: opacity 0.3s ease;
+}
+
+/* Gold Secret: la trama diagonal fina de las Secret, sobre el oro. */
+.foil-oro__trama {
+  background: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.55) 0 0.6px, transparent 0.6px 2.6px);
+  mix-blend-mode: overlay;
+  opacity: calc(0.55 + var(--card-active, 0) * 0.35);
+}
+
+/* Premium Gold: relieve. Luz arriba a la izquierda y sombra abajo a la derecha. */
+.foil-oro__sombra {
+  background: #2a1b04;
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+  -webkit-mask-position: 1.2px 1.4px !important;
+  mask-position: 1.2px 1.4px !important;
+}
+.foil-oro__luz {
+  background: #fffbe8;
+  mix-blend-mode: screen;
+  opacity: 0.22;
+  -webkit-mask-position: -0.8px -0.9px !important;
+  mask-position: -0.8px -0.9px !important;
+}
+
+/* =========================================================================
    MARCO EN RELIEVE Y SELLO
    ========================================================================= */
 
@@ -525,17 +609,17 @@
   mask: var(--sello-25) center / contain no-repeat;
 }
 
-/* Un velo champán muy tenue: de frente el sello se intuye, como en la carta real. */
+/* El sello real es más claro que la caja de texto: plata blanquecina, en relieve. */
 .foil-sello__tinta {
-  background: linear-gradient(160deg, #d9c49a, #b9a77f 55%, #e2d2ad);
-  mix-blend-mode: multiply;
-  opacity: 0.22;
+  background: linear-gradient(160deg, #ffffff, #eef0f2 55%, #ffffff);
+  mix-blend-mode: screen;
+  opacity: 0.5;
 }
 
 .foil-sello__sombra {
-  background: #3a2f1c;
+  background: #3a3530;
   mix-blend-mode: multiply;
-  opacity: 0.3;
+  opacity: 0.22;
   -webkit-mask-position: calc(50% + 1px) calc(50% + 1px) !important;
   mask-position: calc(50% + 1px) calc(50% + 1px) !important;
 }
