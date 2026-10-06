@@ -1,8 +1,7 @@
 /*
  * Desgaste de la carta (ver CardWear.tsx). Va dentro de .card-tilt, encima de
- * la imagen y del foil: las marcas tapan también el brillo, como en una carta
- * real. Nada de esto usa mix-blend en el contenedor, así que no interfiere con
- * la mezcla del foil.
+ * la imagen y del foil. Es daño LOCAL (canto, esquinas, arañazos, pliegues,
+ * suciedad): no cambia el color de la carta, como no lo cambia en la realidad.
  */
 
 .desgaste {
@@ -11,86 +10,39 @@
   pointer-events: none;
   border-radius: inherit;
   overflow: hidden;
-  /* Ancho del canto gastado y fuerza de las motas, según el estado. */
-  --canto: 1.4%;
-  --motas: 0.45;
-  --esquina: 7%;
-}
-/* --filo: el borde mismo, donde la tinta se pela y asoma el cartón blanco. */
-.desgaste--1 { --canto: 2.2%; --motas: 0.75; --esquina: 10%; --filo: 1.5px; --filo-a: 0.55; }
-.desgaste--2 { --canto: 3.2%; --motas: 0.9;  --esquina: 14%; --filo: 2px;   --filo-a: 0.7; }
-.desgaste--3 { --canto: 4.5%; --motas: 1;    --esquina: 19%; --filo: 3px;   --filo-a: 0.85; }
-.desgaste--4 { --canto: 6%;   --motas: 1;    --esquina: 24%; --filo: 4px;   --filo-a: 0.92; }
-.desgaste--5 { --canto: 8%;   --motas: 1;    --esquina: 30%; --filo: 5px;   --filo-a: 1; }
-
-/* El filo: una línea blanca en el mismo borde, desconchada por el ruido. */
-.desgaste__filo {
-  box-shadow: inset 0 0 0 var(--filo) rgba(255, 251, 242, var(--filo-a));
-  border-radius: inherit;
-  -webkit-mask: var(--ruido) 0 0 / 40px 40px;
-  mask: var(--ruido) 0 0 / 40px 40px;
-}
-
-/* Rozaduras: zonas mates donde se ha ido el brillo (desde LP). */
-.desgaste__rozaduras {
-  background: var(--rozaduras, none);
-  mix-blend-mode: screen;
 }
 
 .desgaste > div,
 .desgaste__marcas {
   position: absolute;
   inset: 0;
-}
-
-/* Blanqueado del canto: motas que se concentran en el borde y se apagan hacia dentro. */
-.desgaste__canto {
-  background: var(--ruido) 0 0 / 80px 80px;
-  opacity: var(--motas);
-  -webkit-mask:
-    linear-gradient(to right, #000 0, transparent var(--canto), transparent calc(100% - var(--canto)), #000 100%),
-    linear-gradient(to bottom, #000 0, transparent calc(var(--canto) * 0.69), transparent calc(100% - var(--canto) * 0.69), #000 100%);
-  mask:
-    linear-gradient(to right, #000 0, transparent var(--canto), transparent calc(100% - var(--canto)), #000 100%),
-    linear-gradient(to bottom, #000 0, transparent calc(var(--canto) * 0.69), transparent calc(100% - var(--canto) * 0.69), #000 100%);
-}
-
-/* Esquinas: lo primero que se gasta. Blanco moteado que sale de cada esquina. */
-.desgaste__esquinas {
-  background:
-    radial-gradient(circle at 0 0, rgba(255, 252, 245, 0.95), transparent var(--esquina)),
-    radial-gradient(circle at 100% 0, rgba(255, 252, 245, 0.95), transparent var(--esquina)),
-    radial-gradient(circle at 0 100%, rgba(255, 252, 245, 0.95), transparent var(--esquina)),
-    radial-gradient(circle at 100% 100%, rgba(255, 252, 245, 0.95), transparent var(--esquina));
-  opacity: var(--motas);
-  -webkit-mask: var(--ruido) 0 0 / 60px 60px;
-  mask: var(--ruido) 0 0 / 60px 60px;
-}
-
-/* Played y Poor: los colores pierden viveza (se desatura y se aclara un poco). */
-.desgaste__apagado {
-  background: #8a8a8a;
-  mix-blend-mode: saturation;
-  opacity: 0.45;
-}
-.desgaste--5 .desgaste__apagado {
-  opacity: 0.7;
-}
-.desgaste__apagado::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 248, 235, 0.08);
-}
-
-/* Poor: manchas de suciedad. */
-.desgaste__sucio {
-  background: var(--manchas, none), rgba(205, 175, 105, 0.22);
-  mix-blend-mode: multiply;
-  opacity: 0.6;
-}
-
-.desgaste__marcas {
   width: 100%;
   height: 100%;
+}
+
+/*
+ * Esquinas: blanqueadas y algo romas. Cada una con su tamaño (más grandes
+ * arriba a la izquierda y abajo a la derecha). El ruido rompe el borde para que
+ * no sea un cuarto de círculo perfecto.
+ */
+.desgaste__esquinas {
+  background:
+    radial-gradient(circle at 0 0, #f7f3ea 0 calc(var(--esq-ai) * 0.55), rgba(247, 243, 234, 0.6) calc(var(--esq-ai) * 0.8), transparent var(--esq-ai)),
+    radial-gradient(circle at 100% 0, #f7f3ea 0 calc(var(--esq-ad) * 0.55), rgba(247, 243, 234, 0.6) calc(var(--esq-ad) * 0.8), transparent var(--esq-ad)),
+    radial-gradient(circle at 0 100%, #f7f3ea 0 calc(var(--esq-bi) * 0.55), rgba(247, 243, 234, 0.6) calc(var(--esq-bi) * 0.8), transparent var(--esq-bi)),
+    radial-gradient(circle at 100% 100%, #f7f3ea 0 calc(var(--esq-bd) * 0.55), rgba(247, 243, 234, 0.6) calc(var(--esq-bd) * 0.8), transparent var(--esq-bd));
+  -webkit-mask: var(--ruido) 0 0 / 24px 24px;
+  mask: var(--ruido) 0 0 / 24px 24px;
+}
+
+/* Arañazos: casi invisibles de frente; al inclinar la carta les da la luz y brillan. */
+.desgaste__aranazos {
+  opacity: calc(0.28 + var(--card-active, 0) * 0.62);
+  transition: opacity 0.3s ease;
+}
+
+/* Poor: una mancha de suciedad. */
+.desgaste__mancha {
+  background: var(--mancha, none);
+  mix-blend-mode: multiply;
 }
