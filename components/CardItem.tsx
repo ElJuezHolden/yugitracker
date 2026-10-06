@@ -204,7 +204,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                  <img 
                     src={card.img}
                         onError={onCardImageError} 
-                    className={`w-full h-full object-cover ${isSelectionMode ? '' : 'group-hover:scale-105'} transition-transform duration-500 ${card.isWanted ? 'grayscale brightness-75' : ''}`}
+                    className={`w-full h-full object-cover transition-transform duration-500 ${card.isWanted ? 'grayscale brightness-75' : ''}`}
                     loading="lazy"
                     alt={card.name}
                 />
@@ -444,7 +444,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
         onDrop={handleDrop}
         onClick={handleClick}
         style={{ containerType: 'inline-size' }}
-        className={`group relative bg-bg-surface rounded-xl overflow-hidden cursor-pointer shadow-lg flex flex-col transition-all duration-300 border ${
+        className={`group relative bg-bg-surface rounded-xl overflow-hidden hover:overflow-visible hover:z-20 cursor-pointer shadow-lg flex flex-col transition-all duration-300 border ${
             isSelectionMode 
                 ? (isSelected ? 'border-primary ring-2 ring-primary scale-95' : 'border-border-base opacity-75 hover:opacity-100')
                 : 'border-border-base hover:shadow-[0_0_20px_rgba(var(--rgb-primary),0.15)] hover:border-primary/40'
@@ -459,7 +459,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 <img 
                     src={card.img}
                         onError={onCardImageError} 
-                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out relative z-10 ${isSelectionMode ? '' : 'group-hover:scale-110'} ${card.isWanted ? 'grayscale brightness-75' : ''}`} 
+                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out relative z-10 ${card.isWanted ? 'grayscale brightness-75' : ''}`} 
                     loading="lazy" 
                     decoding="async"
                     alt={card.name} 

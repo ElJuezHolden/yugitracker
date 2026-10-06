@@ -101,15 +101,49 @@
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  transform: perspective(700px) rotateY(var(--rotate-x, 0deg)) rotateX(var(--rotate-y, 0deg))
-    scale(var(--tilt-scale, 1));
-  transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+  transform: perspective(600px) rotateY(var(--rotate-x, 0deg)) rotateX(var(--rotate-y, 0deg));
+  /*
+   * El giro va en `transform` y la elevación en `scale` y `translate`, que son
+   * propiedades aparte y por eso pueden llevar tiempos distintos: el giro tiene
+   * que seguir a la mano al instante, y la subida tiene que ser suave.
+   */
+  transition:
+    transform 0.5s cubic-bezier(0.23, 1, 0.32, 1),
+    scale 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+    translate 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.35s ease;
+}
+
+/*
+ * Al pasar el ratón la carta SE LEVANTA Y SALE DE SU HUECO: crece, sube un poco
+ * y proyecta sombra sobre lo que tiene debajo. Antes la imagen se ampliaba
+ * dentro de un contenedor que la recortaba, y eso se leía como un zoom, no como
+ * una carta en 3D.
+ *
+ * Para que pueda salir, el contenedor deja de recortar mientras está encima el
+ * ratón y se pone por delante de sus vecinas (y de la ficha de texto de abajo).
+ * Las esquinas pasan a ser las de la propia carta, redondeadas como el cartón.
+ */
+.card-container:hover {
+  overflow: visible;
+  z-index: 10;
 }
 
 .card-container:hover .card-tilt {
-  --tilt-scale: 1.03;
-  /* Casi sin transición mientras se mueve: si no, la carta va por detrás de la mano. */
-  transition-duration: 0.08s;
+  scale: 1.08;
+  translate: 0 -3%;
+  border-radius: 4.5% / 3.1%;
+  overflow: hidden;
+  box-shadow:
+    0 22px 38px -14px rgba(0, 0, 0, 0.8),
+    0 8px 14px -8px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(255, 255, 255, 0.08);
+  /* El giro, casi sin retardo: si no, la carta va por detrás de la mano. */
+  transition:
+    transform 0.08s linear,
+    scale 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+    translate 0.35s cubic-bezier(0.23, 1, 0.32, 1),
+    box-shadow 0.35s ease;
 }
 
 /* =========================================================================
@@ -499,8 +533,11 @@
    ========================================================================= */
 
 @media (prefers-reduced-motion: reduce) {
-  .card-tilt {
+  .card-tilt,
+  .card-container:hover .card-tilt {
     transform: none;
+    scale: none;
+    translate: none;
   }
   .foil-destello::before {
     animation: none;

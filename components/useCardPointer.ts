@@ -51,8 +51,8 @@ export function useCardPointer(enabled = true) {
       el.style.setProperty('--background-y', `${y * 100}%`);
       el.style.setProperty('--pointer-from-center', distancia.toFixed(3));
       // Signo invertido: al llevar el cursor arriba, la carta se inclina hacia atrás.
-      el.style.setProperty('--rotate-x', `${(-dx * 9).toFixed(2)}deg`);
-      el.style.setProperty('--rotate-y', `${(dy * 9).toFixed(2)}deg`);
+      el.style.setProperty('--rotate-x', `${(-dx * 13).toFixed(2)}deg`);
+      el.style.setProperty('--rotate-y', `${(dy * 13).toFixed(2)}deg`);
     };
 
     const onMove = (e: PointerEvent) => {
