@@ -2,6 +2,7 @@ import { Loader2, RefreshCw } from 'lucide-react';
 import type { Card } from '../types';
 import { usePrices } from '../context/PricesContext';
 import { formatMoney } from '../utils';
+import { PRICE_METRICS, type PriceMetric } from '../services/prices';
 
 const relativo = new Intl.RelativeTimeFormat('es', { numeric: 'auto' });
 const fechaDia = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -30,12 +31,14 @@ interface Props {
  * sin precio no cuentan como 0; se indican aparte.
  */
 export function CollectionValue({ cards, titulo }: Props) {
-  const { summarize, loading, error, rate, oldestFetch, marketDate, refresh } = usePrices();
+  const { summarize, loading, error, rate, oldestFetch, marketDate, refresh, metric, setMetric } = usePrices();
+  const metrica = PRICE_METRICS.find((m) => m.id === metric)!;
   const r = summarize(cards);
   if (r.priced === 0 && r.unpriced === 0) return null; // Nada que valorar (vacío o solo buscadas).
 
   const ayuda =
-    'Precios de Cardmarket de cada versión concreta, actualizados cada día. Si una versión no está en Cardmarket se usa' +
+    `Precios de Cardmarket de cada versión concreta, actualizados cada día, con la cifra «${metrica.etiqueta}»: ${metrica.ayuda}` +
+    ' Si una versión no está en Cardmarket se usa' +
     ' el de TCGplayer (EE. UU.) pasado a euros' +
     (rate && !rate.fallback && rate.date ? ` al cambio del BCE (1 $ = ${rate.usdToEur.toFixed(4)} €).` : ' con un cambio aproximado.') +
     ' Las copias que no están en MT o NM se valoran con un descuento estimado por su estado (EX 85 %, GD 75 %, LP 60 %, PL 40 %, PO 25 %).' +
@@ -47,6 +50,21 @@ export function CollectionValue({ cards, titulo }: Props) {
         <span className="text-sm text-muted">{titulo} vale</span>{' '}
         <span className="text-xl font-black text-main">{r.priced > 0 ? `≈ ${formatMoney(r.eur)}` : '—'}</span>
       </div>
+
+      <label className="flex items-center gap-2 text-sm text-muted" title={metrica.ayuda}>
+        Valorar con
+        <select
+          value={metric}
+          onChange={(e) => setMetric(e.target.value as PriceMetric)}
+          className="bg-bg-panel border border-border-base text-main rounded-md px-2 py-1 text-sm focus:border-primary outline-none"
+        >
+          {PRICE_METRICS.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.etiqueta}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <span className="text-sm text-muted">
         {r.priced} con precio

@@ -53,7 +53,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   const [manualRarity, setManualRarity] = useState<string>(''); // For Manual Override
   /** Filtro del selector de versión: hay cartas con más de 70. */
   const [filtroVersion, setFiltroVersion] = useState('');
-  const { rate } = usePrices();
+  const { rate, metric } = usePrices();
 
   const [formData, setFormData] = useState({
     paid: '',
@@ -507,7 +507,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                         {set.set_rarity}
                                                     </div>
                                                     <div className="text-[10px] text-muted font-semibold mt-0.5">
-                                                        {(() => { const v = versionPrice(preciosCardmarket.precios, set, rate); return v ? `≈ ${formatMoney(v.eur)}${v.deTcgplayer ? '*' : ''}` : '—'; })()}
+                                                        {(() => { const v = versionPrice(preciosCardmarket.precios, set, rate, metric); return v ? `≈ ${formatMoney(v.eur)}${v.deTcgplayer ? '*' : ''}` : '—'; })()}
                                                     </div>
                                                 </div>
                                             )) : (

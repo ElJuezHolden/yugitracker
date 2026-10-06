@@ -21,15 +21,23 @@
  * Comprobado a mano con varias cartas (p. ej. Number F0 DUAD-EN042 Ultra Rare
  * sale a lo mismo que en la web de Cardmarket).
  *
- * El precio de cada producto es la MÁS BAJA de sus medias de venta de 1, 7 y 30
- * días. Una venta suelta disparatada (alguien paga 18 € por una carta de 0,20 €)
- * infla una o dos medias, pero rara vez las tres; la más baja es la que más se
- * parece a lo que se paga de verdad. La tendencia solo se usa si no hay medias.
+ * De cada producto se publican todas sus cifras de Cardmarket: desde (la oferta
+ * más barata), tendencia y medias de venta de 1, 7 y 30 días. La web deja elegir
+ * con cuál se valora la colección.
+ *
+ * El "precio de referencia" (el que va al historial y se usa por defecto) es la
+ * MÁS BAJA de las medias de 1, 7 y 30 días. Una venta suelta disparatada
+ * (alguien paga 18 € por una carta de 0,20 €) infla una o dos medias, pero rara
+ * vez las tres. La tendencia solo se usa si no hay medias. La misma regla está
+ * en services/prices.ts (statValue).
  *
  * Archivos (las cartas se reparten en 100 por `id % 100`):
- *   actual-NN.json  { v: 2, actualizado: <día>, cartas: { <id>: { "<set>|<rareza>": euros } },
+ *   actual-NN.json  { v: 3, actualizado: <día>,
+ *                     cartas: { <id>: { "<set>|<rareza>": [desde, tendencia, media1, media7, media30] } },
  *                     productos: { <id>: { "<set>|<rareza>": idProduct de Cardmarket } } }
+ *                   (euros; `null` si Cardmarket no tiene esa cifra)
  *   NN.json         { v: 2, actualizado: <día>, cartas: { <id>: { "<set>|<rareza>": [[<día>, euros], ...] } } }
+ *                   (el precio de referencia)
  * Los días son días desde 1970 (UTC). En el historial solo se apunta un precio
  * cuando cambia de verdad (un 2 % o 2 céntimos); pasado un mes queda uno por
  * semana y a los 400 días se borra.
@@ -50,7 +58,8 @@ const TROZOS = 100;
 const DIA_MS = 24 * 60 * 60 * 1000;
 const DIAS_DIARIOS = 30;
 const DIAS_MAXIMOS = 400;
-const VERSION = 2;
+const VERSION_HISTORIAL = 2;
+const VERSION_ACTUAL = 3;
 const hoy = Math.floor(Date.now() / DIA_MS);
 
 async function json(url) {
@@ -76,11 +85,14 @@ const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
 const redondear = (x) => Math.round(x * 100) / 100;
 const esPrecio = (x) => typeof x === 'number' && x > 0;
 
+const cifra = (x) => (esPrecio(x) ? redondear(x) : null);
+/** idProduct → { ref: precio de referencia, cifras: [desde, tendencia, media1, media7, media30] } */
 const precioProducto = new Map();
 for (const g of priceGuides) {
   const medias = [g.avg1, g.avg7, g.avg30].filter(esPrecio);
-  const eur = medias.length ? Math.min(...medias) : esPrecio(g.trend) ? g.trend : null;
-  if (eur != null) precioProducto.set(g.idProduct, redondear(eur));
+  const ref = medias.length ? Math.min(...medias) : esPrecio(g.trend) ? g.trend : null;
+  if (ref == null) continue;
+  precioProducto.set(g.idProduct, { ref: redondear(ref), cifras: [g.low, g.trend, g.avg1, g.avg7, g.avg30].map(cifra) });
 }
 
 /** Cardmarket: expansión → nombre → productos; y nombre → expansiones. */
@@ -141,8 +153,10 @@ const rango = (r) => {
   return i < 0 ? RAREZAS.indexOf('Ultra Rare') : i;
 };
 
-/** id → (clave → euros) */
+/** id → (clave → precio de referencia en euros) */
 const deHoy = new Map();
+/** id → (clave → [desde, tendencia, media1, media7, media30]) */
+const cifrasDe = new Map();
 /** id → (clave → número de producto de Cardmarket), para enlazar a su página. */
 const productoDe = new Map();
 let versiones = 0;
@@ -155,9 +169,9 @@ for (const [nombreSet, cartasSet] of setsCartas) {
     versiones += impresiones.length;
     if (exp == null) continue;
     const productosCarta = (expansiones.get(exp).get(n) ?? [])
-      .map((p) => ({ eur: precioProducto.get(p.idProduct), idProduct: p.idProduct }))
-      .filter((x) => x.eur != null)
-      .sort((a, b) => a.eur - b.eur);
+      .map((p) => ({ precio: precioProducto.get(p.idProduct), idProduct: p.idProduct }))
+      .filter((x) => x.precio != null)
+      .sort((a, b) => a.precio.ref - b.precio.ref);
     const rarezas = [...new Set(impresiones.map((i) => i.rarity))].sort((a, b) => rango(a) - rango(b));
     const porRareza = new Map();
     if (productosCarta.length && productosCarta.length === rarezas.length) rarezas.forEach((r, i) => porRareza.set(r, productosCarta[i]));
@@ -168,7 +182,9 @@ for (const [nombreSet, cartasSet] of setsCartas) {
       conPrecio++;
       const clave = `${imp.code}|${imp.rarity}`;
       if (!deHoy.has(imp.id)) deHoy.set(imp.id, {});
-      deHoy.get(imp.id)[clave] = producto.eur;
+      deHoy.get(imp.id)[clave] = producto.precio.ref;
+      if (!cifrasDe.has(imp.id)) cifrasDe.set(imp.id, {});
+      cifrasDe.get(imp.id)[clave] = producto.precio.cifras;
       if (!productoDe.has(imp.id)) productoDe.set(imp.id, {});
       productoDe.get(imp.id)[clave] = producto.idProduct;
     }
@@ -189,7 +205,7 @@ for (let i = 0; i < TROZOS; i++) {
     // Primera vez.
   }
   // El formato 1 guardaba dólares de TCGplayer: no se mezcla con euros de Cardmarket.
-  historiales.push(trozo?.v === VERSION ? trozo : { v: VERSION, actualizado: hoy, cartas: {} });
+  historiales.push(trozo?.v === VERSION_HISTORIAL ? trozo : { v: VERSION_HISTORIAL, actualizado: hoy, cartas: {} });
 }
 
 const cambiaDeVerdad = (antes, ahora) => Math.abs(ahora - antes) >= Math.max(0.02, antes * 0.02);
@@ -226,10 +242,10 @@ for (let i = 0; i < TROZOS; i++) {
   for (const porClave of Object.values(historial.cartas)) {
     for (const clave of Object.keys(porClave)) porClave[clave] = aclarar(porClave[clave]);
   }
-  const actual = { v: VERSION, actualizado: hoy, cartas: {}, productos: {} };
-  for (const [id, precios] of deHoy) {
+  const actual = { v: VERSION_ACTUAL, actualizado: hoy, cartas: {}, productos: {} };
+  for (const [id, cifras] of cifrasDe) {
     if (id % TROZOS !== i) continue;
-    actual.cartas[id] = precios;
+    actual.cartas[id] = cifras;
     actual.productos[id] = productoDe.get(id);
   }
   await writeFile(join(CARPETA, `${i}.json`), JSON.stringify(historial));

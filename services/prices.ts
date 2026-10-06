@@ -162,19 +162,57 @@ export async function loadCachedPrices(ids: number[]): Promise<Map<number, CardP
 /*
  * Cardmarket: lo genera cada día GitHub Actions (scripts/actualizar-precios.mjs)
  * y se publica con la web. En local no existe: solo hay TCGplayer.
- *   precios/actual-NN.json  el precio de hoy de cada versión
+ *   precios/actual-NN.json  las cifras de hoy de cada versión (desde, tendencia, medias)
  *   precios/NN.json         su historial (solo los días en que cambia)
  * Las cartas van repartidas en 100 archivos por `id % 100`.
  */
 const TROZOS = 100;
 const DIA_MS = 24 * 60 * 60 * 1000;
-const FORMATO = 2;
+const FORMATO_ACTUAL = 3;
+const FORMATO_HISTORIAL = 2;
+
+/** Cifras de Cardmarket de una versión, en euros (`null` si no la tiene). */
+export interface PriceStats {
+  /** "Desde": la oferta más barata (de cualquier idioma, estado y país). */
+  low: number | null;
+  trend: number | null;
+  avg1: number | null;
+  avg7: number | null;
+  avg30: number | null;
+}
+
+/** Con qué cifra se valora: la de referencia o cualquiera de las de Cardmarket. */
+export type PriceMetric = 'referencia' | keyof PriceStats;
+
+export const PRICE_METRICS: { id: PriceMetric; etiqueta: string; ayuda: string }[] = [
+  {
+    id: 'referencia',
+    etiqueta: 'Referencia',
+    ayuda: 'La más baja de las medias de 1, 7 y 30 días: una venta suelta disparatada no la infla.',
+  },
+  { id: 'low', etiqueta: 'Desde', ayuda: 'La oferta más barata ahora mismo (de cualquier idioma, estado y país).' },
+  { id: 'trend', etiqueta: 'Tendencia', ayuda: 'La tendencia de precio que calcula Cardmarket.' },
+  { id: 'avg30', etiqueta: 'Media 30 días', ayuda: 'Precio medio de venta del último mes.' },
+  { id: 'avg7', etiqueta: 'Media 7 días', ayuda: 'Precio medio de venta de la última semana.' },
+  { id: 'avg1', etiqueta: 'Media 1 día', ayuda: 'Precio medio de venta del último día.' },
+];
+
+/**
+ * La cifra elegida de una versión. La de referencia es la más baja de las
+ * medias de 1, 7 y 30 días (o la tendencia si no hay medias): la misma regla
+ * que usa scripts/actualizar-precios.mjs para el historial.
+ */
+export function statValue(stats: PriceStats, metric: PriceMetric): number | null {
+  if (metric !== 'referencia') return stats[metric];
+  const medias = [stats.avg1, stats.avg7, stats.avg30].filter((x): x is number => x != null);
+  return medias.length ? Math.min(...medias) : stats.trend;
+}
 
 interface TrozoActual {
   v: number;
   actualizado: number;
-  /** id → clave de impresión → euros */
-  cartas: Record<string, Record<string, number>>;
+  /** id → clave de impresión → [desde, tendencia, media1, media7, media30] */
+  cartas: Record<string, Record<string, (number | null)[]>>;
   /** id → clave de impresión → número de producto en Cardmarket (para enlazar a su página). */
   productos?: Record<string, Record<string, number>>;
 }
@@ -187,12 +225,12 @@ interface TrozoHistorial {
 
 const pedidos = new Map<string, Promise<unknown>>();
 
-function pedir<T extends { v: number }>(archivo: string): Promise<T | null> {
+function pedir<T extends { v: number }>(archivo: string, formato: number): Promise<T | null> {
   let p = pedidos.get(archivo) as Promise<T | null> | undefined;
   if (!p) {
     p = fetch(`${import.meta.env.BASE_URL}precios/${archivo}`)
       .then((r) => (r.ok ? (r.json() as Promise<T>) : null))
-      .then((t) => (t?.v === FORMATO ? t : null))
+      .then((t) => (t?.v === formato ? t : null))
       .catch(() => null);
     pedidos.set(archivo, p);
   }
@@ -217,16 +255,19 @@ export const CONDITION_FACTOR: Record<string, number> = {
 export const conditionFactor = (condition: string | undefined) => CONDITION_FACTOR[condition ?? 'NM'] ?? 1;
 
 /**
- * Precio de una versión en euros: el de Cardmarket si lo hay; si no, el de
- * TCGplayer pasado a euros (y se dice). Lo usan todas las pantallas, para que
- * la misma versión no salga con dos precios distintos.
+ * Precio de una versión en euros, con la cifra elegida de Cardmarket (si esa
+ * versión no la tiene, la de referencia). Si la versión no está en Cardmarket,
+ * el de TCGplayer pasado a euros, y se dice. Lo usan todas las pantallas, para
+ * que la misma versión no salga con dos precios distintos.
  */
 export function versionPrice(
-  cardmarket: Record<string, number> | undefined,
+  cardmarket: Record<string, PriceStats> | undefined,
   set: CardSet,
   rate: ExchangeRate | null,
+  metric: PriceMetric = 'referencia',
 ): { eur: number; deTcgplayer: boolean } | null {
-  const cm = cardmarket?.[printingKey(set.set_code, set.set_rarity)];
+  const stats = cardmarket?.[printingKey(set.set_code, set.set_rarity)];
+  const cm = stats ? (statValue(stats, metric) ?? statValue(stats, 'referencia')) : null;
   if (cm != null) return { eur: cm, deTcgplayer: false };
   const usd = Number.parseFloat(set.set_price);
   if (rate && Number.isFinite(usd) && usd > 0) return { eur: usd * rate.usdToEur, deTcgplayer: true };
@@ -241,8 +282,8 @@ export function forgetMarketData() {
 const trozosDe = (ids: number[]) => [...new Set(ids.map((id) => id % TROZOS))];
 
 export interface MarketPrices {
-  /** id → clave de impresión → euros */
-  porCarta: Map<number, Record<string, number>>;
+  /** id → clave de impresión → cifras de Cardmarket */
+  porCarta: Map<number, Record<string, PriceStats>>;
   /** id → clave de impresión → número de producto en Cardmarket */
   productos: Map<number, Record<string, number>>;
   /** Día de los precios (ms), o `null` si no hay datos de Cardmarket. */
@@ -251,14 +292,20 @@ export interface MarketPrices {
 
 /** Precio de hoy en Cardmarket de cada versión de estas cartas. */
 export async function loadMarketPrices(ids: number[]): Promise<MarketPrices> {
-  const trozos = await Promise.all(trozosDe(ids).map((n) => pedir<TrozoActual>(`actual-${n}.json`)));
-  const porCarta = new Map<number, Record<string, number>>();
+  const trozos = await Promise.all(trozosDe(ids).map((n) => pedir<TrozoActual>(`actual-${n}.json`, FORMATO_ACTUAL)));
+  const porCarta = new Map<number, Record<string, PriceStats>>();
   const productos = new Map<number, Record<string, number>>();
   let fecha: number | null = null;
   for (const t of trozos) {
     if (!t) continue;
     fecha = fecha == null ? t.actualizado * DIA_MS : Math.min(fecha, t.actualizado * DIA_MS);
-    for (const [id, precios] of Object.entries(t.cartas)) porCarta.set(Number(id), precios);
+    for (const [id, versiones] of Object.entries(t.cartas)) {
+      const porVersion: Record<string, PriceStats> = {};
+      for (const [clave, [low, trend, avg1, avg7, avg30]] of Object.entries(versiones)) {
+        porVersion[clave] = { low: low ?? null, trend: trend ?? null, avg1: avg1 ?? null, avg7: avg7 ?? null, avg30: avg30 ?? null };
+      }
+      porCarta.set(Number(id), porVersion);
+    }
     for (const [id, ids] of Object.entries(t.productos ?? {})) productos.set(Number(id), ids);
   }
   return { porCarta, productos, fecha };
@@ -285,7 +332,7 @@ function expandir(historial: Record<string, [number, number][]>, hasta: number):
 
 /** Historial de precios de Cardmarket de varias cartas, un punto por día. */
 export async function loadHistories(ids: number[]): Promise<Map<number, PricePoint[]>> {
-  const trozos = await Promise.all(trozosDe(ids).map(async (n) => [n, await pedir<TrozoHistorial>(`${n}.json`)] as const));
+  const trozos = await Promise.all(trozosDe(ids).map(async (n) => [n, await pedir<TrozoHistorial>(`${n}.json`, FORMATO_HISTORIAL)] as const));
   const porTrozo = new Map(trozos);
   const out = new Map<number, PricePoint[]>();
   for (const id of ids) {

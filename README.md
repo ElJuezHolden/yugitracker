@@ -154,9 +154,12 @@ todos los días a las 06:23 UTC. En cada ejecución `scripts/actualizar-precios.
    `datos-precios`, que se reescribe en un único commit para que el repositorio no crezca, y los
    publica con la web en `/precios/` (las cartas repartidas en 100 archivos por `id % 100`).
 
-El precio de cada versión es la más baja de sus medias de venta de 1, 7 y 30 días en Cardmarket:
-una venta suelta disparatada infla una o dos medias pero rara vez las tres. La tendencia solo se
-usa si no hay medias. En el
+De cada versión se publican todas sus cifras de Cardmarket (desde, tendencia y medias de 1, 7 y
+30 días); la ficha de la carta las muestra en una tabla y la barra de valor deja elegir con cuál
+se valora la colección (se recuerda en el navegador). Por defecto se usa el **precio de
+referencia**: la más baja de las medias de 1, 7 y 30 días, porque una venta suelta disparatada
+infla una o dos medias pero rara vez las tres (la tendencia solo si no hay medias). El historial
+y las subidas y bajadas usan siempre el de referencia. En el
 historial solo se apunta cuando cambia de verdad; pasado un mes queda uno por semana y a los 400
 días se borra. GitHub desactiva los flujos programados si un repositorio pasa 60 días sin
 actividad; si pasara, se reactiva desde la pestaña *Actions*.

@@ -225,7 +225,7 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
             </div>
           )}
           <p className="text-[10px] text-sub leading-relaxed mt-3">
-            Compara el primer precio apuntado del periodo con el último, por versión. Precios de Cardmarket:
+            Compara el primer precio apuntado del periodo con el último, por versión. Precio de referencia de Cardmarket (la más baja de sus medias):
             orientativos, mezclan idiomas y estados.
           </p>
         </div>

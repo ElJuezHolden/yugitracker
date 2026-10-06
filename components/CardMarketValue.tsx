@@ -2,7 +2,16 @@ import { useEffect, useMemo, useState, type PointerEvent } from 'react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import type { CardSet } from '../types';
 import { useCardmarketPrices, usePrices } from '../context/PricesContext';
-import { conditionFactor, loadHistory, printingKey, printingsFromApi, versionPrice, type PricePoint } from '../services/prices';
+import {
+  PRICE_METRICS,
+  conditionFactor,
+  loadHistory,
+  printingKey,
+  printingsFromApi,
+  statValue,
+  versionPrice,
+  type PricePoint,
+} from '../services/prices';
 import { formatMoney, getRarityColor } from '../utils';
 
 interface Props {
@@ -41,7 +50,7 @@ const esMisma = (a: CardSet | null, code: string, rarity: string) => !!a && a.se
  * Cardmarket se usa TCGplayer y se marca con un asterisco.
  */
 export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, condition }: Props) {
-  const { rate } = usePrices();
+  const { rate, metric, setMetric } = usePrices();
   const [historial, setHistorial] = useState<PricePoint[]>([]);
   const [rango, setRango] = useState<Rango>('30D');
 
@@ -58,12 +67,12 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
   const cardmarket = useCardmarketPrices(cardId).precios;
   const versiones = useMemo(() => {
     const lista = printingsFromApi(sets).map((p, i) => {
-      const precio = versionPrice(cardmarket, sets![i]!, rate);
+      const precio = versionPrice(cardmarket, sets![i]!, rate, metric);
       return { ...p, set: sets![i]!, eur: precio?.eur ?? null, deTcgplayer: precio?.deTcgplayer ?? false };
     });
     // Las que tienen precio primero, de la más cara a la más barata; luego las demás.
     return lista.sort((a, b) => (b.eur ?? -1) - (a.eur ?? -1));
-  }, [sets, cardmarket, rate]);
+  }, [sets, cardmarket, rate, metric]);
 
   const conPrecio = versiones.filter((v) => v.eur != null);
   const hayTcgplayer = versiones.some((v) => v.deTcgplayer);
@@ -87,6 +96,9 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
   if (versiones.length === 0) return null;
 
   const precio = actual?.eur ?? null;
+  // Todas las cifras de Cardmarket de la versión elegida, como en su web.
+  const cifras = actual ? cardmarket[printingKey(actual.code, actual.rarity)] : undefined;
+  const ORDEN_TABLA = ['low', 'trend', 'avg30', 'avg7', 'avg1', 'referencia'] as const;
   // Lo que vale TU copia: el precio de la versión ajustado por su estado (estimación).
   const factor = conditionFactor(condition);
   const valorCopia = precio != null ? precio * factor : null;
@@ -133,7 +145,7 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
           <span className="text-3xl font-black text-main tracking-tight">
             {precio != null ? `≈ ${formatMoney(precio)}` : actual ? 'Sin precio' : '—'}
           </span>
-          {cambio != null && (
+          {cambio != null && metric === 'referencia' && (
             <span
               className={`inline-flex items-center gap-1 text-sm font-bold rounded-md px-2 py-1 ${
                 sube ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'
@@ -168,6 +180,45 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
           </div>
         )}
 
+        {cifras && (
+          <div className="rounded-lg border border-border-base bg-bg-surface divide-y divide-border-base">
+            {ORDEN_TABLA.map((id) => {
+              const m = PRICE_METRICS.find((x) => x.id === id)!;
+              const valor = statValue(cifras, id);
+              const elegida = metric === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setMetric(id)}
+                  className={`w-full flex items-center justify-between gap-3 px-3 py-1.5 text-left transition-colors ${
+                    elegida ? 'bg-primary/10' : 'hover:bg-main/5'
+                  }`}
+                  title={`${m.ayuda}${elegida ? ' · Es con la que se valora tu colección.' : ' · Pulsa para valorar tu colección con esta cifra.'}`}
+                >
+                  <span className={`text-xs ${elegida ? 'text-primary font-bold' : 'text-muted'}`}>
+                    {m.etiqueta}
+                    {elegida && <span className="ml-1.5 text-[9px] uppercase tracking-wide">· valorando con esta</span>}
+                  </span>
+                  <span className={`text-xs font-bold ${valor != null ? 'text-main' : 'text-sub'}`}>
+                    {valor != null ? formatMoney(valor) : '—'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-2 text-[11px] text-sub">
+          <span>Evolución del precio de referencia</span>
+          {cambio != null && metric !== 'referencia' && (
+            <span className={`font-bold ${sube ? 'text-emerald-400' : 'text-red-400'}`}>
+              {sube ? '+' : '−'}
+              {formatMoney(Math.abs(cambio))}
+              {cambioPct != null && ` (${sube ? '+' : '−'}${Math.abs(cambioPct).toFixed(1).replace('.', ',')} %)`}
+            </span>
+          )}
+        </div>
         {serie.length >= 2 ? (
           <PriceChart serie={serie} color={sube ? '#34d399' : '#f87171'} />
         ) : (

@@ -14,6 +14,10 @@ import {
   type CardPrices,
   type ExchangeRate,
   type MarketPrices,
+  type PriceMetric,
+  type PriceStats,
+  PRICE_METRICS,
+  statValue,
 } from '../services/prices';
 
 /** Precio de una copia y de dónde sale. */
@@ -53,12 +57,16 @@ interface PricesContextValue {
   valueOf: (card: Card) => number | null;
   summarize: (cards: Card[]) => ValueSummary;
   refresh: () => void;
+  /** Cifra de Cardmarket con la que se valora todo (por defecto, la de referencia). */
+  metric: PriceMetric;
+  setMetric: (m: PriceMetric) => void;
 }
 
 const PricesContext = createContext<PricesContextValue | undefined>(undefined);
 
 /** Espera tras un cambio en la colección antes de pedir precios, para agrupar altas seguidas. */
 const DEBOUNCE_MS = 800;
+const CLAVE_METRICA = 'yugi-tracker-metrica-precio';
 
 export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state } = useStore();
@@ -67,6 +75,24 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [forzar, setForzar] = useState(0);
+  // La cifra elegida se recuerda en este navegador; si no se puede leer, la de referencia.
+  const [metric, setMetricState] = useState<PriceMetric>(() => {
+    try {
+      const guardada = localStorage.getItem(CLAVE_METRICA);
+      if (PRICE_METRICS.some((m) => m.id === guardada)) return guardada as PriceMetric;
+    } catch {
+      // Sin acceso al almacenamiento: se usa la de por defecto.
+    }
+    return 'referencia';
+  });
+  const setMetric = useCallback((m: PriceMetric) => {
+    setMetricState(m);
+    try {
+      localStorage.setItem(CLAVE_METRICA, m);
+    } catch {
+      // No poder recordarla no impide usarla.
+    }
+  }, []);
   const [mercado, setMercado] = useState<MarketPrices>(() => ({ porCarta: new Map(), productos: new Map(), fecha: null }));
 
   /*
@@ -155,12 +181,13 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const cm = mercado.porCarta.get(card.apiId);
       const clave = impresion ? printingKey(impresion.code, impresion.rarity) : printingKey(card.setCode, card.rarity);
       const factor = conditionFactor(card.condition);
-      const deCardmarket = cm?.[clave];
+      const cifras = cm?.[clave];
+      const deCardmarket = cifras ? (statValue(cifras, metric) ?? statValue(cifras, 'referencia')) : undefined;
       const deMercado = deCardmarket ?? (impresion?.usd != null && rate ? impresion.usd * rate.usdToEur : null);
       if (deMercado == null) return null;
       return { eur: deMercado * factor, mercado: deMercado, factor, fuente: deCardmarket != null ? 'cardmarket' : 'tcgplayer' };
     },
-    [prices, rate, mercado],
+    [prices, rate, mercado, metric],
   );
 
   const valueOf = useCallback((card: Card): number | null => priceOf(card)?.eur ?? null, [priceOf]);
@@ -192,16 +219,16 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const refresh = useCallback(() => setForzar((n) => n + 1), []);
 
   const value = useMemo<PricesContextValue>(
-    () => ({ rate, loading, error, oldestFetch, marketDate: mercado.fecha, priceOf, valueOf, summarize, refresh }),
-    [rate, loading, error, oldestFetch, mercado.fecha, priceOf, valueOf, summarize, refresh],
+    () => ({ rate, loading, error, oldestFetch, marketDate: mercado.fecha, priceOf, valueOf, summarize, refresh, metric, setMetric }),
+    [rate, loading, error, oldestFetch, mercado.fecha, priceOf, valueOf, summarize, refresh, metric, setMetric],
   );
 
   return <PricesContext.Provider value={value}>{children}</PricesContext.Provider>;
 };
 
 export interface CardmarketData {
-  /** Clave de impresión → euros. */
-  precios: Record<string, number>;
+  /** Clave de impresión → cifras de Cardmarket. */
+  precios: Record<string, PriceStats>;
   /** Clave de impresión → número de producto en Cardmarket. */
   productos: Record<string, number>;
 }
