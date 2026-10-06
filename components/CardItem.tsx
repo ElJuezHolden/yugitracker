@@ -18,6 +18,50 @@ interface Props {
   onToggleSelect?: () => void;
 }
 
+/**
+ * Etiquetas de la copia: edición (1.ª o Limited) y estado (NM, EX…).
+ * En la franja de datos son chips con borde; `sobreCarta` las hace pastillas
+ * oscuras y translúcidas para ir encima de la imagen, escaladas con la carta.
+ */
+function EtiquetasCopia({ card, edicion, estado, sobreCarta = false }: { card: Card; edicion: boolean; estado: boolean; sobreCarta?: boolean }) {
+  const meta = getConditionMeta(card.condition);
+  const base = sobreCarta
+    ? 'rounded-full font-bold leading-none whitespace-nowrap backdrop-blur-sm bg-black/65 ring-1 ring-white/15 shadow'
+    : 'rounded-full font-bold leading-none whitespace-nowrap border px-1.5 py-[3px] text-[10px]';
+  const tam = sobreCarta ? { fontSize: '7.5cqw', padding: '1.6cqw 3.2cqw' } : undefined;
+  return (
+    <>
+      {edicion && card.is1st && (
+        <span
+          className={`${base} ${sobreCarta ? 'text-amber-300' : 'text-amber-300 bg-amber-400/10 border-amber-400/40'}`}
+          style={tam}
+          title="1.ª edición"
+        >
+          1ª ED
+        </span>
+      )}
+      {edicion && card.isLimited && (
+        <span
+          className={`${base} ${sobreCarta ? 'text-sky-300' : 'text-sky-300 bg-sky-400/10 border-sky-400/40'}`}
+          style={tam}
+          title="Edición limitada"
+        >
+          LTD
+        </span>
+      )}
+      {estado && (
+        <span
+          className={base}
+          style={sobreCarta ? { ...tam, color: meta.color } : { color: meta.color, borderColor: `${meta.color}66`, backgroundColor: `${meta.color}1a` }}
+          title={`Estado: ${meta.label}`}
+        >
+          {meta.label}
+        </span>
+      )}
+    </>
+  );
+}
+
 export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, isSelectionMode, isSelected, onToggleSelect }) => {
   const { state, dispatch, toast } = useStore();
   const { showFoils, showConditionFlags, showEditionFlags } = state.ui;
@@ -33,7 +77,6 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
   const contenedorRef = useCardPointer(!isSelectionMode);
 
   const rarityColor = getRarityColor(card.rarity);
-  const conditionMeta = getConditionMeta(card.condition);
   // Valor de mercado de ESTA impresión (set y rareza), en euros; null si no hay precio.
   const valor = usePrices().valueOf(card);
   const tituloValor = valor == null
@@ -124,8 +167,9 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
     setHoverPos({ top: top, left: rect.right + 20 });
   };
 
-  // Selection Overlay Component
-  const SelectionOverlay = () => (
+  // Capa de selección (un elemento, no un componente: definir componentes dentro
+  // del render hace que React los vuelva a montar en cada pintado).
+  const selectionOverlay = (
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -158,7 +202,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
             }`}
           >
               <div ref={contenedorRef} className="card-container relative w-full h-full bg-[#111]">
-                   {isSelectionMode && <SelectionOverlay />}
+                   {isSelectionMode && selectionOverlay}
                    
                    {/* La imagen y el foil se inclinan juntos; las insignias, no. */}
                    <div className="card-tilt">
@@ -201,7 +245,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
             style={{ containerType: 'inline-size' }} // Safer than 'size' to avoid height collapse
         >
             {/* SELECTION OVERLAY */}
-            {isSelectionMode && <SelectionOverlay />}
+            {isSelectionMode && selectionOverlay}
 
             {/* CARD IMAGE */}
             <div ref={contenedorRef} className="card-container w-full h-full bg-[#111] relative">
@@ -215,6 +259,19 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     alt={card.name}
                 />
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
+
+                {/*
+                  Edición y estado: pastillas pequeñas DENTRO de la carta, para que
+                  se levanten e inclinen con ella en vez de quedarse en la funda.
+                */}
+                {!isSelectionMode && !card.isWanted && (showEditionFlags || showConditionFlags) && (card.is1st || card.isLimited || showConditionFlags) && (
+                    <div
+                        className="absolute flex items-center pointer-events-none"
+                        style={{ right: '4%', bottom: '2.5%', gap: '2.5cqw' }}
+                    >
+                        <EtiquetasCopia card={card} edicion={showEditionFlags} estado={showConditionFlags} sobreCarta />
+                    </div>
+                )}
                  </div>
 
                 {/* WANTED Overlay */}
@@ -226,46 +283,6 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     </div>
                 )}
 
-                {/* --- ALBUM BADGES (SCALABLE via CQW) --- */}
-                
-                {/* 1st Edition: Bottom Right (Hide if Wanted) */}
-                {card.is1st && !isSelectionMode && !card.isWanted && showEditionFlags && (
-                    <div 
-                        className="absolute bottom-0 right-0 bg-gradient-to-tl from-[#FFD700] to-[#B8860B] text-black font-extrabold rounded-tl-lg shadow-md z-30 whitespace-nowrap leading-none flex items-center justify-center pointer-events-none"
-                        style={{ 
-                            fontSize: '12cqw', 
-                            padding: '2cqw 4cqw 3cqw 6cqw'
-                        }}
-                    >
-                        1st
-                    </div>
-                )}
-                {/* Limited Edition: Bottom Right (Hide if Wanted) */}
-                {card.isLimited && !isSelectionMode && !card.isWanted && showEditionFlags && (
-                    <div 
-                        className="absolute bottom-0 right-0 bg-gradient-to-tl from-[#c0c0c0] to-[#60a5fa] text-black font-extrabold rounded-tl-lg shadow-md z-30 whitespace-nowrap leading-none flex items-center justify-center pointer-events-none"
-                        style={{ 
-                            fontSize: '10cqw', 
-                            padding: '2cqw 4cqw 3cqw 6cqw'
-                        }}
-                    >
-                        Ltd.
-                    </div>
-                )}
-                
-                {/* Condition: Top Right (Hide if Wanted or Disabled) */}
-                {!isSelectionMode && !card.isWanted && showConditionFlags && (
-                    <div 
-                        className="absolute top-0 right-0 text-black font-extrabold rounded-bl-lg shadow-md z-30 leading-none flex items-center justify-center pointer-events-none"
-                        style={{ 
-                            backgroundColor: conditionMeta.color, 
-                            fontSize: '12cqw',
-                            padding: '3cqw 6cqw 2cqw 4cqw'
-                        }}
-                    >
-                        {conditionMeta.label}
-                    </div>
-                )}
             </div>
 
             {/* Minimal Info on Hover */}
@@ -297,7 +314,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 onDrop={handleDrop}
                 onClick={handleClick}
                 // LIST VIEW CONTAINER
-                className={`group relative grid grid-cols-[100px_2fr_3fr_1fr] gap-6 p-4 bg-bg-surface rounded-xl cursor-pointer transition-all duration-300 items-center h-[140px] border ${
+                className={`group relative grid grid-cols-[64px_minmax(0,1fr)_auto_auto] md:grid-cols-[100px_2fr_3fr_1fr] gap-3 md:gap-6 p-3 md:p-4 bg-bg-surface rounded-xl cursor-pointer transition-all duration-300 items-center min-h-[104px] md:h-[140px] border ${
                     isSelectionMode 
                         ? (isSelected ? 'border-primary ring-1 ring-primary' : 'border-border-base opacity-80 hover:opacity-100 shadow-sm')
                         : 'border-border-base shadow-sm hover:border-primary/40 hover:bg-main/5 hover:shadow-[0_0_15px_rgba(var(--rgb-primary),0.1)] hover:z-10'
@@ -312,7 +329,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
 
                 <div 
                     ref={contenedorRef}
-                    className="card-container relative h-full aspect-[421/614] mx-auto rounded-lg bg-zinc-900 overflow-hidden shadow-lg shrink-0 z-30"
+                    className="card-container relative w-full md:w-auto md:h-full aspect-[421/614] mx-auto rounded-lg bg-zinc-900 overflow-hidden shadow-lg shrink-0 z-30"
                     onMouseEnter={handleMouseEnter}
                     onMouseLeave={() => setHoverPos(null)}
                 >
@@ -342,17 +359,8 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 <div className={`flex flex-col gap-2 min-w-0 overflow-hidden z-30 pointer-events-none ${isSelectionMode ? 'pl-8' : ''}`}>
                     <div className="flex flex-col">
                         <div className="flex flex-wrap items-center gap-2">
-                            <span className={`font-bold text-xl leading-tight truncate ${card.isWanted ? 'text-muted' : 'text-main'}`}>{card.name}</span>
-                            {card.is1st && !card.isWanted && showEditionFlags && (
-                                <span className="text-primary text-xs font-bold border border-primary/30 px-1.5 py-0.5 rounded bg-primary/10 whitespace-nowrap">
-                                    1st Edition
-                                </span>
-                            )}
-                            {card.isLimited && !card.isWanted && showEditionFlags && (
-                                <span className="text-blue-400 text-xs font-bold border border-blue-400/30 px-1.5 py-0.5 rounded bg-blue-400/10 whitespace-nowrap">
-                                    Limited Ed.
-                                </span>
-                            )}
+                            <span className={`font-bold text-base md:text-xl leading-tight truncate ${card.isWanted ? 'text-muted' : 'text-main'}`}>{card.name}</span>
+                            {!card.isWanted && <EtiquetasCopia card={card} edicion={showEditionFlags} estado={false} />}
                             {showFolderBadge && (
                                 <button className="flex items-center gap-1 text-[10px] bg-bg-panel text-muted px-2 py-0.5 rounded-full border border-border-base ml-2">
                                     <FolderOpen size={10} />
@@ -370,26 +378,19 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     </div>
 
                     {!card.isWanted && (
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-sub mt-1">
-                            <span style={{ color: rarityColor }} className="font-bold text-base drop-shadow-sm">{card.rarity}</span>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-sub mt-1">
+                            <span style={{ color: rarityColor }} className="font-bold text-sm md:text-base drop-shadow-sm">{card.rarity}</span>
                             <span className="text-muted">•</span>
                             <span className="font-mono text-main font-medium">{card.setCode}</span>
                         </div>
                     )}
                 </div>
 
-                <div className="flex flex-col gap-2 min-w-0 border-l border-border-base pl-4 h-full justify-center z-30 pointer-events-none">
+                <div className="flex flex-col gap-2 min-w-0 border-l border-border-base pl-3 md:pl-4 h-full justify-center z-30 pointer-events-none">
                     {!card.isWanted && (
-                        <div className="flex items-center gap-4 text-sm">
-                            <span className="font-bold text-muted text-lg" title={card.lang}>{card.lang}</span>
-                            {showConditionFlags && (
-                                <span 
-                                    className="px-2 py-0.5 rounded text-xs font-bold text-black uppercase tracking-wider shadow-sm" 
-                                    style={{ backgroundColor: conditionMeta.color }}
-                                >
-                                    {conditionMeta.label}
-                                </span>
-                            )}
+                        <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm">
+                            <span className="font-bold text-muted text-sm md:text-lg" title={card.lang}>{card.lang}</span>
+                            <EtiquetasCopia card={card} edicion={false} estado={showConditionFlags} />
                         </div>
                     )}
                     {card.obs && (
@@ -402,12 +403,12 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 <div className="flex flex-col items-end gap-1 h-full justify-center z-30 pointer-events-none">
                     {!card.isWanted && (
                         <div className="text-right" title={tituloValor}>
-                            <div className="text-xl font-black text-main tracking-tight">
+                            <div className="text-base md:text-xl font-black text-main tracking-tight whitespace-nowrap">
                                 {valor != null ? `≈ ${formatMoney(valor)}` : <span className="text-muted">—</span>}
                             </div>
                         </div>
                     )}
-                    {!isSelectionMode && <div className="text-muted opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-full">✏️</div>}
+                    {!isSelectionMode && <div className="hidden md:block text-muted opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-full">✏️</div>}
                 </div>
             </motion.div>
             
@@ -463,7 +464,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
         >
             <div ref={contenedorRef} className="card-container relative w-full aspect-[421/614] bg-[#111] overflow-hidden shrink-0">
                 {/* SELECTION OVERLAY */}
-                {isSelectionMode && <SelectionOverlay />}
+                {isSelectionMode && selectionOverlay}
 
                 {/* La imagen y el foil se inclinan juntos; las insignias, no. */}
                 <div className="card-tilt">
@@ -488,34 +489,11 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     </div>
                 )}
 
-                {/* Badges - 1st Edition */}
-                {card.is1st && !isSelectionMode && !card.isWanted && showEditionFlags && (
-                    <div 
-                        className="absolute top-0 left-0 bg-gradient-to-br from-[#FFD700] to-[#B8860B] text-black font-extrabold px-[3cqw] py-[1cqw] rounded-br-lg shadow-md z-30 whitespace-nowrap"
-                        style={{ fontSize: '5cqw' }}
-                    >
-                        1st Edition
-                    </div>
-                )}
-                {/* Badges - Limited Edition */}
-                {card.isLimited && !isSelectionMode && !card.isWanted && showEditionFlags && (
-                    <div 
-                        className="absolute top-0 left-0 bg-gradient-to-br from-[#c0c0c0] to-[#60a5fa] text-black font-extrabold px-[3cqw] py-[1cqw] rounded-br-lg shadow-md z-30 whitespace-nowrap"
-                        style={{ fontSize: '5cqw' }}
-                    >
-                        Limited Ed.
-                    </div>
-                )}
-
-                {/* Condition Badge */}
-                {!isSelectionMode && !card.isWanted && showConditionFlags && (
-                    <div 
-                        className="absolute top-0 right-0 text-black font-extrabold px-[3cqw] py-[1cqw] rounded-bl-lg shadow-md z-30"
-                        style={{ backgroundColor: conditionMeta.color, fontSize: '5cqw' }}
-                    >
-                        {conditionMeta.label}
-                    </div>
-                )}
+                {/*
+                  La edición y el estado ya no van pegados a las esquinas de la imagen:
+                  tapaban el nombre y, al levantarse la carta, se quedaban fuera de
+                  sitio. Van como etiquetas en la franja de datos de abajo.
+                */}
                 {!isSelectionMode && !card.isWanted && <div className="absolute bottom-0 left-0 right-0 h-1 shadow-lg z-30" style={{ backgroundColor: rarityColor }} />}
             </div>
 
@@ -559,8 +537,9 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                             <span className="text-muted ml-2">{card.setCode}</span>
                         </div>
                         <div className="flex justify-between items-center text-xs gap-2">
-                            <span className="text-muted truncate">
+                            <span className="text-muted flex items-center gap-1.5 min-w-0 overflow-hidden">
                                 <span className="font-bold" title={card.lang}>{card.lang}</span>
+                                {!isSelectionMode && <EtiquetasCopia card={card} edicion={showEditionFlags} estado={showConditionFlags} />}
                             </span>
                             <span className="font-black text-main whitespace-nowrap" title={tituloValor}>
                                 {valor != null ? `≈ ${formatMoney(valor)}` : <span className="text-muted font-bold">—</span>}
