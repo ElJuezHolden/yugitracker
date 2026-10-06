@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MainCardType, MonsterType, CardProperty } from '../types';
-import { X, Filter, ChevronDown, ChevronUp, Layers, Diamond, Tag } from 'lucide-react';
+import { X, Filter, ChevronDown, ChevronUp, Layers, Diamond, Tag, Languages } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 
 interface FilterState {
@@ -10,6 +10,8 @@ interface FilterState {
     properties: CardProperty[];
     sets: string[];
     rarities: string[];
+    /** Solo en la colección (el buscador de cartas nuevas no tiene idioma): sin él, no sale la sección. */
+    langs?: string[];
 }
 
 interface Props {
@@ -23,6 +25,12 @@ interface Props {
 const MONSTER_TYPES: MonsterType[] = ['Normal', 'Effect', 'Fusion', 'Ritual', 'Synchro', 'XYZ', 'Link', 'Pendulum'];
 const SPELL_PROPS: CardProperty[] = ['Normal', 'Continuous', 'Field', 'Quick-Play', 'Equip', 'Ritual'];
 const TRAP_PROPS: CardProperty[] = ['Normal', 'Continuous', 'Counter'];
+/** Idiomas de las copias (los mismos que se eligen en la ficha). */
+const IDIOMAS: { id: string; nombre: string }[] = [
+    { id: 'ES', nombre: 'Español' },
+    { id: 'EN', nombre: 'Inglés' },
+    { id: 'JP', nombre: 'Japonés' },
+];
 
 export const CardFilter: React.FC<Props> = ({ filters, onChange, isOpen, availableSets, availableRarities }) => {
     const { state } = useStore();
@@ -73,14 +81,15 @@ export const CardFilter: React.FC<Props> = ({ filters, onChange, isOpen, availab
     const handlePropertyToggle = (prop: CardProperty) => onChange({ ...filters, properties: toggle(filters.properties, prop) });
     const handleSetToggle = (setPrefix: string) => onChange({ ...filters, sets: toggle(filters.sets, setPrefix) });
     const handleRarityToggle = (rarity: string) => onChange({ ...filters, rarities: toggle(filters.rarities, rarity) });
+    const handleLangToggle = (lang: string) => onChange({ ...filters, langs: toggle(filters.langs ?? [], lang) });
     
-    const clearFilters = () => onChange({ cardTypes: [], monsterTypes: [], properties: [], sets: [], rarities: [] });
+    const clearFilters = () => onChange({ cardTypes: [], monsterTypes: [], properties: [], sets: [], rarities: [], ...(filters.langs ? { langs: [] } : {}) });
 
     const toggleSection = (section: 'sets' | 'rarities') => {
         setOpenSection(prev => prev === section ? 'none' : section);
     };
 
-    const activeCount = filters.cardTypes.length + filters.monsterTypes.length + filters.properties.length + filters.sets.length + filters.rarities.length;
+    const activeCount = filters.cardTypes.length + filters.monsterTypes.length + filters.properties.length + filters.sets.length + filters.rarities.length + (filters.langs?.length ?? 0);
     const showMonsters = filters.cardTypes.includes('Monster');
     const showSpells = filters.cardTypes.includes('Spell');
     const showTraps = filters.cardTypes.includes('Trap');
@@ -178,6 +187,11 @@ export const CardFilter: React.FC<Props> = ({ filters, onChange, isOpen, availab
                                         {r} <X size={12}/>
                                     </button>
                                 ))}
+                                {(filters.langs ?? []).map(l => (
+                                    <button key={l} onClick={() => handleLangToggle(l)} className={getItemClass(true, true)}>
+                                        Idioma: {IDIOMAS.find(i => i.id === l)?.nombre ?? l} <X size={12}/>
+                                    </button>
+                                ))}
                             </div>
                         )}
 
@@ -200,6 +214,26 @@ export const CardFilter: React.FC<Props> = ({ filters, onChange, isOpen, availab
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Idioma de la copia */}
+                            {filters.langs && (
+                            <div>
+                                <h4 className="text-[10px] font-bold text-muted mb-2 uppercase tracking-wider flex items-center gap-1">
+                                    <Languages size={12} className="text-primary"/> Idioma
+                                </h4>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {IDIOMAS.map(idioma => (
+                                        <button
+                                            key={idioma.id}
+                                            onClick={() => handleLangToggle(idioma.id)}
+                                            className={getItemClass(filters.langs?.includes(idioma.id) ?? false, false)}
+                                        >
+                                            {idioma.nombre}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            )}
 
                             {/* 4. Subtypes Area (Conditional) */}
                             <AnimatePresence>

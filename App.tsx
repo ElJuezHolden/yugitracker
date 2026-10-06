@@ -60,15 +60,17 @@ function App() {
       properties: CardProperty[];
       sets: string[];
       rarities: string[];
+      langs: string[];
   }>({
       cardTypes: [],
       monsterTypes: [],
       properties: [],
       sets: [],
-      rarities: []
+      rarities: [],
+      langs: []
   });
 
-  const activeFilterCount = filters.cardTypes.length + filters.monsterTypes.length + filters.properties.length + filters.sets.length + filters.rarities.length;
+  const activeFilterCount = filters.cardTypes.length + filters.monsterTypes.length + filters.properties.length + filters.sets.length + filters.rarities.length + filters.langs.length;
 
   // Card Modal Data
   const [selectedApiCard, setSelectedApiCard] = useState<ApiCard | null>(null);
@@ -90,7 +92,8 @@ function App() {
         monsterTypes: [],
         properties: [],
         sets: [],
-        rarities: []
+        rarities: [],
+        langs: []
     });
     setIsFilterOpen(false);
   }, [activeFolderId]);
@@ -399,6 +402,11 @@ function App() {
             list = list.filter(c => filters.rarities.includes(c.rarity));
         }
 
+        // C2. FILTER: Idioma de la copia (p. ej. ver las que tengo en inglés para comprarlas en español)
+        if (filters.langs.length > 0) {
+            list = list.filter(c => filters.langs.includes(c.lang));
+        }
+
         // D. SORTING
         if (sortCards !== 'manual') {
             const dir = sortCardsDir === 'asc' ? 1 : -1;
@@ -538,7 +546,7 @@ function App() {
         {!isHome && (
             <CardFilter 
                 filters={filters}
-                onChange={setFilters}
+                onChange={(f) => setFilters({ ...f, langs: f.langs ?? [] })}
                 isOpen={isFilterOpen}
                 availableSets={availableSets}
                 availableRarities={availableRarities}
