@@ -21,9 +21,10 @@
  * Comprobado a mano con varias cartas (p. ej. Number F0 DUAD-EN042 Ultra Rare
  * sale a lo mismo que en la web de Cardmarket).
  *
- * El precio de cada producto es su media de venta de los últimos 7 días. Si no
- * la tiene (sin ventas esa semana) se usa la tendencia, y si tampoco, la media
- * de 30 días.
+ * El precio de cada producto es la MÁS BAJA de sus medias de venta de 1, 7 y 30
+ * días. Una venta suelta disparatada (alguien paga 18 € por una carta de 0,20 €)
+ * infla una o dos medias, pero rara vez las tres; la más baja es la que más se
+ * parece a lo que se paga de verdad. La tendencia solo se usa si no hay medias.
  *
  * Archivos (las cartas se reparten en 100 por `id % 100`):
  *   actual-NN.json  { v: 2, actualizado: <día>, cartas: { <id>: { "<set>|<rareza>": euros } },
@@ -73,12 +74,12 @@ if (!Array.isArray(productos) || productos.length < 1000) throw new Error('Cardm
 
 const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '');
 const redondear = (x) => Math.round(x * 100) / 100;
-/** El primero de los valores que sea un precio de verdad. */
-const primerPrecio = (...valores) => valores.find((x) => typeof x === 'number' && x > 0) ?? null;
+const esPrecio = (x) => typeof x === 'number' && x > 0;
 
 const precioProducto = new Map();
 for (const g of priceGuides) {
-  const eur = primerPrecio(g.avg7, g.trend, g.avg30);
+  const medias = [g.avg1, g.avg7, g.avg30].filter(esPrecio);
+  const eur = medias.length ? Math.min(...medias) : esPrecio(g.trend) ? g.trend : null;
   if (eur != null) precioProducto.set(g.idProduct, redondear(eur));
 }
 
