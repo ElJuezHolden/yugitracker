@@ -79,6 +79,8 @@ export interface MiscInfo {
 export interface ApiCard {
   id: number;
   name: string;
+  /** Nombre en español (de Yugipedia), si se conoce. No lo da la API. */
+  name_es?: string;
   type: string;
   frameType: string; // 'effect', 'spell', 'trap', 'link', etc.
   desc: string;

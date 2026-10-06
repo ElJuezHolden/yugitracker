@@ -135,10 +135,20 @@
  */
 .card-container:hover {
   overflow: visible;
-  z-index: 10;
+  /*
+   * Por encima de la franja de datos de la ficha (z-30): con 10, al inclinarse,
+   * el borde de abajo de la carta se metía por debajo de ella y parecía cortado.
+   */
+  z-index: 40;
 }
 
 .card-container:hover .card-tilt {
+  /*
+   * Por encima de lo que hay en el hueco (la línea de color de la rareza, z-30),
+   * que si no cruzaba la carta levantada. La .card-tilt ya es un contexto de
+   * apilamiento por su transform, así que esto no afecta a la mezcla del brillo.
+   */
+  z-index: 35;
   /*
    * Escala algo mayor en horizontal que en vertical para que sobresalga LOS
    * MISMOS PÍXELES por los cuatro lados: con una escala igual, como la carta es

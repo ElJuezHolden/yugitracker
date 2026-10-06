@@ -193,7 +193,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
                         type="text" 
                         value={query}
                         onChange={(e) => setQuery(e.target.value)}
-                        placeholder={`Nombre en inglés o número de la carta (mín. ${MIN_QUERY_LENGTH} letras)...`}
+                        placeholder={`Nombre en español o inglés, o número de la carta (mín. ${MIN_QUERY_LENGTH} letras)...`}
                         aria-label="Buscar carta por nombre"
                         className="w-full bg-bg-panel border border-border-base text-main rounded-xl pl-10 pr-4 py-3 text-lg focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none placeholder-main/30"
                     />
@@ -249,9 +249,8 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
                         <>
                             <p>No se encontraron resultados.</p>
                             <p className="mt-2 text-xs text-main/40">
-                                La base de datos de cartas solo tiene los nombres en inglés: busca «Dark Magician» en vez de «Mago Oscuro».
-                                <br />
-                                También puedes escribir el número de la carta (las 8 cifras de abajo a la izquierda), que es igual en todos los idiomas.
+                                Prueba con el nombre en inglés o en español, o con el número de la carta (las 8 cifras de abajo a la
+                                izquierda), que es igual en todos los idiomas.
                             </p>
                         </>
                     )}
@@ -275,7 +274,10 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
                                 alt="" 
                             />
                             <div className="flex-1 min-w-0">
-                                <div className="font-bold text-main truncate">{card.name}</div>
+                                <div className="font-bold text-main truncate">{card.name_es ?? card.name}</div>
+                                {card.name_es && card.name_es !== card.name && (
+                                    <div className="text-xs text-muted truncate">{card.name}</div>
+                                )}
                                 <div className="text-xs text-primary truncate opacity-80">{card.type}</div>
                             </div>
                             {card.card_sets && (

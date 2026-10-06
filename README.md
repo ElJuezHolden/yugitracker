@@ -24,6 +24,9 @@ Los datos de las cartas vienen de la API pública de [YGOPRODeck](https://ygopro
   colección que más han subido o bajado en 7 días, 30, 90 o un año, filtrando por cambio mínimo.
 - **Lo pagado**, opcional y por carta: solo se ve en la ficha de esa carta, comparado con su
   valor actual. No entra en los totales.
+- **Buscador en español o inglés**: «Mago Oscuro» encuentra Dark Magician. YGOPRODeck no tiene
+  nombres en español; los saca cada semana `scripts/actualizar-nombres.mjs` de Yugipedia (por el
+  número de la carta) y se publican con la web en `/precios/nombres-es.json`.
 - **Cartas buscadas**: márcalas como *wanted* para llevar la lista de lo que te falta.
 - **Filtros** por tipo de carta, tipo de monstruo, propiedad de mágica o trampa, set y rareza.
 - **Temas**: acento y fondo a elegir, con claro y oscuro automáticos, y colores propios guardados.
@@ -176,5 +179,7 @@ actividad; si pasara, se reactiva desde la pestaña *Actions*.
 
 ## Créditos
 
-Datos e imágenes de cartas: [YGOPRODeck](https://ygoprodeck.com/). Yu-Gi-Oh! es una marca de
+Datos e imágenes de cartas: [YGOPRODeck](https://ygoprodeck.com/). Precios: guía pública de
+[Cardmarket](https://www.cardmarket.com/). Nombres en español: [Yugipedia](https://yugipedia.com/)
+(CC BY-SA). Yu-Gi-Oh! es una marca de
 Konami. Este es un proyecto personal sin relación con Konami.
