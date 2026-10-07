@@ -51,21 +51,27 @@ const ABREVIATURAS: Record<string, string> = {
   'short print': 'SP',
   'super short print': 'SSP',
 };
-/** Cuánto se amplía una carta de la vista mesa al pasar el ratón. */
-const AMPLIACION_MESA = 1.75;
+/**
+ * Cuánto se amplía una carta de la vista mesa al pasar el ratón: hasta unos
+ * 300 px de ancho. Antes era siempre 1,75 veces, y con pocas cartas (grandes) la
+ * ampliada salía enorme y tapaba media mesa; con muchas (pequeñas), se quedaba corta.
+ */
+const ANCHO_AMPLIADA = 300;
+const ampliacionMesa = (ancho: number | undefined) => (ancho ? Math.min(3, Math.max(1.12, ANCHO_AMPLIADA / ancho)) : 1.5);
 
 /**
  * En la vista mesa, la carta ampliada crece hacia dentro de la ventana: las de
  * los bordes se amplían desde ese borde, para no salirse ni quedar bajo la cabecera.
  */
-function crecerHaciaDentro(e: React.MouseEvent<HTMLElement>) {
+function crecerHaciaDentro(e: React.MouseEvent<HTMLElement>, escala: number): { x: number; y: number } {
   const r = e.currentTarget.getBoundingClientRect();
-  const sobraX = (r.width * (AMPLIACION_MESA - 1)) / 2;
-  const sobraY = (r.height * (AMPLIACION_MESA - 1)) / 2;
-  const cabecera = 90;
-  const x = r.left - sobraX < 8 ? '0%' : r.right + sobraX > window.innerWidth - 8 ? '100%' : '50%';
-  const y = r.top - sobraY < cabecera ? '0%' : r.bottom + sobraY > window.innerHeight - 8 ? '100%' : '50%';
-  e.currentTarget.style.transformOrigin = `${x} ${y}`;
+  const sobraX = (r.width * (escala - 1)) / 2;
+  const sobraY = (r.height * (escala - 1)) / 2;
+  const cabecera = (Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--alto-cabecera')) || 70) + 20;
+  // Como originX/originY de framer-motion: si se pone el transform-origin a mano, framer lo pisa al repintar.
+  const x = r.left - sobraX < 8 ? 0 : r.right + sobraX > window.innerWidth - 8 ? 1 : 0.5;
+  const y = r.top - sobraY < cabecera ? 0 : r.bottom + sobraY > window.innerHeight - 8 ? 1 : 0.5;
+  return { x, y };
 }
 
 /**
@@ -160,6 +166,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
   // Vista mesa con muchas cartas: cada una más ligera (ver mesaContexto).
   const mesa = useMesa();
   const [ampliada, setAmpliada] = useState(false);
+  const [origen, setOrigen] = useState({ x: 0.5, y: 0.5 });
 
   const rarityColor = getRarityColor(card.rarity);
   // Valor de mercado de ESTA impresión (set y rareza), en euros; null si no hay precio.
@@ -286,16 +293,16 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
             layout={!mesa || mesa.cantidad < CARTAS_SIN_LAYOUT}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            whileHover={!isSelectionMode ? { scale: AMPLIACION_MESA, zIndex: 100, transition: { duration: 0.2 } } : {}}
+            whileHover={!isSelectionMode ? { scale: ampliacionMesa(mesa?.ancho), zIndex: 100, transition: { duration: 0.2 } } : {}}
             onMouseEnter={(e) => {
-                crecerHaciaDentro(e);
+                setOrigen(crecerHaciaDentro(e, ampliacionMesa(mesa?.ancho)));
                 setAmpliada(true);
             }}
             onMouseLeave={() => setAmpliada(false)}
             onClick={handleClick}
-            style={{ containerType: 'inline-size' }} // Critical for CQW units in WANTED overlay
+            style={{ containerType: 'inline-size', originX: origen.x, originY: origen.y }} // Critical for CQW units in WANTED overlay
             // Sin recortar: la carta ampliada tiene que verse entera (ver .mesa-carta en CardFoilOverlay.css).
-            className={`group mesa-carta relative rounded-lg cursor-pointer shadow-md border w-full h-full ${
+            className={`group mesa-carta relative cursor-pointer shadow-md border w-full h-full ${
                 isSelectionMode 
                 ? (isSelected ? 'border-primary ring-2 ring-primary' : 'border-transparent opacity-80') 
                 : 'border-transparent'
