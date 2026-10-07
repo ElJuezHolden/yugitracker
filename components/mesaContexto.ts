@@ -15,8 +15,12 @@ export const MesaContexto = createContext<Mesa | null>(null);
 
 export const useMesa = () => useContext(MesaContexto);
 
-/** Por debajo de este ancho, la imagen reducida de YGOPRODeck (168 px) basta. */
-export const ANCHO_IMAGEN_PEQUENA = 150;
+/**
+ * Por debajo de este ancho, la imagen reducida de YGOPRODeck (168 px, muy
+ * comprimida). Ampliada (hasta 1,6 veces) no pasa de unos 160 px, su tamaño: con
+ * 150 se ampliaban cartas de 130 px a 210 y se veían pixeladas hasta que bajaba la grande.
+ */
+export const ANCHO_IMAGEN_PEQUENA = 100;
 /** Por debajo de este, brillos y desgaste solo en la carta ampliada (no se aprecian). */
 export const ANCHO_SIN_EFECTOS = 110;
 /** A partir de cuántas cartas se quita la animación de posición (mide todas en cada render). */
