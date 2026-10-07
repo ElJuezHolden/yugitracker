@@ -512,12 +512,56 @@ const conVariantes = [];
  */
 const sinProducto = new Set();
 
-/** Empareja rarezas y productos en orden: la rareza más alta, el producto más caro. */
+/*
+ * Para ordenar productos por precio, la media de 30 días (si no hay, la
+ * tendencia): se mueve despacio. Con la cifra de referencia (la más baja de las
+ * medias, que incluye la de 1 día) dos rarezas de precio parecido se cruzaban
+ * de un día a otro (BLMM-EN049: Starlight 5,90 € y Ultra 34,55 €, y al día
+ * siguiente al revés).
+ */
+const precioEstable = (x) => x.precio.cifras[4] ?? x.precio.cifras[1] ?? x.precio.cifras[3] ?? x.precio.ref;
+
+/** Reparto del día anterior: id → (clave → idProduct), para no cambiarlo sin motivo. */
+const repartoAnterior = new Map();
+for (let i = 0; i < TROZOS; i++) {
+  try {
+    const previo = JSON.parse(await readFile(join(CARPETA, `actual-${i}.json`), 'utf8'));
+    for (const [id, claves] of Object.entries(previo.productos ?? {})) repartoAnterior.set(Number(id), claves);
+  } catch {
+    // Primera vez o formato antiguo: sin reparto anterior.
+  }
+}
+
+/**
+ * Empareja rarezas y productos en orden: la rareza más alta, el producto más
+ * caro (por precio estable). Si ayer se repartieron de otra forma y los precios
+ * no la contradicen claramente (el que iba a la rareza más alta no cuesta menos
+ * de 2/3 del de la de abajo), se mantiene la de ayer.
+ */
 function asignarEnOrden(impresiones, productosCarta, clave) {
+  productosCarta = [...productosCarta].sort((a, b) => precioEstable(a) - precioEstable(b));
   const rarezas = [...new Set(impresiones.map((i) => i.rarity))].sort((a, b) => rango(a) - rango(b));
   const porRareza = new Map();
-  if (productosCarta.length && productosCarta.length === rarezas.length) rarezas.forEach((r, i) => porRareza.set(r, productosCarta[i]));
-  else if (productosCarta.length && rarezas.length === 1) porRareza.set(rarezas[0], productosCarta[0]);
+  if (productosCarta.length && productosCarta.length === rarezas.length) {
+    rarezas.forEach((r, i) => porRareza.set(r, productosCarta[i]));
+    if (rarezas.length > 1) {
+      const ayer = repartoAnterior.get(impresiones[0].id) ?? {};
+      const deAyer = rarezas.map((r) => {
+        const idProduct = impresiones.filter((imp) => imp.rarity === r).map((imp) => ayer[`${imp.code}|${r}`]).find(Boolean);
+        return productosCarta.find((x) => x.idProduct === idProduct);
+      });
+      const completo = deAyer.every(Boolean) && new Set(deAyer).size === deAyer.length;
+      const coherente = completo && deAyer.every((x, i) => i === 0 || precioEstable(x) >= precioEstable(deAyer[i - 1]) * (2 / 3));
+      if (coherente) rarezas.forEach((r, i) => porRareza.set(r, deAyer[i]));
+    }
+  }
+  else if (productosCarta.length && rarezas.length === 1) {
+    // Una rareza y varios productos (tiradas distintas de un set antiguo, como
+    // LOB-000): el de ayer si sigue ahí, para no saltar de uno a otro; si no, el más barato.
+    const ayer = repartoAnterior.get(impresiones[0].id) ?? {};
+    const idAyer = impresiones.map((imp) => ayer[`${imp.code}|${imp.rarity}`]).find(Boolean);
+    porRareza.set(rarezas[0], productosCarta.find((x) => x.idProduct === idAyer) ?? productosCarta[0]);
+  }
   if (impresiones.some((imp) => !porRareza.has(imp.rarity))) sinProducto.add(clave);
   for (const imp of impresiones) {
     const producto = porRareza.get(imp.rarity);
@@ -568,7 +612,6 @@ for (const [nombreSet, cartasSet] of [...setsCartas].sort((a, b) => b[1].size - 
       const deEsaOleada = productosCarta.filter((x) => lejania(x) <= masCerca + 30 * DIA_REAL_MS);
       if (deEsaOleada.length >= numRarezas) productosCarta = deEsaOleada;
     }
-    productosCarta.sort((a, b) => a.precio.ref - b.precio.ref);
     const rarezas = asignarEnOrden(impresiones, productosCarta, `${exp}|${n}`);
     if (productosCarta.length && productosCarta.length < rarezas && rarezas > 1) dudosas.push({ exp, n, impresiones, productosCarta });
     if (productosCarta.length > rarezas) conVariantes.push({ nombreSet, exp, n, impresiones, productosCarta });
