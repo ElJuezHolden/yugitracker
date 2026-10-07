@@ -106,6 +106,9 @@ function cargarCartasExtra(): Promise<ApiCard[]> {
   return cartasExtra;
 }
 
+/** Toda la lista de cartas que YGOPRODeck no tiene (vacía si no se pudo cargar). */
+export const getExtraCards = () => cargarCartasExtra();
+
 /** Las cartas de la lista extra cuyo nombre (inglés o español) contiene todas las palabras. */
 async function buscarExtra(tokens: string[]): Promise<ApiCard[]> {
   const lista = await cargarCartasExtra();

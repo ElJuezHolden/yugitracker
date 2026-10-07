@@ -316,16 +316,43 @@ try {
     // Sin edición en inglés, o una página genérica (la de "Token" lista decenas de fichas distintas).
     if (!impresiones.length || impresiones.length > 20) continue;
     const imagen = imagenDe.get(campo(texto, 'image'));
-    const tipo = campo(texto, 'card_type') || 'Non-game';
     const id = ID_EXTRA + pageid;
+    /*
+     * Tipo como lo escribe YGOPRODeck ("Effect Monster", "Spell Card"…): decide
+     * los filtros y, en el brillo del nombre, si las letras son claras u oscuras.
+     * Las no jugables llevan entre paréntesis el marco que imitan: "Yu-Gi-Oh!
+     * ZEXAL" tiene marco de Xyz (negro, letras claras).
+     */
+    const tipoCarta = campo(texto, 'card_type');
+    const tiposMonstruo = campo(texto, 'types').split('/').map((x) => x.trim()).filter(Boolean);
+    const marcos = { xyz: 'XYZ', link: 'Link', synchro: 'Synchro', fusion: 'Fusion', ritual: 'Ritual', spell: 'Spell', trap: 'Trap', effect: 'Effect', normal: 'Normal', token: 'Token' };
+    let tipo;
+    if (/non-game/i.test(tipoCarta)) {
+      const marco = marcos[campo(texto, 'cardclass').toLowerCase()];
+      tipo = marco ? `Non-game Card (${marco})` : 'Non-game Card';
+    } else if (/token|counter/i.test(tipoCarta)) tipo = 'Token';
+    else if (/spell/i.test(tipoCarta)) tipo = 'Spell Card';
+    else if (/trap/i.test(tipoCarta)) tipo = 'Trap Card';
+    else {
+      const t = tiposMonstruo.map((x) => x.toLowerCase());
+      tipo =
+        t.includes('link') ? 'Link Monster'
+        : t.includes('xyz') ? 'XYZ Monster'
+        : t.includes('synchro') ? 'Synchro Monster'
+        : t.includes('fusion') ? 'Fusion Monster'
+        : t.includes('ritual') ? 'Ritual Effect Monster'
+        : t.includes('pendulum') ? 'Pendulum Effect Monster'
+        : t.includes('effect') ? 'Effect Monster'
+        : 'Normal Monster';
+    }
     const carta = {
       id,
       name: nombre,
       name_es: limpiar(campo(texto, 'es_name')) || undefined,
-      type: /non-game/i.test(tipo) ? 'Non-game Card' : `${tipo} Card`,
-      frameType: 'non-game',
-      desc: limpiar(campo(texto, 'text')),
-      race: '',
+      type: tipo,
+      frameType: tipo.toLowerCase().includes('non-game') ? 'non-game' : tipo.split(' ')[0].toLowerCase(),
+      desc: limpiar(campo(texto, 'lore')) || limpiar(campo(texto, 'text')),
+      race: /spell|trap/i.test(tipo) ? campo(texto, 'property') || 'Normal' : tiposMonstruo[0] ?? '',
       attribute: campo(texto, 'attribute') || undefined,
       card_sets: impresiones,
       card_images: imagen ? [{ id, image_url: imagen, image_url_small: imagen, image_url_cropped: imagen }] : [],

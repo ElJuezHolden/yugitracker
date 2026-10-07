@@ -6,7 +6,7 @@ import { formatMoney, normalizeStr, generateId, getCardMarketLink, getCardMarket
 import { getCardDetails, getYugipediaPrintings } from '../../services/cardService';
 import { CardMarketValue } from '../CardMarketValue';
 import { IDIOMAS, LanguageFlag } from '../LanguageFlag';
-import { NAME_COLORS, esRenderYgoprodeck } from '../nameColors';
+import { NAME_COLORS } from '../nameColors';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
 import { leftoverFor, resolvePrintingKey, versionPrice } from '../../services/prices';
@@ -804,8 +804,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                           otro color (p. ej. Ultra Rare con el nombre rojo). Solo cambia las
                                           letras; el resto del brillo sigue siendo el de su rareza.
                                         */}
-                                        {/* Solo sobre renders de YGOPRODeck: en un escaneo el nombre ya trae su brillo. */}
-                                        {selectedSet && !formData.isWanted && esRenderYgoprodeck(customImg.length > 10 ? customImg : selectedImg) && (
+                                        {selectedSet && !formData.isWanted && (
                                             <div className="mt-2 flex flex-wrap items-center gap-2">
                                                 <span className="text-xs text-muted flex items-center gap-1.5">
                                                     <Palette size={13} className="text-primary" /> Color del nombre

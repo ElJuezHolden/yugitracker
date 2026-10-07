@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
-import { getYugipediaPrintingsBatch } from '../services/cardService';
+import { EXTRA_ID_MIN, getExtraCards, getYugipediaPrintingsBatch } from '../services/cardService';
 import { isSpecialRarity, sameRarity } from '../services/versiones';
 
 /*
@@ -34,6 +34,30 @@ function guardarRevisadas(revisadas: Set<string>) {
 export function useRarityCheck() {
   const { state, dispatch, toast } = useStore();
   const cartas = state.db.cards;
+
+  /*
+   * Las cartas que YGOPRODeck no tiene (ver cardService) se guardaron al
+   * principio con un tipo genérico; si su ficha ya trae otro (p. ej. "Non-game
+   * Card (XYZ)" para "Yu-Gi-Oh! ZEXAL", que decide el brillo del nombre), se pone al día.
+   */
+  useEffect(() => {
+    const extra = cartas.filter((c) => c.apiId >= EXTRA_ID_MIN);
+    if (extra.length === 0) return;
+    let vivo = true;
+    getExtraCards().then((lista) => {
+      if (!vivo) return;
+      const porId = new Map(lista.map((c) => [c.id, c]));
+      for (const c of extra) {
+        const ficha = porId.get(c.apiId);
+        // Sin los campos de tipo calculados del antiguo: los filtros los vuelven a sacar del nuevo.
+        if (ficha && ficha.type !== c.type)
+          dispatch({ type: 'UPDATE_CARD', payload: { ...c, type: ficha.type, cardType: undefined, monsterType: undefined, property: undefined } });
+      }
+    });
+    return () => {
+      vivo = false;
+    };
+  }, [cartas, dispatch]);
 
   useEffect(() => {
     const revisadas = leerRevisadas();

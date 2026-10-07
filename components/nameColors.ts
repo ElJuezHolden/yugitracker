@@ -28,13 +28,3 @@ export const NAME_COLORS: NameColor[] = [
 ];
 
 export const nombreColor = (id: string | undefined) => NAME_COLORS.find((c) => c.id === id)?.nombre;
-
-/**
- * Si la imagen es un render de YGOPRODeck. Las letras del nombre se recortan
- * de la imagen dando por hecho dónde está el nombre y de qué color son sus
- * letras, y eso solo se cumple en sus renders. En un escaneo de la carta real
- * (las que saca de Yugipedia, como "Yu-Gi-Oh! ZEXAL" de las Lost Art) el nombre
- * cae en otro sitio, y además el escaneo ya trae su brillo: se iluminaba toda
- * la barra del nombre.
- */
-export const esRenderYgoprodeck = (img: string | undefined) => !!img && /images\.ygoprodeck\.com/.test(img);
