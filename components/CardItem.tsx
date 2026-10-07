@@ -9,6 +9,7 @@ import CardFoilOverlay from './CardFoilOverlay';
 import CardWear from './CardWear';
 import EditionHologram from './EditionHologram';
 import VeloWanted from './VeloWanted';
+import { ANCHO_IMAGEN_PEQUENA, ANCHO_SIN_EFECTOS, CARTAS_SIN_LAYOUT, imagenPequena, useMesa } from './mesaContexto';
 import { LanguageFlag, nombreIdioma } from './LanguageFlag';
 import { useCardName } from './useCardName';
 import { usePrices } from '../context/PricesContext';
@@ -151,6 +152,9 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
    * las cuatro vistas a la vez, así que un único ref vale para todas.
    */
   const contenedorRef = useCardPointer(!isSelectionMode);
+  // Vista mesa con muchas cartas: cada una más ligera (ver mesaContexto).
+  const mesa = useMesa();
+  const [ampliada, setAmpliada] = useState(false);
 
   const rarityColor = getRarityColor(card.rarity);
   // Valor de mercado de ESTA impresión (set y rareza), en euros; null si no hay precio.
@@ -272,11 +276,15 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
   if (viewMode === 'display') {
       return (
           <motion.div 
-            layout
+            layout={!mesa || mesa.cantidad < CARTAS_SIN_LAYOUT}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             whileHover={!isSelectionMode ? { scale: AMPLIACION_MESA, zIndex: 100, transition: { duration: 0.2 } } : {}}
-            onMouseEnter={crecerHaciaDentro}
+            onMouseEnter={(e) => {
+                crecerHaciaDentro(e);
+                setAmpliada(true);
+            }}
+            onMouseLeave={() => setAmpliada(false)}
             onClick={handleClick}
             style={{ containerType: 'inline-size' }} // Critical for CQW units in WANTED overlay
             // Sin recortar: la carta ampliada tiene que verse entera (ver .mesa-carta en CardFoilOverlay.css).
@@ -292,17 +300,25 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                    {/* La imagen y el foil se inclinan juntos; las insignias, no. */}
                    <div className="card-tilt">
                    <img 
-                        src={card.img}
+                        // Pequeña, la imagen reducida (mucho menos que descargar con cientos de
+                        // cartas); al ampliarla con el ratón, la grande.
+                        src={mesa && mesa.ancho < ANCHO_IMAGEN_PEQUENA && !ampliada ? imagenPequena(card.img) : card.img}
                         onError={onCardImageError} 
                         className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out`}
                         loading="lazy"
+                        decoding="async"
                         alt={nombre}
                    />
                 {card.isWanted && <VeloWanted />}
                    
+                   {/* Muy pequeñas, los brillos y el desgaste no se aprecian y pesan: solo en la carta ampliada. */}
+                   {(!mesa || mesa.ancho >= ANCHO_SIN_EFECTOS || ampliada) && (
+                     <>
                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
                    {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
+                     </>
+                   )}
                    </div>
                    
                    {card.isWanted && !isSelectionMode && (

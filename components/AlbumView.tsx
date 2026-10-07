@@ -1,7 +1,7 @@
-import { useEffect, useState, useRef, type ReactNode, type PointerEvent as EventoPuntero } from 'react';
+import { useEffect, useState, useRef, type CSSProperties, type ReactNode, type PointerEvent as EventoPuntero } from 'react';
 import { animate, motion, useMotionValue, useTransform, type MotionValue } from 'framer-motion';
-import { BookOpen, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RectangleVertical } from 'lucide-react';
-import type { Card, AlbumColumns } from '../types';
+import { BookOpen, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Palette, RectangleVertical } from 'lucide-react';
+import type { Card, AlbumColumns, AlbumEstilo } from '../types';
 import { CardItem } from './CardItem';
 import { useStore } from '../context/StoreContext';
 import './AlbumView.css';
@@ -18,24 +18,30 @@ interface Props {
   portada?: string;
   /** Si las flechas del teclado pasan página (no con una ventana abierta encima). */
   teclado?: boolean;
+  /** Colores del álbum de esta carpeta, y cómo guardarlos. */
+  estilo?: AlbumEstilo;
+  onEstilo?: (estilo: AlbumEstilo | undefined) => void;
 }
 
 /*
  * Álbum de fundas, como una carpeta de anillas de verdad:
  *
  *   - Una hoja o abierto (dos hojas enfrentadas, con las anillas en medio).
- *   - Las hojas se pasan girando en 3D alrededor de las anillas, con su cara y su
- *     reverso, la sombra que proyectan sobre la de debajo y el brillo del
- *     plástico al levantarse. Con los botones, el teclado, o arrastrando la hoja
- *     con el ratón o el dedo (se suelta a medias y vuelve o termina de pasar).
- *   - Al entrar, la tapa se abre.
+ *   - Empieza cerrado, por la portada, y se abre solo al entrar. La portada es
+ *     una vista más: se vuelve a ella pasando hacia atrás desde la primera página.
+ *   - Las hojas (y la tapa) se pasan girando en 3D alrededor de las anillas, con
+ *     su cara y su reverso, la sombra que proyectan sobre la de debajo y el brillo
+ *     del plástico al levantarse. Con los botones, el teclado, o arrastrando la
+ *     hoja con el ratón o el dedo (se suelta a medias y vuelve o termina de pasar).
+ *   - Los colores (tapa, hojas, anillas y letras) son de cada carpeta.
  *
  * Todas las medidas salen del ancho de un bolsillo (u), calculado para que el
  * álbum entero quepa en el hueco: así nada se recorta ni hace falta scroll.
  *
- * Las hojas se numeran como las de un álbum: la hoja que se pasa lleva en la
+ * Vistas: -1 es la portada (cerrado). Abierto por la vista v ≥ 0 se ven, con dos
+ * hojas, la página 2v−1 a la izquierda (en la vista 0, el forro de la tapa) y la
+ * 2v a la derecha; con una hoja, la página v. La hoja que se pasa lleva en la
  * cara la página de la derecha y en el reverso la siguiente de la izquierda.
- * Abierto por la vista k se ven las páginas 2k y 2k+1.
  */
 
 type Modo = 'una' | 'doble';
@@ -59,9 +65,47 @@ const ANILLAS = [0.17, 0.5, 0.83];
 /**
  * Abierto solo si las cartas no se quedan demasiado pequeñas: al menos este
  * tanto del tamaño que tendrían con una hoja (y nunca bolsillos de menos de
- * 30 px). En una pantalla apaisada suele costar poco o nada, porque manda el alto.
+ * 44 px, para que en el móvil se vea a una hoja). En una pantalla apaisada suele costar poco o nada, porque manda el alto.
  */
 const DOBLE_MIN = 0.6;
+
+// --- Colores ---------------------------------------------------------------
+
+const TAPAS = [
+  { nombre: 'Negro', color: '#1d1b21' },
+  { nombre: 'Burdeos', color: '#4a1522' },
+  { nombre: 'Rojo', color: '#8a1c1c' },
+  { nombre: 'Marino', color: '#15244a' },
+  { nombre: 'Azul', color: '#1f4f96' },
+  { nombre: 'Verde', color: '#173f2c' },
+  { nombre: 'Marrón', color: '#4b301d' },
+  { nombre: 'Morado', color: '#36204f' },
+  { nombre: 'Gris', color: '#5b5e66' },
+  { nombre: 'Crema', color: '#e6dcc4' },
+  { nombre: 'Blanco', color: '#efefef' },
+];
+const TAPA_DEFECTO = TAPAS[0]!.color;
+const LETRAS: Record<NonNullable<AlbumEstilo['letras']>, { nombre: string; color: string }> = {
+  oro: { nombre: 'Oro', color: '#c9b27a' },
+  plata: { nombre: 'Plata', color: '#d3d6de' },
+  blanco: { nombre: 'Blanco', color: '#f5f5f5' },
+  negro: { nombre: 'Negro', color: '#1b1b1f' },
+};
+const ANILLAS_NOMBRE: Record<NonNullable<AlbumEstilo['anillas']>, string> = { plata: 'Plata', oro: 'Oro', pavonadas: 'Pavonadas' };
+
+/** Si un color es claro (las costuras y el relieve de las letras se invierten). */
+function esClaro(hex: string) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return false;
+  const n = parseInt(m[1]!, 16);
+  const lineal = (c: number) => {
+    const v = c / 255;
+    return v <= 0.04 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lineal(n >> 16) + 0.7152 * lineal((n >> 8) & 255) + 0.0722 * lineal(n & 255) > 0.35;
+}
+
+// --- Medidas ---------------------------------------------------------------
 
 interface Medidas {
   u: number;
@@ -98,7 +142,7 @@ function medir(cols: number, doble: boolean, aw: number, ah: number): Medidas {
 }
 
 /** Respeta "reducir movimiento" del sistema: las hojas cambian sin girar. */
-const sinMovimiento = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const sinMovimiento = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 /** Curva de una hoja que se pasa a mano: arranca y se posa suave. */
 const CURVA_HOJA = [0.6, 0.02, 0.28, 1] as const;
@@ -184,7 +228,69 @@ function Hoja({ cartas, cols, md, lado, numero, acciones }: HojaProps) {
   );
 }
 
-// --- La hoja que se está pasando ----------------------------------------------
+// --- La tapa -----------------------------------------------------------------
+
+interface DatosTapa {
+  md: Medidas;
+  titulo?: string;
+  portada?: string;
+  cantidad: number;
+}
+
+/** Cara de fuera de la tapa: cuero, pespunte, ventanita con la imagen y el nombre. */
+function TapaFuera({ md, titulo, portada, cantidad }: DatosTapa) {
+  const letra = md.pw * 0.055;
+  return (
+    <div className="album-cuero album-tapa__frente absolute inset-0" style={{ borderRadius: `0 ${md.m * 0.7}px ${md.m * 0.7}px 0` }}>
+      <div className="album-costura" style={{ inset: md.m * 0.45, borderRadius: md.m * 0.45 }} />
+      <div className="flex flex-col items-center justify-center h-full gap-[4%] px-[12%] text-center">
+        {portada && (
+          <div className="album-tapa__ventana" style={{ width: '34%' }}>
+            <img src={portada} alt="" className="w-full h-full object-cover" draggable={false} />
+          </div>
+        )}
+        <div className="album-tapa__titulo" style={{ fontSize: letra }}>
+          {titulo || 'Colección'}
+        </div>
+        <div className="album-tapa__subtitulo" style={{ fontSize: letra * 0.42 }}>
+          {cantidad} {cantidad === 1 ? 'carta' : 'cartas'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Forro de la tapa por dentro: la "página" de la izquierda al abrir el álbum. */
+function Forro({ md, titulo, cantidad }: DatosTapa) {
+  const letra = md.pw * 0.04;
+  return (
+    <div className="album-forro" style={{ width: md.pw, height: md.ph }}>
+      <div className="album-forro__placa" style={{ padding: `${letra * 0.9}px ${letra * 1.4}px` }}>
+        <div className="album-tapa__titulo" style={{ fontSize: letra }}>
+          {titulo || 'Colección'}
+        </div>
+        <div className="album-tapa__subtitulo" style={{ fontSize: letra * 0.5, marginTop: letra * 0.35 }}>
+          {cantidad} {cantidad === 1 ? 'carta' : 'cartas'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Reverso de la tapa al girar (álbum abierto): la mitad izquierda de la carpeta, con el forro. */
+function TapaDentro(datos: DatosTapa) {
+  const { md } = datos;
+  return (
+    <div className="album-cuero absolute inset-0" style={{ borderRadius: `${md.m * 0.7}px 0 0 ${md.m * 0.7}px` }}>
+      <div className="album-costura album-costura--abierta" style={{ left: md.m * 0.38, top: md.m * 0.38, bottom: md.m * 0.38, right: 0, borderRadius: `${md.m * 0.45}px 0 0 ${md.m * 0.45}px` }} />
+      <div className="absolute" style={{ left: md.m, top: md.m }}>
+        <Forro {...datos} />
+      </div>
+    </div>
+  );
+}
+
+// --- La hoja (o la tapa) que se está pasando ----------------------------------
 
 interface GiroProps {
   /** 0: apoyada a la derecha; 1: pasada, a la izquierda. */
@@ -193,17 +299,19 @@ interface GiroProps {
   doble: boolean;
   /** Dónde está la hoja de la derecha dentro de la zona de hojas. */
   xDcha: number;
+  /** La tapa en vez de una hoja: es algo mayor y debajo no queda nada a la izquierda. */
+  tapa?: boolean;
   frente: ReactNode;
   dorso: ReactNode;
 }
 
-function Giro({ avance, md, doble, xDcha, frente, dorso }: GiroProps) {
+function Giro({ avance, md, doble, xDcha, tapa, frente, dorso }: GiroProps) {
   const giro = useTransform(avance, (a) => -180 * a);
   // Al levantarse deja de darle la luz de frente: se oscurece hacia el canto.
   const sombraFrente = useTransform(avance, [0, 0.5], [0, 0.8]);
   const sombraDorso = useTransform(avance, [0.5, 1], [0.8, 0]);
   // El reflejo del plástico al empezar a levantarse.
-  const brillo = useTransform(avance, [0, 0.2, 0.45], [0, 0.55, 0]);
+  const brillo = useTransform(avance, [0, 0.2, 0.45], [0, tapa ? 0.15 : 0.55, 0]);
   // Con una sola hoja no hay dónde posarla: se desvanece al pasar de canto.
   const opacidad = useTransform(avance, [0, 0.4, 0.5], doble ? [1, 1, 1] : [1, 1, 0]);
   // Sombra que proyecta sobre la hoja de debajo, más larga cuanto más tumbada.
@@ -220,21 +328,16 @@ function Giro({ avance, md, doble, xDcha, frente, dorso }: GiroProps) {
     return `linear-gradient(to left, rgba(0,0,0,${o.toFixed(3)}) 0%, rgba(0,0,0,${(o * 0.55).toFixed(3)}) ${(fin * 0.75).toFixed(1)}%, rgba(0,0,0,0) ${fin.toFixed(1)}%)`;
   });
 
+  // La tapa sobresale de las hojas lo que asoma el cuero; gira en medio del lomo.
+  const caja = tapa
+    ? { left: xDcha, top: -md.m, width: md.pw + md.m, height: md.ph + 2 * md.m, transformOrigin: `${-md.s / 2}px 50%` }
+    : { left: xDcha, top: 0, width: md.pw, height: md.ph, transformOrigin: `${doble ? -md.s / 2 : 0}px 50%` };
+
   return (
     <>
       <motion.div className="album-sombra-proyectada" style={{ left: xDcha, width: md.pw, height: md.ph, background: sombraDcha }} />
-      {doble && <motion.div className="album-sombra-proyectada" style={{ left: 0, width: md.pw, height: md.ph, background: sombraIzq }} />}
-      <motion.div
-        className="album-lamina"
-        style={{
-          left: xDcha,
-          width: md.pw,
-          height: md.ph,
-          // Gira alrededor de las anillas: en medio del lomo, o en el canto con una hoja.
-          transformOrigin: `${doble ? -md.s / 2 : 0}px 50%`,
-          rotateY: giro,
-        }}
-      >
+      {doble && !tapa && <motion.div className="album-sombra-proyectada" style={{ left: 0, width: md.pw, height: md.ph, background: sombraIzq }} />}
+      <motion.div className={`album-lamina${tapa ? ' album-tapa' : ''}`} style={{ ...caja, rotateY: giro }}>
         <motion.div className="album-lamina__cara" style={{ opacity: opacidad }}>
           {frente}
           <motion.div className="album-lamina__sombra album-lamina__sombra--frente" style={{ opacity: sombraFrente }} />
@@ -251,59 +354,107 @@ function Giro({ avance, md, doble, xDcha, frente, dorso }: GiroProps) {
   );
 }
 
-// --- La tapa, que se abre al entrar ------------------------------------------
+// --- Colores del álbum ---------------------------------------------------------
 
-interface TapaProps {
-  avance: MotionValue<number>;
-  md: Medidas;
-  xDcha: number;
-  titulo?: string;
-  portada?: string;
-  cantidad: number;
-  onAbierta: (abierta: boolean) => void;
+interface AjustesProps {
+  estilo: AlbumEstilo;
+  onCambio: (estilo: AlbumEstilo | undefined) => void;
+  onCerrar: () => void;
 }
 
-function Tapa({ avance, md, xDcha, titulo, portada, cantidad, onAbierta }: TapaProps) {
-  const giro = useTransform(avance, (a) => -180 * a);
-  const opacidad = useTransform(avance, [0, 0.38, 0.5], [1, 1, 0]);
-  const sombra = useTransform(avance, [0, 0.5], [0, 0.75]);
-
+function AjustesAlbum({ estilo, onCambio, onCerrar }: AjustesProps) {
+  const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const animacion = animate(avance, 1, { duration: 1.05, delay: 0.25, ease: CURVA_HOJA });
-    animacion.then(() => onAbierta(true));
-    return () => animacion.stop();
-  }, [avance, onAbierta]);
+    const fuera = (e: PointerEvent) => {
+      if (panel.current && !panel.current.contains(e.target as Node) && !(e.target as HTMLElement).closest?.('[data-boton-colores]')) onCerrar();
+    };
+    const tecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onCerrar();
+    };
+    window.addEventListener('pointerdown', fuera);
+    window.addEventListener('keydown', tecla);
+    return () => {
+      window.removeEventListener('pointerdown', fuera);
+      window.removeEventListener('keydown', tecla);
+    };
+  }, [onCerrar]);
 
-  const letra = md.pw * 0.055;
+  const tapa = estilo.tapa ?? TAPA_DEFECTO;
+  const cambiar = (parte: Partial<AlbumEstilo>) => onCambio({ ...estilo, ...parte });
+
   return (
     <motion.div
-      className="album-lamina album-tapa"
-      style={{ left: xDcha, top: -md.m, width: md.pw + md.m, height: md.ph + 2 * md.m, transformOrigin: `${-md.s / 2}px 50%`, rotateY: giro, opacity: opacidad }}
+      ref={panel}
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 8 }}
+      transition={{ duration: 0.18, ease: 'easeOut' }}
+      className="album-ajustes"
+      role="dialog"
+      aria-label="Colores del álbum"
     >
-      <div className="album-lamina__cara album-cuero album-tapa__frente">
-        <div className="album-costura" style={{ inset: md.m * 0.45 }} />
-        <div className="flex flex-col items-center justify-center h-full gap-[4%] px-[12%] text-center">
-          {portada && (
-            <div className="album-tapa__ventana" style={{ width: '34%' }}>
-              <img src={portada} alt="" className="w-full h-full object-cover" draggable={false} />
-            </div>
-          )}
-          <div className="album-tapa__titulo" style={{ fontSize: letra }}>
-            {titulo || 'Colección'}
-          </div>
-          <div className="album-tapa__subtitulo" style={{ fontSize: letra * 0.42 }}>
-            {cantidad} {cantidad === 1 ? 'carta' : 'cartas'}
-          </div>
-        </div>
-        <motion.div className="album-lamina__sombra album-lamina__sombra--frente" style={{ opacity: sombra }} />
+      <div className="album-ajustes__titulo">Tapa</div>
+      <div className="flex flex-wrap gap-1.5 items-center">
+        {TAPAS.map((t) => (
+          <button
+            key={t.color}
+            type="button"
+            className={`album-muestra ${tapa.toLowerCase() === t.color ? 'activa' : ''}`}
+            style={{ background: t.color }}
+            onClick={() => cambiar({ tapa: t.color })}
+            title={t.nombre}
+            aria-label={`Tapa ${t.nombre}`}
+          />
+        ))}
+        <label className="album-muestra album-muestra--libre" title="Otro color" style={{ background: TAPAS.some((t) => t.color === tapa.toLowerCase()) ? undefined : tapa }}>
+          <input type="color" value={tapa} onChange={(e) => cambiar({ tapa: e.target.value })} aria-label="Otro color de tapa" />
+        </label>
       </div>
+
+      <div className="album-ajustes__titulo">Hojas</div>
+      <div className="album-segmento">
+        {(['negras', 'blancas'] as const).map((h) => (
+          <button key={h} type="button" className={(estilo.hojas ?? 'negras') === h ? 'activo' : ''} onClick={() => cambiar({ hojas: h })}>
+            <span className="text-[11px] font-semibold">{h === 'negras' ? 'Negras' : 'Blancas'}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="album-ajustes__titulo">Anillas</div>
+      <div className="album-segmento">
+        {(['plata', 'oro', 'pavonadas'] as const).map((a) => (
+          <button key={a} type="button" className={(estilo.anillas ?? 'plata') === a ? 'activo' : ''} onClick={() => cambiar({ anillas: a })}>
+            <span className={`album-metal album-metal--${a}`} />
+            <span className="text-[11px] font-semibold">{ANILLAS_NOMBRE[a]}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="album-ajustes__titulo">Letras</div>
+      <div className="flex gap-1.5">
+        {(Object.keys(LETRAS) as (keyof typeof LETRAS)[]).map((l) => (
+          <button
+            key={l}
+            type="button"
+            className={`album-muestra ${(estilo.letras ?? 'oro') === l ? 'activa' : ''}`}
+            style={{ background: LETRAS[l].color }}
+            onClick={() => cambiar({ letras: l })}
+            title={LETRAS[l].nombre}
+            aria-label={`Letras ${LETRAS[l].nombre}`}
+          />
+        ))}
+      </div>
+
+      <button type="button" className="album-ajustes__restablecer" onClick={() => onCambio(undefined)}>
+        Restablecer
+      </button>
     </motion.div>
   );
 }
 
 // --- El álbum ----------------------------------------------------------------
 
-export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, onToggleSelect, titulo, portada, teclado = true }: Props) => {
+export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, onToggleSelect, titulo, portada, teclado = true, estilo, onEstilo }: Props) => {
   const { state, dispatch } = useStore();
   const cols = state.ui.albumColumns;
   const porPagina = cols * cols;
@@ -315,20 +466,23 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
   /** Alto de la vista: lo que queda de ventana por debajo de donde empieza el álbum. */
   const [altoVista, setAltoVista] = useState<number | null>(null);
   const [hueco, setHueco] = useState<{ w: number; h: number } | null>(null);
-  /** Primera página a la vista: sobrevive al cambio entre una y dos hojas. */
-  const [pagina, setPagina] = useState(0);
-  /** La hoja que se está pasando, entre la vista `a` y la `a + 1`. */
+  /** Primera página a la vista (−1: la portada). Sobrevive al cambio entre una y dos hojas. */
+  const [pagina, setPagina] = useState(() => (sinMovimiento() ? 0 : -1));
+  /** La hoja que se está pasando, entre la vista `a` y la `a + 1` (a = −1: la tapa). */
   const [giro, setGiro] = useState<{ a: number } | null>(null);
   const [salto, setSalto] = useState(0);
-  const [abierta, setAbierta] = useState(sinMovimiento);
+  const [ajustes, setAjustes] = useState(false);
+  /** Colores mientras se eligen: se guardan en la carpeta un momento después. */
+  const [estiloVivo, setEstiloVivo] = useState<AlbumEstilo | null>(null);
 
   const avance = useMotionValue(0);
-  const tapa = useMotionValue(abierta ? 1 : 0);
-  // La hoja de la izquierda aparece según se levanta la tapa.
-  const aparicionIzq = useTransform(tapa, [0.2, 0.6], [0, 1]);
+  // Cerrado, el álbum (solo la tapa) se centra; al abrirse se desliza para centrar las dos hojas.
+  const cierreGiro = useTransform(avance, (a) => 1 - a);
 
   const girando = useRef(false);
   const cola = useRef(0);
+  const autoAbrir = useRef(!sinMovimiento());
+  const guardado = useRef<ReturnType<typeof setTimeout> | null>(null);
   const arrastre = useRef<{ x0: number; y0: number; id: number; activo: boolean; adelante: boolean; ultX: number; ultT: number; vel: number } | null>(null);
   const huboArrastre = useRef(false);
 
@@ -351,17 +505,33 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
     return () => ro.disconnect();
   }, [escenario]);
 
-  const cabeDoble = !!hueco && medir(cols, true, hueco.w, hueco.h).u >= Math.max(30, DOBLE_MIN * medir(cols, false, hueco.w, hueco.h).u);
+  useEffect(
+    () => () => {
+      if (guardado.current) clearTimeout(guardado.current);
+    },
+    [],
+  );
+
+  const cabeDoble = !!hueco && medir(cols, true, hueco.w, hueco.h).u >= Math.max(44, DOBLE_MIN * medir(cols, false, hueco.w, hueco.h).u);
   const doble = modo === 'doble' && cabeDoble;
-  const paginasPorVista = doble ? 2 : 1;
-  const vistas = Math.max(1, Math.ceil(totalPaginas / paginasPorVista));
-  const vista = Math.min(Math.floor(pagina / paginasPorVista), vistas - 1);
+  /** Vistas abiertas (sin contar la portada). */
+  const vistas = doble ? Math.floor(totalPaginas / 2) + 1 : totalPaginas;
+  const vistaDe = (p: number) => (p < 0 ? -1 : Math.min(doble ? Math.floor((p + 1) / 2) : p, vistas - 1));
+  const paginaDe = (v: number) => (v < 0 ? -1 : doble ? Math.max(0, 2 * v - 1) : v);
+  const vista = vistaDe(pagina);
   const md = hueco ? medir(cols, doble, hueco.w, hueco.h) : null;
   const xDcha = md ? (doble ? md.pw + md.s : 0) : 0;
 
+  const est = estiloVivo ?? estilo ?? {};
+  const colorTapa = est.tapa ?? TAPA_DEFECTO;
+  const hojasBlancas = est.hojas === 'blancas';
+
   const acciones: Acciones = { onCardPress, isSelectionMode, selectedIds, onToggleSelect };
-  const hoja = (indice: number, lado: 'izq' | 'dcha') =>
-    md && (
+  const datosTapa: DatosTapa | null = md && { md, titulo, portada, cantidad: cards.length };
+  const hoja = (indice: number, lado: 'izq' | 'dcha') => {
+    if (!md || !datosTapa) return null;
+    if (indice < 0) return <Forro key="forro" {...datosTapa} />;
+    return (
       <Hoja
         key={`p${indice}`}
         cartas={cards.slice(indice * porPagina, (indice + 1) * porPagina)}
@@ -372,6 +542,10 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
         acciones={acciones}
       />
     );
+  };
+  /** Página de la izquierda y de la derecha de una vista abierta. */
+  const izqDe = (v: number) => 2 * v - 1;
+  const dchaDe = (v: number) => (doble ? 2 * v : v);
 
   /** Pasa una hoja hacia delante (1) o hacia atrás (-1), con su giro. */
   const pasar = (dir: 1 | -1) => {
@@ -380,17 +554,17 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
       return;
     }
     const destino = vista + dir;
-    if (destino < 0 || destino >= vistas) return;
+    if (destino < -1 || destino >= vistas) return;
     if (sinMovimiento()) {
-      setPagina(destino * paginasPorVista);
+      setPagina(paginaDe(destino));
       return;
     }
     const a = dir > 0 ? vista : destino;
     girando.current = true;
     avance.set(dir > 0 ? 0 : 1);
     setGiro({ a });
-    animate(avance, dir > 0 ? 1 : 0, { duration: 0.75, ease: CURVA_HOJA }).then(() => {
-      setPagina(destino * paginasPorVista);
+    animate(avance, dir > 0 ? 1 : 0, { duration: a < 0 ? 0.95 : 0.75, ease: CURVA_HOJA }).then(() => {
+      setPagina(paginaDe(destino));
       setGiro(null);
       girando.current = false;
     });
@@ -404,10 +578,21 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
     pasar(dir);
   });
 
+  // Al entrar, el álbum se abre solo.
+  useEffect(() => {
+    if (!md || !autoAbrir.current) return;
+    const t = setTimeout(() => {
+      autoAbrir.current = false;
+      pasar(1);
+    }, 450);
+    return () => clearTimeout(t);
+  });
+
   const irA = (destino: number) => {
-    if (girando.current || destino === vista || destino < 0 || destino >= vistas) return;
+    if (girando.current || destino === vista || destino < -1 || destino >= vistas) return;
+    autoAbrir.current = false;
     if (Math.abs(destino - vista) === 1) return pasar(destino > vista ? 1 : -1);
-    setPagina(destino * paginasPorVista);
+    setPagina(paginaDe(destino));
     setSalto((s) => s + 1);
   };
 
@@ -424,10 +609,19 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
   const cambiarColumnas = (nuevas: AlbumColumns) => {
     if (girando.current || nuevas === cols) return;
     // Se sigue viendo la misma carta de antes.
-    const primera = vista * paginasPorVista * porPagina;
-    setPagina(Math.floor(primera / (nuevas * nuevas)));
-    setSalto((s) => s + 1);
+    if (vista >= 0) {
+      const primera = Math.max(0, doble ? izqDe(vista) : vista) * porPagina;
+      setPagina(Math.floor(primera / (nuevas * nuevas)));
+      setSalto((s) => s + 1);
+    }
     dispatch({ type: 'SET_ALBUM_COLUMNS', payload: nuevas });
+  };
+
+  const cambiarEstilo = (nuevo: AlbumEstilo | undefined) => {
+    setEstiloVivo(nuevo ?? {});
+    if (guardado.current) clearTimeout(guardado.current);
+    // Al arrastrar por el selector de color llegan muchos cambios seguidos: se guarda el último.
+    guardado.current = setTimeout(() => onEstilo?.(nuevo && Object.keys(nuevo).length ? nuevo : undefined), 300);
   };
 
   useEffect(() => {
@@ -438,9 +632,10 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
       if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
       if (e.key === 'ArrowRight' || e.key === 'PageDown') pasar(1);
       else if (e.key === 'ArrowLeft' || e.key === 'PageUp') pasar(-1);
-      else if (e.key === 'Home') irA(0);
+      else if (e.key === 'Home') irA(-1);
       else if (e.key === 'End') irA(vistas - 1);
       else return;
+      autoAbrir.current = false;
       e.preventDefault();
     };
     window.addEventListener('keydown', alPulsar);
@@ -466,7 +661,7 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
       if (Math.abs(dy) > 24 && Math.abs(dy) > Math.abs(dx)) arrastre.current = null;
       if (Math.abs(dx) < 12 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
       const adelante = dx < 0;
-      if (adelante ? vista >= vistas - 1 : vista <= 0) {
+      if (adelante ? vista >= vistas - 1 : vista <= -1) {
         arrastre.current = null;
         return;
       }
@@ -474,6 +669,7 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
       d.adelante = adelante;
       huboArrastre.current = true;
       girando.current = true;
+      autoAbrir.current = false;
       e.currentTarget.setPointerCapture(e.pointerId);
       avance.set(adelante ? 0 : 1);
       setGiro({ a: adelante ? vista : vista - 1 });
@@ -496,7 +692,7 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
     const destino = completar === d.adelante ? 1 : 0;
     const vistaFinal = completar ? (d.adelante ? vista + 1 : vista - 1) : vista;
     animate(avance, destino, { duration: 0.2 + 0.5 * Math.abs(destino - a), ease: [0.22, 1, 0.36, 1] }).then(() => {
-      setPagina(vistaFinal * paginasPorVista);
+      setPagina(paginaDe(vistaFinal));
       setGiro(null);
       girando.current = false;
     });
@@ -505,20 +701,36 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
   // --- Qué se ve ---
   // Sin girar: la vista actual. Girando entre a y a+1: debajo, la izquierda de a
   // y la derecha de a+1; la hoja lleva la derecha de a y, detrás, la izquierda de a+1.
+  const cerrado = vista < 0 && !giro;
+  /** La tapa está girando (abriéndose o cerrándose). */
+  const girandoTapa = giro?.a === -1;
   const a = giro?.a ?? vista;
-  const izqDebajo = doble ? 2 * a : null;
-  const dchaDebajo = giro ? (doble ? 2 * a + 3 : a + 1) : doble ? 2 * vista + 1 : vista;
+  const izqDebajo = doble && a >= 0 ? izqDe(a) : null;
+  const dchaDebajo = cerrado ? null : giro ? dchaDe(a + 1) : dchaDe(vista);
+  // Con el álbum abierto a dos hojas, cerrado solo se ve de la tapa a la derecha.
+  const recorteBase = doble && (cerrado || girandoTapa);
+  const desplazamiento = md && doble ? (md.m + md.pw) / 2 : 0;
 
   // Cantos de las hojas que quedan por pasar (derecha) y de las pasadas (izquierda).
   const cantos = (n: number, signo: 1 | -1) =>
-    Array.from({ length: Math.min(n, 4) }, (_, i) => `${signo * (i + 1) * 1.4}px ${(i + 1) * 0.6}px 0 -0.5px ${i % 2 ? '#0c0c0f' : '#2a2a31'}`).join(', ') || 'none';
+    Array.from(
+      { length: Math.min(Math.max(n, 0), 4) },
+      (_, i) => `${signo * (i + 1) * 1.4}px ${(i + 1) * 0.6}px 0 -0.5px ${hojasBlancas ? (i % 2 ? '#9a9aa2' : '#d6d6db') : i % 2 ? '#0c0c0f' : '#2a2a31'}`,
+    ).join(', ') || 'none';
 
   const etiqueta = (() => {
-    if (!doble) return `Pág. ${vista + 1} de ${totalPaginas}`;
-    const desde = 2 * vista + 1;
-    const hasta = Math.min(desde + 1, totalPaginas);
-    return desde === hasta ? `Pág. ${desde} de ${totalPaginas}` : `Págs. ${desde}–${hasta} de ${totalPaginas}`;
+    if (vista < 0) return 'Portada';
+    const paginas = (doble ? [izqDe(vista), dchaDe(vista)] : [vista]).filter((i) => i >= 0 && i < totalPaginas).map((i) => i + 1);
+    if (paginas.length === 0) return `Fin · ${totalPaginas} págs.`;
+    return paginas.length === 1 ? `Pág. ${paginas[0]} de ${totalPaginas}` : `Págs. ${paginas[0]}–${paginas[1]} de ${totalPaginas}`;
   })();
+
+  const variables = {
+    '--tapa': colorTapa,
+    '--letras': LETRAS[est.letras ?? 'oro'].color,
+    '--cierre': cerrado ? 1 : girandoTapa ? cierreGiro : 0,
+    translate: `calc(${-desplazamiento}px * var(--cierre)) 0`,
+  } as unknown as CSSProperties;
 
   return (
     <div
@@ -527,16 +739,25 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
       style={{ height: altoVista ?? 'calc(100vh - 90px)' }}
     >
       <div ref={setEscenario} className="album-escenario w-full flex-1 min-h-0">
-        {md && (
+        {md && datosTapa && (
           <motion.div
             initial={{ opacity: 0, y: 14, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            className="album-cuero album-carpeta"
-            style={{ width: md.ancho, height: md.alto, borderRadius: md.m * 0.7 }}
+            className={`album-carpeta${esClaro(colorTapa) ? ' album--claro' : ''}${hojasBlancas ? ' album--hojas-blancas' : ''} album--anillas-${est.anillas ?? 'plata'}`}
+            style={{ width: md.ancho, height: md.alto, ...variables }}
           >
-            <div className="album-costura" style={{ inset: md.m * 0.38, borderRadius: md.m * 0.45 }} />
-            <div className="album-lomo" style={doble ? { left: md.m + md.pw, width: md.s } : { left: 0, width: md.s }} />
+            {/* Cuero de la carpeta (cerrada a dos hojas, solo desde el lomo) */}
+            <div
+              className="album-cuero album-base"
+              style={{
+                borderRadius: md.m * 0.7,
+                clipPath: recorteBase ? `inset(-80px -80px -80px ${md.m + md.pw}px round ${md.m * 0.7}px)` : undefined,
+              }}
+            >
+              <div className="album-costura" style={{ inset: md.m * 0.38, borderRadius: md.m * 0.45 }} />
+              <div className="album-lomo" style={doble ? { left: md.m + md.pw, width: md.s } : { left: 0, width: md.s }} />
+            </div>
 
             {/* Zona de hojas: todo lo de dentro se coloca respecto a ella. */}
             <div
@@ -557,7 +778,9 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
               }}
             >
               {/* Mecanismo de las anillas, en el lomo */}
-              <div className="album-mecanismo" style={{ left: (doble ? md.pw + md.s / 2 : -md.s / 2) - md.s * 0.21, width: md.s * 0.42, top: md.ph * 0.06, height: md.ph * 0.88 }} />
+              {!cerrado && (
+                <div className="album-mecanismo" style={{ left: (doble ? md.pw + md.s / 2 : -md.s / 2) - md.s * 0.21, width: md.s * 0.42, top: md.ph * 0.06, height: md.ph * 0.88 }} />
+              )}
 
               <motion.div
                 key={salto}
@@ -567,28 +790,51 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
                 className="absolute inset-0"
               >
                 {izqDebajo != null && (
-                  <motion.div className="album-ranura" style={{ left: 0, boxShadow: cantos(vista, -1), opacity: aparicionIzq }}>
+                  <div className="album-ranura" style={{ left: 0, boxShadow: izqDebajo >= 0 ? cantos(vista, -1) : 'none' }}>
                     {hoja(izqDebajo, 'izq')}
-                  </motion.div>
+                  </div>
                 )}
-                <div className="album-ranura" style={{ left: xDcha, boxShadow: cantos(vistas - 1 - vista, 1) }}>
-                  {hoja(dchaDebajo, 'dcha')}
-                </div>
+                {dchaDebajo != null && (
+                  <div className="album-ranura" style={{ left: xDcha, boxShadow: cantos(vistas - 1 - Math.max(vista, 0), 1) }}>
+                    {hoja(dchaDebajo, 'dcha')}
+                  </div>
+                )}
               </motion.div>
 
-              {giro && (
-                <Giro avance={avance} md={md} doble={doble} xDcha={xDcha} frente={hoja(doble ? 2 * giro.a + 1 : giro.a, 'dcha')} dorso={doble ? hoja(2 * giro.a + 2, 'izq') : null} />
+              {giro &&
+                (girandoTapa ? (
+                  <Giro avance={avance} md={md} doble={doble} xDcha={xDcha} tapa frente={<TapaFuera {...datosTapa} />} dorso={doble ? <TapaDentro {...datosTapa} /> : null} />
+                ) : (
+                  <Giro avance={avance} md={md} doble={doble} xDcha={xDcha} frente={hoja(dchaDe(giro.a), 'dcha')} dorso={doble ? hoja(izqDe(giro.a + 1), 'izq') : null} />
+                ))}
+
+              {/* Anillas, por encima de las hojas (al abrir a dos hojas, solo desde el lomo hasta que se posa la tapa) */}
+              {!cerrado && (
+                <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 20, clipPath: girandoTapa && doble ? `inset(-20px -20px -20px ${md.pw}px)` : undefined }}>
+                  {ANILLAS.map((y) => {
+                    const alto = md.ph * 0.017;
+                    const desde = doble ? md.pw - md.lomo * 0.45 : -md.s / 2;
+                    const hasta = doble ? md.pw + md.s + md.lomo * 0.45 : md.lomo * 0.45;
+                    return <span key={y} className="album-aro" style={{ left: desde, width: hasta - desde, top: y * md.ph - alto / 2, height: alto }} />;
+                  })}
+                </div>
               )}
 
-              {/* Anillas, por encima de las hojas */}
-              {ANILLAS.map((y) => {
-                const alto = md.ph * 0.017;
-                const desde = doble ? md.pw - md.lomo * 0.45 : -md.s / 2;
-                const hasta = doble ? md.pw + md.s + md.lomo * 0.45 : md.lomo * 0.45;
-                return <span key={y} className="album-aro" style={{ left: desde, width: hasta - desde, top: y * md.ph - alto / 2, height: alto }} />;
-              })}
-
-              {!abierta && <Tapa avance={tapa} md={md} xDcha={xDcha} titulo={titulo} portada={portada} cantidad={cards.length} onAbierta={setAbierta} />}
+              {/* Portada: el álbum cerrado. Un clic lo abre. */}
+              {cerrado && (
+                <button
+                  type="button"
+                  className="album-tapa album-tapa--cerrada"
+                  style={{ left: xDcha, top: -md.m, width: md.pw + md.m, height: md.ph + 2 * md.m }}
+                  onClick={() => {
+                    autoAbrir.current = false;
+                    pasar(1);
+                  }}
+                  aria-label="Abrir el álbum"
+                >
+                  <TapaFuera {...datosTapa} />
+                </button>
+              )}
             </div>
           </motion.div>
         )}
@@ -624,34 +870,52 @@ export const AlbumView = ({ cards, onCardPress, isSelectionMode, selectedIds, on
 
         <span className="album-separador" />
 
-        <div className="flex items-center gap-1">
-          <button type="button" className="album-flecha hidden sm:flex" onClick={() => irA(0)} disabled={vista === 0} title="Primera página" aria-label="Primera página">
+        <div className="album-controles__nav flex items-center gap-1">
+          <button type="button" className="album-flecha hidden sm:flex" onClick={() => irA(-1)} disabled={vista < 0} title="Portada (Inicio)" aria-label="Portada">
             <ChevronsLeft size={17} />
           </button>
-          <button type="button" className="album-flecha" onClick={() => pasar(-1)} disabled={vista === 0} title="Anterior (←)" aria-label="Página anterior">
+          <button type="button" className="album-flecha" onClick={() => pasar(-1)} disabled={vista < 0} title="Anterior (←)" aria-label="Página anterior">
             <ChevronLeft size={19} />
           </button>
           <div className="flex flex-col items-center px-1 min-w-[112px]">
             <span className="text-[11px] font-semibold text-white/85 tabular-nums whitespace-nowrap">{etiqueta}</span>
-            {vistas > 1 && (
-              <input
-                type="range"
-                min={0}
-                max={vistas - 1}
-                value={vista}
-                onChange={(e) => irA(Number(e.target.value))}
-                className="album-deslizador hidden sm:block"
-                aria-label="Ir a la página"
-              />
-            )}
+            <input
+              type="range"
+              min={-1}
+              max={vistas - 1}
+              value={vista}
+              onChange={(e) => irA(Number(e.target.value))}
+              className="album-deslizador hidden sm:block"
+              aria-label="Ir a la página"
+            />
           </div>
           <button type="button" className="album-flecha" onClick={() => pasar(1)} disabled={vista >= vistas - 1} title="Siguiente (→)" aria-label="Página siguiente">
             <ChevronRight size={19} />
           </button>
-          <button type="button" className="album-flecha hidden sm:flex" onClick={() => irA(vistas - 1)} disabled={vista >= vistas - 1} title="Última página" aria-label="Última página">
+          <button type="button" className="album-flecha hidden sm:flex" onClick={() => irA(vistas - 1)} disabled={vista >= vistas - 1} title="Última página (Fin)" aria-label="Última página">
             <ChevronsRight size={17} />
           </button>
         </div>
+
+        {onEstilo && (
+          <>
+            <span className="album-separador" />
+            <div className="album-colores">
+              <button
+                type="button"
+                data-boton-colores
+                className={`album-flecha ${ajustes ? 'album-flecha--activa' : ''}`}
+                onClick={() => setAjustes((v) => !v)}
+                title="Colores del álbum"
+                aria-label="Colores del álbum"
+                aria-expanded={ajustes}
+              >
+                <Palette size={17} />
+              </button>
+              {ajustes && <AjustesAlbum estilo={est} onCambio={cambiarEstilo} onCerrar={() => setAjustes(false)} />}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

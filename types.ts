@@ -13,6 +13,17 @@ export interface Folder {
   // Sorting preferences per folder
   cardSort?: CardSort;
   cardSortDir?: SortDirection;
+  /** Colores de su álbum (vista álbum). */
+  album?: AlbumEstilo;
+}
+
+/** Colores del álbum de una carpeta. Lo que no se indica, por defecto. */
+export interface AlbumEstilo {
+  /** Color de la tapa (hex). */
+  tapa?: string;
+  hojas?: 'negras' | 'blancas';
+  anillas?: 'plata' | 'oro' | 'pavonadas';
+  letras?: 'oro' | 'plata' | 'blanco' | 'negro';
 }
 
 export type MainCardType = 'Monster' | 'Spell' | 'Trap';

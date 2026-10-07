@@ -125,9 +125,32 @@ export const Header: React.FC<Props> = ({
     };
   }, [isTagsPanelOpen, dispatch]);
 
+  // Crear carpeta en la portada, añadir carta dentro de una: en el móvil va arriba, a mano.
+  const botonPrincipal = !isFolderView ? (
+    <button
+      onClick={onOpenFolderModal}
+      className="bg-primary text-black font-bold text-sm px-3 py-1.5 rounded-lg hover:brightness-110 active:scale-95 transition-all whitespace-nowrap"
+    >
+      + Carpeta
+    </button>
+  ) : (
+    <button
+      onClick={onOpenSearchModal}
+      className="bg-primary text-black font-bold text-sm px-3 py-1.5 rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 whitespace-nowrap"
+    >
+      <Search size={14} /> Añadir
+    </button>
+  );
+
   return (
-    <header className="fixed top-0 left-0 right-0 h-[70px] bg-bg-body/95 backdrop-blur-md shadow-sm z-[100] flex items-center justify-between px-4 sm:px-6 transition-colors duration-500">
-      <div className="flex items-center gap-2 sm:gap-4 max-w-[60%] overflow-hidden">
+    /*
+      En el móvil, dos filas (ver --alto-cabecera en index.css): arriba la carpeta y
+      el botón principal; abajo el buscador y una tira de botones que se desliza con
+      el dedo. Antes todo iba en una fila que se salía por la derecha y había
+      opciones (orden, brillos, WANTED…) que en el móvil ni aparecían.
+    */
+    <header className="fixed top-0 left-0 right-0 h-[var(--alto-cabecera)] bg-bg-body/95 backdrop-blur-md shadow-sm z-[100] flex flex-wrap md:flex-nowrap items-center content-center justify-between gap-y-2 px-4 sm:px-6 transition-colors duration-500">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1 md:flex-none md:max-w-[60%] overflow-hidden">
         {isFolderView && (
           <button onClick={handleGoHome} className="p-2 hover:bg-main/10 rounded-lg text-main/60 hover:text-main transition-colors shrink-0">
             <ChevronLeft size={20} />
@@ -178,8 +201,10 @@ export const Header: React.FC<Props> = ({
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4 flex-1 justify-end">
-        <div className="relative group" ref={searchContainerRef}>
+      <div className="md:hidden shrink-0 pl-2">{botonPrincipal}</div>
+
+      <div className="flex items-center gap-2 sm:gap-4 w-full md:w-auto md:flex-1 justify-end min-w-0">
+        <div className="relative group w-[42%] shrink-0 md:w-auto" ref={searchContainerRef}>
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-main/50 group-focus-within:text-primary transition-colors">
                 <Search size={16} />
             </div>
@@ -188,7 +213,7 @@ export const Header: React.FC<Props> = ({
                 value={searchQuery}
                 onChange={handleSearch}
                 placeholder="Buscar..."
-                className="bg-bg-surface border-none text-main rounded-full pl-9 pr-8 py-1.5 w-[120px] sm:w-[240px] focus:w-[160px] sm:focus:w-[320px] transition-all duration-300 ease-out focus:outline-none focus:ring-1 focus:ring-primary text-sm placeholder:text-main/30"
+                className="bg-bg-surface border-none text-main rounded-full pl-9 pr-8 py-1.5 w-full md:w-[240px] md:focus:w-[320px] transition-all duration-300 ease-out focus:outline-none focus:ring-1 focus:ring-primary text-sm placeholder:text-main/30"
             />
             <button 
                 onClick={() => dispatch({ type: 'TOGGLE_TAGS_PANEL' })}
@@ -199,7 +224,7 @@ export const Header: React.FC<Props> = ({
             <TagsPanel />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="tira-movil flex items-center gap-2 md:gap-3 min-w-0 flex-1 md:flex-none overflow-x-auto md:overflow-visible [&>*]:shrink-0">
             {view === 'grid' && (
                 <div 
                     ref={sliderRef}
@@ -218,7 +243,7 @@ export const Header: React.FC<Props> = ({
                 </div>
             )}
 
-            <div className="hidden md:flex items-center gap-1 bg-bg-surface p-1 rounded-lg">
+            <div className="flex items-center gap-1 bg-bg-surface p-1 rounded-lg">
                 <button 
                     onClick={() => dispatch({ type: 'TOGGLE_WANTED_CARDS' })}
                     className={`p-1.5 rounded transition-colors ${
@@ -344,7 +369,7 @@ export const Header: React.FC<Props> = ({
             </div>
 
             {!isFolderView ? (
-                <div className="flex gap-2">
+                <div className="flex gap-2 [&>*]:shrink-0">
                     <button
                         onClick={onToggleSelectionMode}
                         className={`p-2 rounded-lg transition-colors flex items-center gap-2 ${isSelectionMode ? 'bg-red-500/20 text-red-500' : 'bg-bg-surface text-main/60 hover:text-red-500 hover:bg-red-500/10'}`}
@@ -353,7 +378,7 @@ export const Header: React.FC<Props> = ({
                         <Trash size={16} />
                     </button>
 
-                    <div className="hidden sm:flex items-center gap-1 bg-bg-surface rounded-lg p-0.5">
+                    <div className="flex items-center gap-1 bg-bg-surface rounded-lg p-0.5">
                         <select 
                             className="bg-transparent text-main text-sm px-2 py-1.5 border-none focus:ring-0 cursor-pointer hover:text-primary transition-colors outline-none"
                             value={sortFolders}
@@ -373,15 +398,10 @@ export const Header: React.FC<Props> = ({
                         )}
                     </div>
                     
-                    <button 
-                        onClick={onOpenFolderModal}
-                        className="bg-primary text-black font-bold text-sm px-3 py-1.5 rounded-lg hover:brightness-110 active:scale-95 transition-all whitespace-nowrap"
-                    >
-                        + Carpeta
-                    </button>
+                    <div className="hidden md:block">{botonPrincipal}</div>
                 </div>
             ) : (
-                <div className="flex gap-2">
+                <div className="flex gap-2 [&>*]:shrink-0">
                     <button
                         onClick={onToggleFilter}
                         className={`p-2 rounded-lg transition-colors flex items-center gap-1.5 relative group ${
@@ -407,7 +427,7 @@ export const Header: React.FC<Props> = ({
                         <Trash size={16} />
                     </button>
 
-                    <div className="hidden sm:flex items-center gap-1 bg-bg-surface rounded-lg p-0.5">
+                    <div className="flex items-center gap-1 bg-bg-surface rounded-lg p-0.5">
                         <select 
                             className="bg-transparent text-main text-sm px-2 py-1.5 border-none focus:ring-0 cursor-pointer hover:text-primary transition-colors outline-none"
                             value={sortCards}
@@ -431,12 +451,7 @@ export const Header: React.FC<Props> = ({
                         )}
                     </div>
                     
-                    <button 
-                         onClick={onOpenSearchModal}
-                         className="bg-primary text-black font-bold text-sm px-3 py-1.5 rounded-lg hover:brightness-110 active:scale-95 transition-all flex items-center gap-1 whitespace-nowrap"
-                    >
-                        <Search size={14} /> Añadir
-                    </button>
+                    <div className="hidden md:block">{botonPrincipal}</div>
                 </div>
             )}
         </div>

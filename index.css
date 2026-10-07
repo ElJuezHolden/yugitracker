@@ -103,3 +103,21 @@ main.barajando .card-container {
   /* Con solo `visibility`, el brillo del nombre (capa con mezcla y máscara) se seguía pintando: una barra blanca. */
   opacity: 0;
 }
+
+/* Alto de la cabecera fija: en el móvil va en dos filas (ver Header). */
+:root {
+  --alto-cabecera: 70px;
+}
+@media (max-width: 767px) {
+  :root {
+    --alto-cabecera: 108px;
+  }
+}
+
+/* Tira de botones de la cabecera en el móvil: se desliza con el dedo, sin barra. */
+.tira-movil {
+  scrollbar-width: none;
+}
+.tira-movil::-webkit-scrollbar {
+  display: none;
+}

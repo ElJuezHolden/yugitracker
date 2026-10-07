@@ -80,6 +80,12 @@ export function useRarityCheck() {
         const delCodigo = deYugipedia.filter((p) => p.code.toUpperCase() === c.setCode.toUpperCase());
         const rarezas = [...new Set(delCodigo.map((p) => p.rarity))];
         if (rarezas.length !== 1 || rarezas.some((r) => sameRarity(r, c.rarity))) continue;
+        // Las variantes que separa Cardmarket ("Premium Gold Rare (Alternate Art)",
+        // "Ultra Rare (Extended Art)"…) no salen como rareza aparte en Yugipedia: si la
+        // rareza de base existe para ese código, la copia está bien. Antes se "corregía"
+        // a la de base y se perdía la variante.
+        const base = c.rarity.replace(/\s*\([^)]*\)\s*$/, '');
+        if (base !== c.rarity && rarezas.some((r) => sameRarity(r, base))) continue;
         const buena = rarezas[0]!;
         dispatch({ type: 'UPDATE_CARD', payload: { ...c, rarity: buena, rarityCode: '' } });
         revisadas.add(`${c.apiId}|${c.setCode}|${buena}`);

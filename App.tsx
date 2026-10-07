@@ -516,7 +516,7 @@ function App() {
 
 
   return (
-    <div className="min-h-screen pt-[80px] pb-24 transition-colors duration-500">
+    <div className="min-h-screen pt-[calc(var(--alto-cabecera)+10px)] pb-24 transition-colors duration-500">
       <Header 
         onOpenFolderModal={() => { setEditingFolderId(null); setIsFolderModalOpen(true); }}
         onOpenSearchModal={() => setIsSearchModalOpen(true)}
@@ -600,8 +600,8 @@ function App() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="grid gap-5 w-full transition-[gap] duration-300 ease-out"
-                    style={{ gridTemplateColumns: `repeat(auto-fill, minmax(var(--grid-size, ${gridSize}px), 1fr))` }}
+                    className="grid gap-3 sm:gap-5 w-full transition-[gap] duration-300 ease-out"
+                    style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(var(--grid-size, ${gridSize}px), calc(50% - 10px)), 1fr))` }}
                 >
                     {isHome ? (
                         (finalData as Folder[]).map((folder) => (
@@ -706,8 +706,8 @@ function App() {
                          // Fallback for Home View (Shouldn't really happen if UI logic is sound, but good safety)
                          // Render Grid for folders even in Album mode
                         <div 
-                            className="grid gap-5 w-full transition-[gap] duration-300 ease-out"
-                            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(var(--grid-size, ${gridSize}px), 1fr))` }}
+                            className="grid gap-3 sm:gap-5 w-full transition-[gap] duration-300 ease-out"
+                            style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(var(--grid-size, ${gridSize}px), calc(50% - 10px)), 1fr))` }}
                         >
                              {(finalData as Folder[]).map((folder) => (
                                 <FolderItem 
@@ -730,6 +730,8 @@ function App() {
                             onToggleSelect={handleToggleSelectCard}
                             titulo={activeFolderId === ID_ALL ? 'Toda la colección' : carpetaActiva?.name}
                             portada={carpetaActiva?.img}
+                            estilo={carpetaActiva?.album}
+                            onEstilo={carpetaActiva ? (album) => dispatch({ type: 'SET_FOLDER_ALBUM', payload: { id: carpetaActiva.id, album } }) : undefined}
                             teclado={!isCardModalOpen && !isSearchModalOpen && !isFolderModalOpen && !isThemeModalOpen && !isBackupModalOpen && !isPriceMovesOpen}
                         />
                     )}

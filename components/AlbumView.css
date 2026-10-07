@@ -13,7 +13,7 @@
 
 /* Cuero de la tapa: grano fino, un poco de luz arriba a la izquierda y canto oscuro. */
 .album-cuero {
-  background-color: #1d1b21;
+  background-color: var(--tapa, #1d1b21);
   background-image:
     radial-gradient(120% 90% at 22% 12%, rgba(255, 255, 255, 0.075), transparent 55%),
     radial-gradient(90% 80% at 85% 105%, rgba(0, 0, 0, 0.5), transparent 60%),
@@ -22,6 +22,12 @@
 
 .album-carpeta {
   position: relative;
+}
+
+/* El cuero de la carpeta, aparte: cerrada a dos hojas se recorta desde el lomo. */
+.album-base {
+  position: absolute;
+  inset: 0;
   box-shadow:
     0 50px 80px -30px rgba(0, 0, 0, 0.9),
     0 20px 34px -20px rgba(0, 0, 0, 0.75),
@@ -324,7 +330,7 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   line-height: 1.15;
-  color: #c9b27a;
+  color: var(--letras, #c9b27a);
   text-shadow:
     0 -1px 0 rgba(0, 0, 0, 0.7),
     0 1px 0 rgba(255, 255, 255, 0.15);
@@ -332,7 +338,7 @@
 }
 
 .album-tapa__subtitulo {
-  color: rgba(201, 178, 122, 0.6);
+  color: color-mix(in srgb, var(--letras, #c9b27a) 62%, transparent);
   letter-spacing: 0.3em;
   text-transform: uppercase;
 }
@@ -340,6 +346,7 @@
 /* --- Controles ----------------------------------------------------------- */
 
 .album-controles {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -417,4 +424,250 @@
   margin-top: 1px;
   accent-color: var(--color-primary, #f5c518);
   cursor: pointer;
+}
+
+.album-tapa--cerrada {
+  position: absolute;
+  z-index: 30;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: inherit;
+  transition: filter 0.2s;
+}
+.album-tapa--cerrada:hover {
+  filter: brightness(1.08);
+}
+
+/* La costura de la mitad izquierda, abierta por el lomo. */
+.album-costura--abierta {
+  border-right: 0;
+}
+
+/* --- Forro de la tapa (la "página" de la izquierda al abrir) --------------- */
+
+.album-forro {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  background-color: color-mix(in srgb, var(--tapa, #1d1b21) 86%, #ffffff);
+  background-image:
+    radial-gradient(120% 90% at 30% 15%, rgba(255, 255, 255, 0.06), transparent 60%),
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.05) 0 2px, transparent 2px 5px);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 0 24px rgba(0, 0, 0, 0.45);
+}
+
+.album-forro__placa {
+  text-align: center;
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--letras, #c9b27a) 45%, transparent);
+  box-shadow:
+    inset 0 0 0 3px rgba(0, 0, 0, 0.15),
+    0 1px 0 rgba(255, 255, 255, 0.05);
+  max-width: 78%;
+}
+
+/* --- Tapa clara: costuras y relieve de las letras al revés ----------------- */
+
+.album--claro .album-costura {
+  border-color: rgba(0, 0, 0, 0.2);
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.45));
+}
+.album--claro .album-tapa__titulo {
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.45),
+    0 -1px 0 rgba(0, 0, 0, 0.25);
+}
+.album--claro .album-lomo {
+  opacity: 0.6;
+}
+
+/* --- Hojas blancas ---------------------------------------------------------- */
+
+.album--hojas-blancas .album-hoja {
+  background:
+    radial-gradient(140% 100% at 30% 0%, rgba(255, 255, 255, 0.6), transparent 60%),
+    linear-gradient(180deg, #f1f1f3, #dadade);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.45);
+}
+.album--hojas-blancas .album-bolsillo {
+  background: rgba(0, 0, 0, 0.025);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.09),
+    inset 0 0 8px rgba(0, 0, 0, 0.1);
+}
+.album--hojas-blancas .album-bolsillo__vacio {
+  border-color: rgba(0, 0, 0, 0.14);
+}
+.album--hojas-blancas .album-bolsillo__boca {
+  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.12) 20%, rgba(0, 0, 0, 0.12) 80%, transparent);
+}
+.album--hojas-blancas .album-hoja__curva--dcha {
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.06) 45%, transparent);
+}
+.album--hojas-blancas .album-hoja__curva--izq {
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.06) 45%, transparent);
+}
+.album--hojas-blancas .album-hoja__numero {
+  color: rgba(0, 0, 0, 0.4);
+}
+.album--hojas-blancas .album-agujero {
+  background: #2a2a30;
+}
+
+/* --- Anillas ------------------------------------------------------------------ */
+
+.album--anillas-oro .album-aro,
+.album-metal--oro {
+  background: linear-gradient(to bottom, #fff6d6 0%, #e3c46f 22%, #9c7a2c 50%, #5e4512 66%, #c9a54e 86%, #f2dc9a 100%);
+}
+.album--anillas-oro .album-mecanismo {
+  background: linear-gradient(to right, #4a3612, #b08a3a 18%, #f2dc9a 34%, #a7832f 52%, #6b4f1a 72%, #d4b263 88%, #4a3612);
+}
+.album--anillas-pavonadas .album-aro,
+.album-metal--pavonadas {
+  background: linear-gradient(to bottom, #9aa0aa 0%, #5b616b 22%, #2e3238 50%, #17191d 66%, #474c55 86%, #7d838d 100%);
+}
+.album--anillas-pavonadas .album-mecanismo {
+  background: linear-gradient(to right, #15171a, #3c4048 18%, #737985 34%, #3a3e46 52%, #22252a 72%, #555a64 88%, #15171a);
+}
+.album-metal--plata {
+  background: linear-gradient(to bottom, #fbfbfd 0%, #c9c9d1 22%, #7d7d87 50%, #45454d 66%, #a3a3ad 86%, #e4e4ea 100%);
+}
+.album-metal {
+  display: inline-block;
+  width: 14px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* --- Panel de colores --------------------------------------------------------- */
+
+.album-ajustes {
+  position: absolute;
+  right: -6px;
+  bottom: calc(100% + 14px);
+  z-index: 60;
+  width: 270px;
+  max-width: calc(100vw - 32px);
+  padding: 12px 14px 10px;
+  border-radius: 16px;
+  background: rgba(14, 14, 17, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  box-shadow: 0 24px 50px -18px rgba(0, 0, 0, 0.9);
+}
+
+.album-ajustes__titulo {
+  margin: 10px 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+.album-ajustes__titulo:first-child {
+  margin-top: 0;
+}
+
+.album-muestra {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 1px 3px rgba(0, 0, 0, 0.6);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.album-muestra:hover {
+  transform: scale(1.1);
+}
+.album-muestra.activa {
+  box-shadow:
+    0 0 0 2px rgba(14, 14, 17, 1),
+    0 0 0 4px var(--color-primary, #fbbf24);
+}
+.album-muestra--libre {
+  overflow: hidden;
+  background: conic-gradient(#f43f5e, #f59e0b, #84cc16, #06b6d4, #6366f1, #d946ef, #f43f5e);
+}
+.album-muestra--libre input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.album-ajustes__restablecer {
+  display: block;
+  margin: 12px 0 0 auto;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.album-ajustes__restablecer:hover {
+  color: #fff;
+}
+
+.album-flecha--activa {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-primary, #fbbf24);
+}
+
+.album-colores {
+  position: relative;
+}
+
+/* --- Móvil ------------------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .album-escenario {
+    padding: 8px 8px 2px;
+  }
+  /* Dos filas: arriba pasar páginas (lo más usado, a mano del pulgar), abajo el resto. */
+  .album-controles {
+    width: calc(100% - 16px);
+    margin: 6px 8px 10px;
+    padding: 6px 8px 8px;
+    gap: 6px 8px;
+    border-radius: 20px;
+  }
+  .album-controles__nav {
+    order: -1;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .album-controles__nav .album-flecha {
+    width: 40px;
+    height: 40px;
+  }
+  .album-separador {
+    display: none;
+  }
+  .album-segmento button {
+    min-width: 38px;
+    height: 32px;
+  }
+  /* El panel de colores, a lo ancho de la barra en vez de colgando del botón. */
+  .album-colores {
+    position: static;
+  }
+  .album-ajustes {
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
+    bottom: calc(100% + 8px);
+  }
 }

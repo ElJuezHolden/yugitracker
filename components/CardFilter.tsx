@@ -133,8 +133,8 @@ export const CardFilter: React.FC<Props> = ({ filters, onChange, isOpen, availab
                     exit={{ height: 0, opacity: 0, marginBottom: 0 }}
                     onAnimationComplete={() => setAllowOverflow(true)}
                     // Z-90 to stay below Header (Z-100) but above cards
-                    // Sticky top-70px to float just under the header
-                    className={`w-full sticky top-[70px] z-[90] ${allowOverflow ? 'overflow-visible' : 'overflow-hidden'}`}
+                    // Pegada justo debajo de la cabecera (más alta en el móvil)
+                    className={`w-full sticky top-[var(--alto-cabecera)] z-[90] ${allowOverflow ? 'overflow-visible' : 'overflow-hidden'}`}
                 >
                     <div className="bg-bg-panel rounded-xl shadow-2xl mt-2 relative flex flex-col ring-1 ring-border-base">
                         

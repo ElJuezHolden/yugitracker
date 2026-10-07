@@ -6,10 +6,16 @@ import { useEffect, useState } from 'react';
  * que queda en la ventana (ancho del contenido y alto hasta abajo) y se prueban
  * todas las columnas posibles: gana la que deja la carta más grande sin que
  * nada se salga ni se recorte.
+ *
+ * Con muchas cartas (la colección completa) eso las dejaba de 2 px: por debajo
+ * de un mínimo legible se ponen de ese tamaño, todas las que quepan a lo ancho,
+ * y la mesa sigue hacia abajo con scroll.
  */
 const PROPORCION = 421 / 614; // ancho / alto de una carta
 const HUECO = 6; // separación entre cartas, en px
 const MARGEN_ABAJO = 16;
+/** Ancho mínimo de una carta: aún se reconoce la ilustración. */
+const minimo = (ancho: number) => (ancho < 640 ? 52 : 64);
 
 export interface Mesa {
   columnas: number;
@@ -27,7 +33,10 @@ export function calcularMesa(n: number, ancho: number, alto: number): Mesa | nul
     const w = Math.floor(Math.min(porAncho, porAlto));
     if (w > 0 && (!mejor || w > mejor.ancho)) mejor = { columnas, ancho: w };
   }
-  return mejor;
+  const min = minimo(ancho);
+  if (mejor && mejor.ancho >= min) return mejor;
+  const columnas = Math.max(1, Math.floor((ancho + HUECO) / (min + HUECO)));
+  return { columnas, ancho: Math.floor((ancho - HUECO * (columnas - 1)) / columnas) };
 }
 
 /** La mejor disposición para `n` cartas en el hueco del elemento `el` (null si no está activa). */

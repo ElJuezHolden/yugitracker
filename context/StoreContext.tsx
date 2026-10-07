@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useRef } from 'react';
-import type { Database, Folder, Card, ViewMode, FolderSort, CardSort, ToastData, SortDirection, ThemeConfig, AlbumColumns, WantedMode } from '../types';
+import type { Database, Folder, Card, ViewMode, FolderSort, CardSort, ToastData, SortDirection, ThemeConfig, AlbumColumns, WantedMode, AlbumEstilo } from '../types';
 import { generateId } from '../utils';
 import { createEmptyDatabase, normalizeDatabase } from '../services/database';
 
@@ -51,6 +51,7 @@ type Action =
   | { type: 'SET_WANTED_MODE'; payload: WantedMode }
   // DB Actions
   | { type: 'SAVE_FOLDER'; payload: Folder }
+  | { type: 'SET_FOLDER_ALBUM'; payload: { id: string; album: AlbumEstilo | undefined } }
   | { type: 'DELETE_FOLDER'; payload: string }
   | { type: 'DELETE_FOLDERS'; payload: string[] }
   | { type: 'RESTORE_FOLDER'; payload: { folder: Folder; index: number } }
@@ -258,7 +259,9 @@ const reducer = (state: AppState, action: Action): AppState => {
         newFolders = state.db.folders.map(f => f.id === action.payload.id ? {
             ...action.payload,
             cardSort: f.cardSort,
-            cardSortDir: f.cardSortDir
+            cardSortDir: f.cardSortDir,
+            // La ventana de la carpeta no sabe de colores del álbum: se conservan.
+            album: action.payload.album ?? f.album,
         } : f);
       } else {
         // New Folder: Initialize with defaults
@@ -270,6 +273,11 @@ const reducer = (state: AppState, action: Action): AppState => {
       }
       return { ...state, db: { ...state.db, folders: newFolders } };
     }
+    case 'SET_FOLDER_ALBUM':
+      return {
+        ...state,
+        db: { ...state.db, folders: state.db.folders.map((f) => (f.id === action.payload.id ? { ...f, album: action.payload.album } : f)) },
+      };
     case 'DELETE_FOLDER': {
       return {
         ...state,
