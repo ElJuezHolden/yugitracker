@@ -84,6 +84,12 @@ export function cruzarVersiones(api: CardSet[], yugipedia: PrintingYugipedia[]):
     nuevas.push(...sueltasYp);
     const enSuLugar = sueltasYp[0] ?? casadas[0];
     if (enSuLugar) for (const s of falsas) sustituidas.set(claveVersion(s.set_code, s.set_rarity), enSuLugar);
+    // Y si Yugipedia no echa nada en falta pero YGOPRODeck tiene rarezas de más
+    // para ese código, esas no existen (Ultimate Dragonic Utopia Ray: MP22-EN081
+    // solo salió en Rare, no en Prismatic Secret Rare).
+    if (sueltasYp.length === 0 && casadas.length > 0) {
+      for (const s of sueltasApi) sustituidas.set(claveVersion(s.set_code, s.set_rarity), casadas[0]!);
+    }
   }
   // Las versiones nuevas también llevan su variante de letras plateadas.
   return { nuevas: conVariantesEspeciales(nuevas), sustituidas };

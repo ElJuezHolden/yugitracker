@@ -228,7 +228,88 @@ const lanzamiento = new Map(setsYgo.map((s) => [s.set_name, s.tcg_date ? Date.pa
 // Las cartas antiguas de Cardmarket tienen todas fecha de 2007: ahí la fecha no distingue nada.
 const FECHA_UTIL = Date.parse('2008-01-01');
 
+const DIA_REAL_MS = 86_400_000;
+const fechaProducto = (p) => Date.parse(p.dateAdded.replace(' ', 'T'));
+/**
+ * A partir de aquí la fecha de salida de un set sirve para reconocer sus
+ * productos en Cardmarket: todo lo que dio de alta antes de 2015 tiene la fecha
+ * de relleno 2007-01-01 (las fechas reales empiezan en enero de 2015).
+ */
+const FECHA_FIABLE = Date.parse('2015-02-01');
+/** Sets con menos cartas que esto son "diminutos": casi cualquier expansión los contiene. */
+const DIMINUTO = 5;
+
+/**
+ * Lo lejos (en días) que Cardmarket dio de alta los productos de estas cartas en
+ * esa expansión de la fecha de salida del set: la mediana, carta a carta, del
+ * producto más cercano. Los de fecha de relleno (2007) cuentan como lejísimos.
+ */
+function distanciaFechas(exp, cartasSet, fecha) {
+  const d = [];
+  for (const n of cartasSet.keys()) {
+    const ps = expansiones.get(exp).get(n);
+    if (!ps) continue;
+    d.push(Math.min(...ps.map((p) => (fechaProducto(p) <= FECHA_UTIL ? Infinity : Math.abs(fechaProducto(p) - fecha) / DIA_REAL_MS))));
+  }
+  d.sort((a, b) => a - b);
+  return d.length ? d[Math.floor(d.length / 2)] : Infinity;
+}
+
+/*
+ * La expansión de Cardmarket de un set de YGOPRODeck: la que tiene más cartas
+ * suyas. Si varias las tienen (siempre pasa con los sets pequeños: una carta
+ * suelta está en decenas de expansiones), decide la FECHA: Cardmarket da de alta
+ * los productos cuando sale la carta, así que gana la expansión cuyos productos
+ * de esas cartas se añadieron más cerca de la salida del set. Antes desempataba
+ * la expansión más pequeña, y las Lost Art (YGOPRODeck las tiene en un set de
+ * una carta por oleada) acababan en cualquier expansión con esa carta: Brazo
+ * Derecho del Prohibido LART-EN006 en GX Ultimate Beginner's Pack (199 € en vez
+ * de 9 €), Anillo Destructor en Battle of Great Duelist (OCG). Un set diminuto
+ * sin ninguna expansión de su época se queda sin pareja: mejor sin precio que
+ * con el de otra carta.
+ */
 function expansionDe(nombreSet, cartasSet) {
+  const comunes = new Map();
+  for (const n of cartasSet.keys()) for (const id of expansionesDe.get(n) ?? []) comunes.set(id, (comunes.get(id) ?? 0) + 1);
+  const candidatas = [...comunes]
+    .map(([id, inter]) => ({ id, cobertura: inter / cartasSet.size, parecido: inter / (cartasSet.size + expansiones.get(id).size - inter) }))
+    .filter((c) => c.cobertura >= 0.6)
+    .sort((a, b) => b.cobertura - a.cobertura || b.parecido - a.parecido);
+  if (!candidatas.length) return null;
+  const empatadas = candidatas.filter((c) => c.cobertura >= candidatas[0].cobertura - 0.1);
+  const fecha = lanzamiento.get(nombreSet);
+  if (fecha && fecha >= FECHA_FIABLE) {
+    const conDistancia = empatadas.map((c) => ({ ...c, dist: distanciaFechas(c.id, cartasSet, fecha) }));
+    const mejor = conDistancia.reduce((a, b) => (b.dist < a.dist || (b.dist === a.dist && b.parecido > a.parecido) ? b : a));
+    if (cartasSet.size < DIMINUTO && !(mejor.dist <= 400)) return null;
+    return mejor.id;
+  }
+  /*
+   * Sets antiguos: en Cardmarket sus productos tienen la fecha de relleno, así
+   * que su expansión es una de esas, no una reedición moderna con las mismas
+   * cartas (Invasion of Chaos de 2004 iba a la del 25 aniversario de 2023).
+   */
+  const antiguas = empatadas.filter((c) => fraccionRelleno(c.id, cartasSet) >= 0.5);
+  const entre = antiguas.length ? antiguas : empatadas;
+  if (cartasSet.size < DIMINUTO && entre.length > 1) return null;
+  return entre.reduce((a, b) => (b.parecido > a.parecido ? b : a)).id;
+}
+
+/** Qué parte de las cartas del set tiene en esa expansión un producto con la fecha de relleno (de antes de 2015). */
+function fraccionRelleno(exp, cartasSet) {
+  let con = 0;
+  let total = 0;
+  for (const n of cartasSet.keys()) {
+    const ps = expansiones.get(exp).get(n);
+    if (!ps) continue;
+    total++;
+    if (ps.some((p) => fechaProducto(p) <= FECHA_UTIL)) con++;
+  }
+  return total ? con / total : 0;
+}
+
+/** Como lo hacía antes (solo para el informe de comparación). */
+function expansionDeAntes(nombreSet, cartasSet) {
   const comunes = new Map();
   for (const n of cartasSet.keys()) for (const id of expansionesDe.get(n) ?? []) comunes.set(id, (comunes.get(id) ?? 0) + 1);
   const candidatas = [...comunes]
@@ -268,35 +349,105 @@ let setsSinPareja = 0;
 const asignados = new Set();
 /** Sets de YGOPRODeck con su expansión de Cardmarket. */
 const emparejados = [];
-for (const [nombreSet, cartasSet] of setsCartas) {
+/** Cartas con más rarezas que productos en Cardmarket: se repasan con Yugipedia más abajo. */
+const dudosas = [];
+/**
+ * "expansión|carta" con alguna versión de YGOPRODeck que se quedó sin producto: sus
+ * productos sin asignar no se sabe de qué rareza son, así que no se publican
+ * como sobrantes (la web se los daba a todas sus versiones, con el mismo precio).
+ */
+const sinProducto = new Set();
+
+/** Empareja rarezas y productos en orden: la rareza más alta, el producto más caro. */
+function asignarEnOrden(impresiones, productosCarta, clave) {
+  const rarezas = [...new Set(impresiones.map((i) => i.rarity))].sort((a, b) => rango(a) - rango(b));
+  const porRareza = new Map();
+  if (productosCarta.length && productosCarta.length === rarezas.length) rarezas.forEach((r, i) => porRareza.set(r, productosCarta[i]));
+  else if (productosCarta.length && rarezas.length === 1) porRareza.set(rarezas[0], productosCarta[0]);
+  if (impresiones.some((imp) => !porRareza.has(imp.rarity))) sinProducto.add(clave);
+  for (const imp of impresiones) {
+    const producto = porRareza.get(imp.rarity);
+    if (producto == null) continue;
+    conPrecio++;
+    asignados.add(producto.idProduct);
+    const clave = `${imp.code}|${imp.rarity}`;
+    if (!deHoy.has(imp.id)) deHoy.set(imp.id, {});
+    deHoy.get(imp.id)[clave] = producto.precio.ref;
+    if (!cifrasDe.has(imp.id)) cifrasDe.set(imp.id, {});
+    cifrasDe.get(imp.id)[clave] = producto.precio.cifras;
+    if (!productoDe.has(imp.id)) productoDe.set(imp.id, {});
+    productoDe.get(imp.id)[clave] = producto.idProduct;
+  }
+  return rarezas.length;
+}
+
+const informe = [];
+// De mayor a menor: los sets pequeños van al final y mandan sobre los que los
+// agrupan (YGOPRODeck tiene "The Lost Art Promotion (series)" con todas las Lost
+// Art y, además, un set con la fecha exacta de cada oleada).
+for (const [nombreSet, cartasSet] of [...setsCartas].sort((a, b) => b[1].size - a[1].size)) {
   const exp = expansionDe(nombreSet, cartasSet);
+  const fecha = lanzamiento.get(nombreSet);
+  if (process.env.INFORME) {
+    const antes = expansionDeAntes(nombreSet, cartasSet);
+    informe.push({ set: nombreSet, cartas: cartasSet.size, fecha: fecha ? new Date(fecha).toISOString().slice(0, 10) : null, antes, ahora: exp,
+      distAntes: antes != null && fecha ? Math.round(distanciaFechas(antes, cartasSet, fecha)) : null,
+      distAhora: exp != null && fecha ? Math.round(distanciaFechas(exp, cartasSet, fecha)) : null });
+  }
   if (exp == null) setsSinPareja++;
   else emparejados.push([nombreSet, exp]);
   for (const [n, impresiones] of cartasSet) {
     versiones += impresiones.length;
     if (exp == null) continue;
-    const productosCarta = (expansiones.get(exp).get(n) ?? [])
-      .map((p) => ({ precio: precioProducto.get(p.idProduct), idProduct: p.idProduct }))
-      .filter((x) => x.precio != null)
-      .sort((a, b) => a.precio.ref - b.precio.ref);
-    const rarezas = [...new Set(impresiones.map((i) => i.rarity))].sort((a, b) => rango(a) - rango(b));
-    const porRareza = new Map();
-    if (productosCarta.length && productosCarta.length === rarezas.length) rarezas.forEach((r, i) => porRareza.set(r, productosCarta[i]));
-    else if (productosCarta.length && rarezas.length === 1) porRareza.set(rarezas[0], productosCarta[0]);
-    for (const imp of impresiones) {
-      const producto = porRareza.get(imp.rarity);
-      if (producto == null) continue;
-      conPrecio++;
-      asignados.add(producto.idProduct);
-      const clave = `${imp.code}|${imp.rarity}`;
-      if (!deHoy.has(imp.id)) deHoy.set(imp.id, {});
-      deHoy.get(imp.id)[clave] = producto.precio.ref;
-      if (!cifrasDe.has(imp.id)) cifrasDe.set(imp.id, {});
-      cifrasDe.get(imp.id)[clave] = producto.precio.cifras;
-      if (!productoDe.has(imp.id)) productoDe.set(imp.id, {});
-      productoDe.get(imp.id)[clave] = producto.idProduct;
+    let productosCarta = (expansiones.get(exp).get(n) ?? [])
+      .map((p) => ({ precio: precioProducto.get(p.idProduct), idProduct: p.idProduct, t: fechaProducto(p) }))
+      .filter((x) => x.precio != null);
+    // Más productos que rarezas (la carta salió varias veces en la expansión,
+    // como las Lost Art de varias oleadas): los dados de alta más cerca de la
+    // salida de este set.
+    const numRarezas = new Set(impresiones.map((i) => i.rarity)).size;
+    if (fecha && fecha >= FECHA_FIABLE && productosCarta.length > numRarezas && productosCarta.some((x) => x.t > FECHA_UTIL)) {
+      const lejania = (x) => (x.t <= FECHA_UTIL ? Infinity : Math.abs(x.t - fecha));
+      productosCarta = productosCarta.sort((a, b) => lejania(a) - lejania(b)).slice(0, numRarezas);
     }
+    productosCarta.sort((a, b) => a.precio.ref - b.precio.ref);
+    const rarezas = asignarEnOrden(impresiones, productosCarta, `${exp}|${n}`);
+    if (productosCarta.length && productosCarta.length < rarezas && rarezas > 1) dudosas.push({ exp, n, impresiones, productosCarta });
   }
+}
+
+/*
+ * Más rarezas que productos. A veces YGOPRODeck tiene una rareza que no existe
+ * (Ultimate Dragonic Utopia Ray: MP22-EN081 en Rare y en Prismatic Secret Rare,
+ * cuando solo salió en Rare) y entonces no se podía saber qué producto era cuál.
+ * Se preguntan a Yugipedia solo esas cartas, se quitan las rarezas que no lista
+ * para ese código y, si cuadra, se emparejan los productos.
+ */
+let dudasResueltas = 0;
+try {
+  const nombreDe = new Map(cartas.map((c) => [c.id, c.name]));
+  const nombres = [...new Set(dudosas.map((d) => nombreDe.get(d.impresiones[0].id)))];
+  const deYugipedia = new Map();
+  for (let i = 0; i < nombres.length; i += 50) {
+    for (const [k, v] of await impresionesYugipedia(nombres.slice(i, i + 50))) deYugipedia.set(k, v);
+    await esperar(1000);
+  }
+  for (const { exp, n, impresiones, productosCarta } of dudosas) {
+    const yp = deYugipedia.get(nombreDe.get(impresiones[0].id));
+    if (!yp?.length) continue;
+    const existen = impresiones.filter((imp) => {
+      const delCodigo = yp.filter((p) => plana(p.code) === plana(imp.code));
+      return delCodigo.length === 0 || delCodigo.some((p) => plana(p.rarity) === plana(imp.rarity));
+    });
+    if (existen.length === impresiones.length) continue;
+    const rarezas = new Set(existen.map((i) => i.rarity)).size;
+    if (rarezas !== productosCarta.length && !(rarezas === 1 && productosCarta.length)) continue;
+    sinProducto.delete(`${exp}|${n}`);
+    asignarEnOrden(existen, productosCarta, `${exp}|${n}`);
+    dudasResueltas++;
+  }
+} catch (e) {
+  console.warn(`No se pudieron repasar con Yugipedia las cartas con más rarezas que productos: ${e.message}`);
 }
 
 /*
@@ -380,7 +531,7 @@ for (const [nombreSet, exp] of emparejados) {
   if (!prefijo) continue;
   for (const [n, productosExp] of expansiones.get(exp)) {
     const id = idPorNombre.get(n);
-    if (id == null) continue;
+    if (id == null || sinProducto.has(`${exp}|${n}`)) continue;
     for (const pr of productosExp) {
       const precio = precioProducto.get(pr.idProduct);
       if (!precio || asignados.has(pr.idProduct)) continue;
@@ -464,6 +615,7 @@ for (let i = 0; i < TROZOS; i++) {
   await writeFile(join(CARPETA, `actual-${i}.json`), JSON.stringify(actual));
 }
 
+if (process.env.INFORME) await writeFile(process.env.INFORME, JSON.stringify(informe));
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia.`,
 );
