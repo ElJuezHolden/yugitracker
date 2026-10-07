@@ -329,9 +329,16 @@ function expansionDeAntes(nombreSet, cartasSet) {
 const RAREZAS = [
   'Common', 'Short Print', 'Super Short Print', 'Rare', 'Super Rare', 'Ultra Rare', 'Ultimate Rare', 'Secret Rare',
   'Prismatic Secret Rare', 'Ultra Secret Rare', 'Platinum Secret Rare', "Collector's Rare", 'Quarter Century Secret Rare',
-  'Starlight Rare', 'Ghost Rare',
+  'Starlight Rare', 'Ghost Rare', 'Grand Master Rare',
 ];
+/**
+ * Puesto de una rareza en la escala. Las variantes ("Ultra Rare (Extended
+ * Art)", "Ultra Rare (Special)") van justo encima de su rareza base: de
+ * Magnificent Monsters, la Ultra Rare normal vale 0,22 € y la de arte extendido 16 €.
+ */
 const rango = (r) => {
+  const variante = /^(.*?)\s*\((.+)\)$/.exec(r);
+  if (variante && RAREZAS.includes(variante[1])) return RAREZAS.indexOf(variante[1]) + 0.5;
   const i = RAREZAS.indexOf(r);
   return i < 0 ? RAREZAS.indexOf('Ultra Rare') : i;
 };
@@ -351,6 +358,8 @@ const asignados = new Set();
 const emparejados = [];
 /** Cartas con más rarezas que productos en Cardmarket: se repasan con Yugipedia más abajo. */
 const dudosas = [];
+/** Y al revés: más productos que rarezas (variantes de arte), también más abajo. */
+const conVariantes = [];
 /**
  * "expansión|carta" con alguna versión de YGOPRODeck que se quedó sin producto: sus
  * productos sin asignar no se sabe de qué rareza son, así que no se publican
@@ -406,13 +415,18 @@ for (const [nombreSet, cartasSet] of [...setsCartas].sort((a, b) => b[1].size - 
     // como las Lost Art de varias oleadas): los dados de alta más cerca de la
     // salida de este set.
     const numRarezas = new Set(impresiones.map((i) => i.rarity)).size;
+    // Solo cuenta la oleada (semanas), no los segundos: las versiones de una carta
+    // se dan de alta juntas (las 4 de Magnificent Monsters, en el mismo minuto).
     if (fecha && fecha >= FECHA_FIABLE && productosCarta.length > numRarezas && productosCarta.some((x) => x.t > FECHA_UTIL)) {
       const lejania = (x) => (x.t <= FECHA_UTIL ? Infinity : Math.abs(x.t - fecha));
-      productosCarta = productosCarta.sort((a, b) => lejania(a) - lejania(b)).slice(0, numRarezas);
+      const masCerca = Math.min(...productosCarta.map(lejania));
+      const deEsaOleada = productosCarta.filter((x) => lejania(x) <= masCerca + 30 * DIA_REAL_MS);
+      if (deEsaOleada.length >= numRarezas) productosCarta = deEsaOleada;
     }
     productosCarta.sort((a, b) => a.precio.ref - b.precio.ref);
     const rarezas = asignarEnOrden(impresiones, productosCarta, `${exp}|${n}`);
     if (productosCarta.length && productosCarta.length < rarezas && rarezas > 1) dudosas.push({ exp, n, impresiones, productosCarta });
+    if (productosCarta.length > rarezas) conVariantes.push({ nombreSet, exp, n, impresiones, productosCarta });
   }
 }
 
@@ -448,6 +462,91 @@ try {
   }
 } catch (e) {
   console.warn(`No se pudieron repasar con Yugipedia las cartas con más rarezas que productos: ${e.message}`);
+}
+
+/*
+ * Más productos que rarezas: variantes de arte. En Magnificent Monsters, Number
+ * 39: Utopia, Emissary of Light (MAMO-EN010) sale en Ultra Rare, Ultra Rare de
+ * arte extendido, Starlight Rare y Grand Master Rare: 4 productos en Cardmarket,
+ * pero YGOPRODeck y la ficha de Yugipedia solo dan 3 rarezas, y la Ultra Rare se
+ * llevaba el precio de otra (169 € en vez de 0,22 €). La lista del set en
+ * Yugipedia sí separa las variantes ("// description::(extended art)"): si un
+ * código sale dos veces con la misma rareza, la que lleva descripción es una
+ * versión aparte ("Ultra Rare (Extended Art)"). Si con eso cuadran rarezas y
+ * productos, se emparejan; si no, esa carta se queda sin precio en ese set.
+ */
+let variantesAnadidas = 0;
+try {
+  const sets = [...new Set(conVariantes.map((v) => v.nombreSet))];
+  /** set → código → [{ rareza, descripcion }] */
+  const listas = new Map();
+  for (let i = 0; i < sets.length; i += 50) {
+    const lote = sets.slice(i, i + 50);
+    const url = new URL('https://yugipedia.com/api.php');
+    const titulos = lote.map((x) => `Set Card Lists:${x} (TCG-EN)`);
+    for (const [k, v] of Object.entries({ action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', redirects: '1', titles: titulos.join('|') }))
+      url.searchParams.set(k, v);
+    const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
+    if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
+    const { query } = await res.json();
+    const origen = new Map();
+    for (const r of [...(query.normalized ?? []), ...(query.redirects ?? [])]) origen.set(r.to, origen.get(r.from) ?? r.from);
+    for (const pg of query.pages ?? []) {
+      const texto = pg.revisions?.[0]?.content;
+      if (!texto) continue;
+      const titulo = origen.get(pg.title) ?? pg.title;
+      const set = titulo.replace(/^Set Card Lists:/, '').replace(/ \(TCG-EN\)$/, '');
+      const porCodigo = new Map();
+      // Cada bloque {{Set list|...|rarities=X|...}} da la rareza por defecto de sus líneas.
+      for (const bloque of texto.split('{{Set list').slice(1)) {
+        const porDefecto = /\|\s*rarities\s*=\s*([^|\n]+)/.exec(bloque)?.[1]?.trim() ?? 'Common';
+        for (const linea of bloque.split('\n')) {
+          const m = /^([A-Z0-9]+-[A-Z]*\d+[A-Z]?)\s*;\s*([^;]*);\s*([^;/]*)/.exec(linea.trim());
+          if (!m) continue;
+          const descripcion = /description::\(([^)]+)\)/.exec(linea)?.[1]?.trim() ?? '';
+          const rarezas = (m[3].trim() || porDefecto).split(',').map((r) => r.trim()).filter(Boolean);
+          const lista = porCodigo.get(m[1]) ?? [];
+          for (const rareza of rarezas) lista.push({ rareza, descripcion });
+          porCodigo.set(m[1], lista);
+        }
+      }
+      listas.set(set, porCodigo);
+    }
+    await esperar(1000);
+  }
+  const titulo = (d) => d.replace(/\b\w/g, (l) => l.toUpperCase());
+  // Algunas listas de Yugipedia ponen la rareza abreviada.
+  const ABREVIADAS = {
+    c: 'Common', sp: 'Short Print', ssp: 'Super Short Print', r: 'Rare', sr: 'Super Rare', ur: 'Ultra Rare', utr: 'Ultimate Rare',
+    scr: 'Secret Rare', pscr: 'Prismatic Secret Rare', uscr: 'Ultra Secret Rare', plscr: 'Platinum Secret Rare', cr: "Collector's Rare",
+    qcscr: 'Quarter Century Secret Rare', str: 'Starlight Rare', gr: 'Ghost Rare', gmr: 'Grand Master Rare', gur: 'Gold Rare',
+    gscr: 'Gold Secret Rare', pgr: 'Premium Gold Rare', sfr: 'Starfoil Rare', msr: 'Mosaic Rare', shr: 'Shatterfoil Rare',
+    urpr: "Ultra Rare (Pharaoh's Rare)", plr: 'Platinum Rare',
+  };
+  const rarezaCompleta = (r) => ABREVIADAS[plana(r)] ?? r;
+  for (const { nombreSet, exp, n, impresiones, productosCarta } of conVariantes) {
+    const lista = listas.get(nombreSet);
+    if (!lista) continue;
+    const nuevas = [];
+    for (const imp of impresiones) {
+      const entradas = (lista.get(imp.code) ?? []).filter((e) => plana(rarezaCompleta(e.rareza)) === plana(imp.rarity));
+      // La misma rareza dos veces: la normal (sin descripción) y la variante.
+      const variantes = entradas.filter((e) => e.descripcion);
+      if (entradas.length < 2 || variantes.length === entradas.length) continue;
+      for (const v of variantes) {
+        const rarity = `${imp.rarity} (${titulo(v.descripcion)})`;
+        if (![...impresiones, ...nuevas].some((x) => x.code === imp.code && x.rarity === rarity)) nuevas.push({ ...imp, rarity });
+      }
+    }
+    if (nuevas.length === 0) continue;
+    const todas = [...impresiones, ...nuevas];
+    if (new Set(todas.map((i) => i.rarity)).size !== productosCarta.length) continue;
+    sinProducto.delete(`${exp}|${n}`);
+    asignarEnOrden(todas, productosCarta, `${exp}|${n}`);
+    variantesAnadidas += nuevas.length;
+  }
+} catch (e) {
+  console.warn(`No se pudieron buscar en Yugipedia las variantes de arte: ${e.message}`);
 }
 
 /*
@@ -617,5 +716,5 @@ for (let i = 0; i < TROZOS; i++) {
 
 if (process.env.INFORME) await writeFile(process.env.INFORME, JSON.stringify(informe));
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas (${conVariantes.length} cartas con más productos que rarezas).`,
 );

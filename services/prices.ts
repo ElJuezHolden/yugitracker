@@ -266,7 +266,7 @@ export interface Sobrante {
 const RAREZAS = [
   'common', 'short print', 'super short print', 'rare', 'super rare', 'ultra rare', 'ultimate rare', 'secret rare',
   'prismatic secret rare', 'ultra secret rare', 'platinum secret rare', "collector's rare", 'quarter century secret rare',
-  'starlight rare', 'ghost rare',
+  'starlight rare', 'ghost rare', 'grand master rare',
 ];
 const rangoRareza = (r: string) => {
   const i = RAREZAS.indexOf(r.toLowerCase().trim());
