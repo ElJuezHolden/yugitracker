@@ -116,7 +116,8 @@ function resolveFoil(rarity: string): FoilSpec | null {
    * Quarter Century: nombre en champán moteado, foil de Secret en toda la carta
    * menos la caja de texto, y el sello del 25 en relieve dentro de ella.
    */
-  if (r.includes('quarter century') || r.includes('25th')) {
+  // No las reediciones "Super Rare (25th Anniversary Edition)": esas brillan como su rareza.
+  if (r.includes('quarter century') || /25th(?! anniversary edition)/.test(r)) {
     return { name: 'champan', cubierta: 'qcsr', seal25: true };
   }
 

@@ -22,6 +22,53 @@ const cache = new Map<string, ApiCard[]>();
 const MIN_GAP_MS = 120;
 let lastRequestAt = 0;
 
+/*
+ * Arreglos de las impresiones, igual vengan de YGOPRODeck, de Yugipedia o de la
+ * lista extra (el script de precios hace lo mismo, para que casen las claves):
+ *
+ * - Reediciones del 25 aniversario ("Metal Raiders (25th Anniversary Edition)"):
+ *   llevan el mismo código y rareza que la original (MRD-EN071 Super Rare) y en
+ *   Cardmarket son otra expansión con otro precio. Se marcan en la rareza, como
+ *   las variantes de arte: "Super Rare (25th Anniversary Edition)". Antes se
+ *   tomaban por la misma y la de Kuriboh ni aparecía.
+ * - Códigos antiguos de una misma carta: MRD-071 (EE. UU.) y MRD-E071 (Europa)
+ *   son la MRD-EN071 de siempre; Cardmarket las vende como un solo producto. Si
+ *   está la EN de la misma colección y rareza, las otras dos sobran (salían tres
+ *   Metal Raiders iguales).
+ */
+export const SUFIJO_25 = ' (25th Anniversary Edition)';
+
+interface ImpresionPlana {
+  code: string;
+  set: string;
+  rarity: string;
+}
+
+function arreglarImpresiones<T>(lista: T[], leer: (x: T) => ImpresionPlana, escribir: (x: T, rarity: string) => T): T[] {
+  const marcadas = lista.map((x) => {
+    const { set, rarity } = leer(x);
+    return set.endsWith(SUFIJO_25) && !rarity.endsWith(SUFIJO_25) ? escribir(x, rarity + SUFIJO_25) : x;
+  });
+  const claves = new Set(marcadas.map((x) => { const i = leer(x); return `${i.code.toUpperCase()}|${i.set}|${i.rarity}`; }));
+  return marcadas.filter((x) => {
+    const { code, set, rarity } = leer(x);
+    const m = /^([A-Z0-9]+)-E?(\d{3})$/i.exec(code);
+    return !m || !claves.has(`${m[1]!.toUpperCase()}-EN${m[2]}|${set}|${rarity}`);
+  });
+}
+
+const arreglarCarta = (c: ApiCard): ApiCard =>
+  c.card_sets
+    ? {
+        ...c,
+        card_sets: arreglarImpresiones(
+          c.card_sets,
+          (x) => ({ code: x.set_code, set: x.set_name, rarity: x.set_rarity }),
+          (x, rarity) => ({ ...x, set_rarity: rarity }),
+        ),
+      }
+    : c;
+
 async function request(params: string, signal?: AbortSignal): Promise<ApiCard[]> {
   const cached = cache.get(params);
   if (cached) return cached;
@@ -46,7 +93,7 @@ async function request(params: string, signal?: AbortSignal): Promise<ApiCard[]>
   }
 
   const json = (await res.json()) as ApiResponse;
-  const data = json.data ?? [];
+  const data = (json.data ?? []).map(arreglarCarta);
   cache.set(params, data);
   return data;
 }
@@ -90,13 +137,19 @@ export async function loadSpanishNames(): Promise<Map<number, string>> {
  * precios. Su número empieza en 2.000.000.000.
  */
 export const EXTRA_ID_MIN = 2_000_000_000;
+/**
+ * Fichas sacadas de la galería de fichas de Yugipedia (ver el script de precios):
+ * cada una es un arte concreto (la Kuriboh rosa de LC03…), así que no se les
+ * añaden las impresiones de otras fichas con su mismo nombre.
+ */
+export const FICHA_GALERIA_MIN = 2_500_000_000;
 let cartasExtra: Promise<ApiCard[]> | null = null;
 
 function cargarCartasExtra(): Promise<ApiCard[]> {
   if (!cartasExtra) {
     cartasExtra = fetch(`${import.meta.env.BASE_URL}precios/cartas-extra.json`, { cache: 'no-cache' })
       .then((r) => (r.ok ? (r.json() as Promise<{ v: number; cartas: ApiCard[] }>) : null))
-      .then((j) => (j?.v === 1 ? j.cartas : []))
+      .then((j) => (j?.v === 1 ? j.cartas.map(arreglarCarta) : []))
       .catch(() => []);
     // Si no se pudo (p. ej. en local), se reintenta la próxima vez.
     cartasExtra.then((lista) => {
@@ -124,8 +177,11 @@ export const getCardsByIds = (ids: number[], signal?: AbortSignal) => porIds(ids
 async function porIds(ids: number[], signal?: AbortSignal): Promise<ApiCard[]> {
   const normales = ids.filter((id) => id < EXTRA_ID_MIN);
   const extra = ids.filter((id) => id >= EXTRA_ID_MIN);
+  // En tandas de 100: con muchos números la dirección de una sola petición se hacía enorme.
+  const tandas: number[][] = [];
+  for (let i = 0; i < normales.length; i += 100) tandas.push(normales.slice(i, i + 100));
   const [deApi, deExtra] = await Promise.all([
-    normales.length ? request(`id=${normales.join(',')}&misc=yes`, signal) : Promise.resolve([] as ApiCard[]),
+    Promise.all(tandas.map((t) => request(`id=${t.join(',')}&misc=yes`, signal))).then((r) => r.flat()),
     extra.length ? cargarCartasExtra().then((l) => l.filter((c) => extra.includes(c.id))) : Promise.resolve([] as ApiCard[]),
   ]);
   return [...deApi, ...deExtra];
@@ -157,8 +213,8 @@ async function buscarEnEspanol(tokens: string[], signal?: AbortSignal): Promise<
   return cartas.map((c) => ({ ...c, name_es: nombre.get(c.id) })).sort((a, b) => orden.get(a.id)! - orden.get(b.id)!);
 }
 
-/** Cuántas cartas se piden como mucho por nombre en español (una sola petición a la API). */
-const MAX_RESULTADOS_ES = 40;
+/** Cuántas cartas se piden como mucho por nombre en español (antes 40: las búsquedas generales se quedaban cortas). */
+const MAX_RESULTADOS_ES = 600;
 
 /**
  * Busca por nombre, en inglés o en español, o por el número de la carta.
@@ -167,11 +223,44 @@ const MAX_RESULTADOS_ES = 40;
  * más larga (la que más descarta) y se afina aquí exigiendo que el nombre
  * contenga todas las demás. En español: en la lista de nombres de Yugipedia.
  */
+/** Código de impresión: "LC03-EN006", "TKN4-EN016", "SDK-001"… (también el español, "LC03-SP006"). */
+const CODIGO = /^[A-Z0-9]{2,5}-[A-Z]{0,2}\d{2,3}[A-Z]?$/i;
+
+/** Cartas con esa impresión: de YGOPRODeck y de la lista extra (fichas de la galería…). */
+async function buscarPorCodigo(codigo: string, signal?: AbortSignal): Promise<ApiCard[]> {
+  const c = codigo.toUpperCase();
+  // La española lleva el mismo número que la inglesa, que es la que tienen las fuentes.
+  const codigos = [...new Set([c, c.replace(/-SP(\d)/, '-EN$1')])];
+  const [ids, deExtra] = await Promise.all([
+    Promise.all(
+      codigos.map(async (k) => {
+        try {
+          const res = await fetch(`https://db.ygoprodeck.com/api/v7/cardsetsinfo.php?setcode=${encodeURIComponent(k)}`, { signal });
+          const json = res.ok ? ((await res.json()) as { id?: unknown }) : null;
+          return typeof json?.id === 'number' ? json.id : null;
+        } catch (e) {
+          if (e instanceof DOMException && e.name === 'AbortError') throw e;
+          return null;
+        }
+      }),
+    ),
+    cargarCartasExtra().then((l) => l.filter((x) => x.card_sets?.some((s) => codigos.includes(s.set_code.toUpperCase())))),
+  ]);
+  const deApi = ids.filter((id): id is number => id != null);
+  return [...(deApi.length ? await porIds([...new Set(deApi)], signal) : []), ...deExtra];
+}
+
 export const searchCards = async (query: string, signal?: AbortSignal): Promise<ApiCard[]> => {
   // El número de la carta (passcode, abajo a la izquierda) es igual en todos los idiomas.
   const passcode = query.replace(/\s/g, '');
   if (/^\d{5,9}$/.test(passcode)) {
     return request(`id=${Number(passcode)}&misc=yes`, signal);
+  }
+
+  // Por código de impresión: así se encuentran las fichas que solo dicen "Ficha".
+  if (CODIGO.test(query.trim())) {
+    const porCodigo = await buscarPorCodigo(query.trim(), signal);
+    if (porCodigo.length > 0) return porCodigo;
   }
 
   const tokens = normalizeStr(query)
@@ -237,7 +326,7 @@ function impresionesDeTexto(texto: string): Printing[] {
       for (const rarity of rarezas.split(',').map((r) => r.trim()).filter(Boolean)) impresiones.push({ code, set, rarity });
     }
   }
-  return impresiones;
+  return arreglarImpresiones(impresiones, (x) => x, (x, rarity) => ({ ...x, rarity }));
 }
 
 /** Impresiones en inglés de una carta según Yugipedia (vacío si no se pudo consultar). */

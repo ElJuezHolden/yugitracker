@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useStore } from '../../context/StoreContext';
 import type { ApiCard, Card, CardSet, CardCondition } from '../../types';
 import { formatMoney, normalizeStr, generateId, getCardMarketLink, getCardMarketProductLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
-import { getCardDetails, getYugipediaPrintings } from '../../services/cardService';
+import { FICHA_GALERIA_MIN, getCardDetails, getYugipediaPrintings } from '../../services/cardService';
 import { CardMarketValue } from '../CardMarketValue';
 import { IDIOMAS, LanguageFlag } from '../LanguageFlag';
 import { NAME_COLORS } from '../nameColors';
@@ -379,7 +379,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   
   // Versiones que le faltan a YGOPRODeck (p. ej. TN23 de Number 39): se piden a Yugipedia.
   useEffect(() => {
-    if (!apiData?.name) return;
+    // Las fichas de la galería son un arte concreto: las impresiones de su nombre son de otros artes.
+    if (!apiData?.name || apiData.id >= FICHA_GALERIA_MIN) return;
     let vivo = true;
     getYugipediaPrintings(apiData.name).then(lista => {
       if (!vivo || lista.length === 0) return;

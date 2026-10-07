@@ -6,6 +6,9 @@ import { analyzeCardType, getRarityWeight, CARD_BACK_IMG } from '../../utils';
 import { Search, Loader2, X, Filter } from 'lucide-react';
 import { CardFilter } from '../CardFilter';
 
+/** Resultados que se enseñan al principio; el resto, con "Ver todos". */
+const MOSTRAR_PRIMERO = 50;
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -25,6 +28,9 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /** "Ver todos" de una búsqueda concreta: con otra búsqueda vuelve a mostrar las primeras. */
+  const [verTodosDe, setVerTodosDe] = useState<ApiCard[] | null>(null);
+  const verTodos = verTodosDe === results;
   // Cambiar este número obliga a repetir la búsqueda con el mismo texto.
   const [retryToken, setRetryToken] = useState(0);
   
@@ -261,7 +267,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
                 </div>
             ) : (
                 <div className="flex flex-col gap-2">
-                    {filteredResults.slice(0, 50).map(card => (
+                    {(verTodos ? filteredResults : filteredResults.slice(0, MOSTRAR_PRIMERO)).map(card => (
                         <div 
                             key={card.id}
                             onClick={() => onSelect(card)}
@@ -270,6 +276,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
                             {/* SAFE IMAGE ACCESS */}
                             <img 
                                 src={card.card_images?.[0]?.image_url_small || CARD_BACK_IMG} 
+                                loading="lazy"
                                 className="w-10 h-14 object-cover rounded shadow-sm bg-black/20" 
                                 alt="" 
                             />
@@ -278,7 +285,11 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
                                 {card.name_es && card.name_es !== card.name && (
                                     <div className="text-xs text-muted truncate">{card.name}</div>
                                 )}
-                                <div className="text-xs text-primary truncate opacity-80">{card.type}</div>
+                                <div className="text-xs text-primary truncate opacity-80">
+                                    {card.type}
+                                    {/* Con una sola impresión (las fichas sin nombre propio), cuál es: si no, todas se verían iguales. */}
+                                    {card.card_sets?.length === 1 && <span className="text-muted"> · {card.card_sets[0]!.set_code} · {card.card_sets[0]!.set_name}</span>}
+                                </div>
                             </div>
                             {card.card_sets && (
                                 <div className="text-[10px] text-muted font-mono hidden sm:block text-right">
@@ -287,10 +298,15 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
                             )}
                         </div>
                     ))}
-                    {filteredResults.length > 50 && (
-                        <div className="text-center text-xs text-muted py-2 italic">
-                            Mostrando 50 de {filteredResults.length} resultados...
-                        </div>
+                    {!verTodos && filteredResults.length > MOSTRAR_PRIMERO && (
+                        <button
+                            type="button"
+                            onClick={() => setVerTodosDe(results)}
+                            className="mx-auto my-2 px-4 py-2 rounded-xl bg-main/5 hover:bg-main/10 text-sm font-semibold text-main transition-colors"
+                        >
+                            Ver los {filteredResults.length} resultados
+                            <span className="block text-[11px] font-normal text-muted">Se ven {MOSTRAR_PRIMERO}; afina la búsqueda o usa los filtros para ir más rápido</span>
+                        </button>
                     )}
                 </div>
             )}

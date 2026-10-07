@@ -81,12 +81,17 @@ const RAREZAS_CORTAS: Record<string, string> = {
   'ultra rare (extended art)': 'Ultra Rare Ext. Art',
   "ultra rare (pharaoh's rare)": "Pharaoh's Rare",
 };
+/** Reedición del 25 aniversario: se abrevia su rareza y se le añade "25th". */
+const REEDICION_25 = / \(25th Anniversary Edition\)$/i;
+
 function rarezaMedia(rareza: string): string {
+  if (REEDICION_25.test(rareza)) return `${rarezaMedia(rareza.replace(REEDICION_25, ''))} 25th`;
   const r = (rareza || 'Common').trim();
   return RAREZAS_CORTAS[r.toLowerCase()] ?? r.replace(/^Duel Terminal /i, 'DT ');
 }
 
 function abreviarRareza(rareza: string, codigo?: string): string {
+  if (REEDICION_25.test(rareza)) return `${abreviarRareza(rareza.replace(REEDICION_25, ''), codigo)}·25`;
   const r = (rareza || 'Common').toLowerCase().trim();
   if (ABREVIATURAS[r]) return ABREVIATURAS[r];
   const deCodigo = codigo?.replace(/[()]/g, '').trim();

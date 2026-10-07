@@ -133,7 +133,8 @@ export const getLangFlag = (langCode: string): string => {
 export const getRarityColor = (rarityString: string): string => {
   const r = (rarityString || '').toLowerCase();
   if (r.includes('10000')) return '#ef4444'; 
-  if (r.includes('quarter') || r.includes('25th')) return '#ef4444'; // Red/Gold hybrid usually, red for distinction
+  // El "25th" de la Quarter Century; no el de las reediciones "(25th Anniversary Edition)", que son otra rareza.
+  if (r.includes('quarter') || /25th(?! anniversary edition)/.test(r)) return '#ef4444'; // Red/Gold hybrid usually, red for distinction
   if (r.includes('prismatic') || r.includes('starlight') || r.includes('pharaoh') || r.includes('millennium')) return '#22d3ee'; // Cyan
   if (r.includes('platinum')) return '#60a5fa'; // Blue-ish Silver
   if (r.includes('collector')) return '#c084fc'; // Violet
@@ -168,7 +169,7 @@ export const getRarityWeight = (r: string): number => {
   if (rarity.includes('10000')) return 17;
 
   // 16. Quarter Century Secret Rare (QCR)
-  if (rarity.includes('quarter') || rarity.includes('25th')) return 16;
+  if (rarity.includes('quarter') || /25th(?! anniversary edition)/.test(rarity)) return 16;
 
   // 15. Pharaoh's Rare
   if (rarity.includes('pharaoh')) return 15;

@@ -70,7 +70,8 @@ export function resolvePrintingKey(claves: Iterable<string>, code: string, rarit
   const exacta = printingKey(code, rarity);
   const delCodigo: string[] = [];
   const codigo = `${code}|`.toLowerCase();
-  for (const k of claves) {
+  const todas = [...claves];
+  for (const k of todas) {
     if (k === exacta) return k;
     if (k.toLowerCase().startsWith(codigo)) delCodigo.push(k);
   }
@@ -82,6 +83,18 @@ export function resolvePrintingKey(claves: Iterable<string>, code: string, rarit
   } else {
     const falsas = delCodigo.filter((k) => isPlaceholderRarity(rarezaDe(k)));
     if (falsas.length === 1) return falsas[0]!;
+  }
+  /*
+   * Las EN de los primeros sets (LOB-EN041) son en Cardmarket el mismo producto
+   * que su código americano de siempre (LOB-041, mismo número; el europeo,
+   * LOB-E0xx, va numerado distinto). Cuando YGOPRODeck solo tenía la EN como
+   * reedición del 25 aniversario, la original se quedaba sin clave propia.
+   */
+  const conEn = /^([A-Z0-9]+)-EN(\d{3})$/i.exec(code);
+  if (conEn && !/\(25th Anniversary Edition\)$/i.test(rarity)) {
+    const antigua = `${conEn[1]}-${conEn[2]}|`.toLowerCase();
+    const igualAntigua = todas.find((k) => k.toLowerCase().startsWith(antigua) && sameRarity(k.slice(antigua.length), rarity));
+    if (igualAntigua) return igualAntigua;
   }
   return exacta;
 }
