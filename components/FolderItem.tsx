@@ -234,10 +234,11 @@ export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMod
                  </div>
              </div>
              
-             <div className="mt-auto pt-2 flex justify-between items-end border-t border-border-base">
-                <span className="text-xs text-muted font-medium">Valor</span>
+             {/* En fichas estrechas el importe no se parte: se oculta la etiqueta y se achica un poco. */}
+             <div className="mt-auto pt-2 flex justify-between items-end gap-2 border-t border-border-base">
+                <span className="text-xs text-muted font-medium @max-[190px]:hidden">Valor</span>
                 {/* VALUE: text-primary */}
-                <span className="text-primary font-bold text-sm" title={ayudaValor}>{textoValor}</span>
+                <span className="text-primary font-bold text-sm whitespace-nowrap ml-auto @max-[150px]:text-xs" title={ayudaValor}>{textoValor}</span>
              </div>
         </div>
 
