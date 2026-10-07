@@ -715,6 +715,35 @@ for (let i = 0; i < TROZOS; i++) {
 }
 
 if (process.env.INFORME) await writeFile(process.env.INFORME, JSON.stringify(informe));
+
+/*
+ * Nombres en español también con los números de los artes alternativos.
+ * Yugipedia los da por el número impreso en la carta, pero YGOPRODeck a veces
+ * usa como principal el de otro arte (Barrel Dragon: 81480461 en vez de
+ * 81480460), y las copias guardadas con ese número salían en inglés. Va después
+ * de actualizar-nombres.mjs (ver el workflow).
+ */
+let nombresAlias = 0;
+try {
+  const archivo = join(CARPETA, 'nombres-es.json');
+  const datos = JSON.parse(await readFile(archivo, 'utf8'));
+  if (datos?.v === 1) {
+    const porId = new Map(datos.nombres);
+    for (const c of cartas) {
+      const ids = [c.id, ...(c.card_images ?? []).map((i) => i.id)];
+      const nombre = ids.map((i) => porId.get(i)).find(Boolean);
+      if (!nombre) continue;
+      for (const i of ids) {
+        if (porId.has(i)) continue;
+        porId.set(i, nombre);
+        nombresAlias++;
+      }
+    }
+    if (nombresAlias) await writeFile(archivo, JSON.stringify({ ...datos, nombres: [...porId] }));
+  }
+} catch {
+  // Sin archivo de nombres no hay nada que completar.
+}
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas (${conVariantes.length} cartas con más productos que rarezas).`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos.`,
 );

@@ -44,8 +44,8 @@ jobs:
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
           if git fetch -q --depth 1 origin datos-precios; then git checkout -q FETCH_HEAD -- .; else echo "Primera vez: historial vacío"; fi
           cd ..
-          node scripts/actualizar-precios.mjs datos-precios/precios
           node scripts/actualizar-nombres.mjs datos-precios/precios || echo "Nombres en español: no se pudieron actualizar, se quedan los anteriores"
+          node scripts/actualizar-precios.mjs datos-precios/precios
           cd datos-precios
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
