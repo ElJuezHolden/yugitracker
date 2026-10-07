@@ -96,3 +96,8 @@
     mask-image: linear-gradient(to right, black 85%, transparent 100%);
   }
 }
+
+/* Mientras se barajan (components/useShuffleAnimation.ts), las cartas de verdad no se ven: las mueve la animación. */
+main.barajando .card-container {
+  visibility: hidden;
+}

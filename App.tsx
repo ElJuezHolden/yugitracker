@@ -14,6 +14,8 @@ import { useBackup } from './context/BackupContext';
 import { FoilFilters } from './components/FoilFilters';
 import { CollectionValue } from './components/CollectionValue';
 import { useRarityCheck } from './components/useRarityCheck';
+import { useShuffleAnimation } from './components/useShuffleAnimation';
+import { DisplayTable } from './components/DisplayTable';
 import { usePrices } from './context/PricesContext';
 import { displayName, useNameMode, useSpanishNames } from './components/useCardName';
 import { CardFilter } from './components/CardFilter';
@@ -473,8 +475,7 @@ function App() {
       : (finalData as Card[]).length;
   
   const currentSelectedCount = isHome ? selectedFolderIds.size : selectedCardIds.size;
-
-  // GRID CALCULATION FOR DISPLAY MODE
+  // Vista mesa: disposición provisional hasta que DisplayTable mide el hueco de la ventana.
   const displayGridStyle = useMemo(() => {
       if (view !== 'display') return {};
       const count = finalData.length;
@@ -494,6 +495,10 @@ function App() {
           gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))`
       };
   }, [view, finalData.length]);
+
+  // Al cambiar el orden de la carpeta, las cartas se barajan.
+  useShuffleAnimation(`${sortCards}|${sortCardsDir}`, activeFolderId, !isHome && view !== 'list');
+
 
   return (
     <div className="min-h-screen pt-[80px] pb-24 transition-colors duration-500">
@@ -645,15 +650,8 @@ function App() {
                     )}
                 </motion.div>
             ) : view === 'display' ? (
-                 <motion.div
-                    key={`display-${activeFolderId ?? 'home'}`} 
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.15, ease: 'easeOut' }}
-                    className="grid gap-1 w-full h-[calc(100vh-100px)] p-4"
-                    style={displayGridStyle}
-                >
+                 // Vista mesa: todas las cartas enteras y lo más grandes posible en la ventana.
+                 <DisplayTable key={`display-${activeFolderId ?? 'home'}`} count={finalData.length} provisional={displayGridStyle}>
                     {isHome ? (
                         // Fallback to Grid for Folders in Display Mode (or could render cleaner folders)
                         (finalData as Folder[]).map((folder) => (
@@ -680,7 +678,7 @@ function App() {
                             />
                         ))
                     )}
-                </motion.div>
+                </DisplayTable>
             ) : (
                 <motion.div
                     key={`album-${activeFolderId ?? 'home'}`}
