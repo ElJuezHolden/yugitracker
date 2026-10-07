@@ -558,7 +558,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                           las cartas de la colección (sin levantarse: ver .vista-previa).
                         */}
                         <div className="vista-previa w-full max-w-[170px] mx-auto md:max-w-none">
-                            <div ref={vistaRef} className="card-container relative w-full aspect-[421/614] rounded-xl shadow-2xl bg-[#111]">
+                            <div ref={vistaRef} className="card-container relative w-full aspect-[421/614] shadow-2xl bg-[#111]">
                                 <div className="card-tilt">
                                     <img
                                         src={imagenVista}

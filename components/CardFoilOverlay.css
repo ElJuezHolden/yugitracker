@@ -956,3 +956,17 @@
 .holo-edicion--plata {
   --holo-metal: linear-gradient(135deg, #6b7380 0%, #d9dee6 35%, #ffffff 50%, #aab2bd 65%, #626a76 100%);
 }
+
+/*
+ * Vista previa de la ficha: siempre con las esquinas redondeadas de una carta
+ * real (las mismas que la carta levantada), no solo al pasar el ratón. Recorta
+ * también el brillo y el desgaste.
+ */
+.vista-previa .card-container,
+.vista-previa .card-tilt {
+  border-radius: 2.8% / 1.9%;
+}
+
+.vista-previa .card-tilt {
+  overflow: hidden;
+}
