@@ -875,8 +875,26 @@ try {
  * producto más que rarezas y la carta se quedaba sin precio (Griffoh: Ultra,
  * Starlight y esta). Se buscan en Yugipedia, de las cartas que siguen así, las
  * impresiones con el mismo prefijo y una colección que empiece por el nombre del
- * set; si con ellas cuadran rarezas y productos, se reparten por rareza.
+ * set, y con ellas cuadran rarezas y productos.
+ *
+ * Pero cuál es cuál NO se puede deducir: los archivos de Cardmarket no dicen la
+ * rareza de cada producto, la promo no sigue el orden de precios (la Ultra Rare
+ * ROTA-ENSP1 de Mimighoul Charm vale más que su Secret) ni el de fechas de alta
+ * (en ROTA la Secret se dio de alta antes que la promo; en CORI, después). Se
+ * probó a repartir por rareza y salieron cruzadas. Solo se ponen las de
+ * PRODUCTO_CONFIRMADO, comprobadas en Cardmarket (versión y cifras de cada una);
+ * las demás siguen sin precio, mejor que con el de otra versión.
  */
+const PRODUCTO_CONFIRMADO = new Map([
+  // Griffoh, Chaos Origins: V.1 Ultra (desde 6,98 €), V.2 Starlight (desde 35 €), V.3 la promo (desde 12 €).
+  ['CORI-EN004|Ultra Rare', 894691],
+  ['CORI-EN004|Starlight Rare', 894692],
+  ['CORI-ENSP1|Secret Rare', 894704],
+  // Mimighoul Charm, Rage of the Abyss: "V.2 - Ultra Rare" (número S01) es la promo.
+  ['ROTA-ENSP1|Ultra Rare', 791270],
+  ['ROTA-EN096|Quarter Century Secret Rare', 791268],
+  ['ROTA-EN096|Secret Rare', 790127],
+]);
 let promosAnadidas = 0;
 try {
   const pendientes = conVariantes.filter((v) => sinProducto.has(`${v.exp}|${v.n}`));
@@ -896,8 +914,21 @@ try {
       if (nuevas.length === 0) continue;
       const todas = [...v.impresiones, ...nuevas];
       if (new Set(todas.map((x) => x.rarity)).size !== v.productosCarta.length) continue;
+      const fijados = todas.map((x) => v.productosCarta.find((pr) => pr.idProduct === PRODUCTO_CONFIRMADO.get(`${x.code}|${x.rarity}`)));
+      if (fijados.some((pr) => !pr) || new Set(fijados.map((pr) => pr.idProduct)).size !== fijados.length) continue;
       sinProducto.delete(`${v.exp}|${v.n}`);
-      asignarEnOrden(todas, v.productosCarta, `${v.exp}|${v.n}`);
+      todas.forEach((imp, i) => {
+        const producto = fijados[i];
+        const clave = `${imp.code}|${imp.rarity}`;
+        conPrecio++;
+        asignados.add(producto.idProduct);
+        if (!deHoy.has(imp.id)) deHoy.set(imp.id, {});
+        deHoy.get(imp.id)[clave] = producto.precio.ref;
+        if (!cifrasDe.has(imp.id)) cifrasDe.set(imp.id, {});
+        cifrasDe.get(imp.id)[clave] = producto.precio.cifras;
+        if (!productoDe.has(imp.id)) productoDe.set(imp.id, {});
+        productoDe.get(imp.id)[clave] = producto.idProduct;
+      });
       promosAnadidas += nuevas.length;
     }
     await esperar(1000);
