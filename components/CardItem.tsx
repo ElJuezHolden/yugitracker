@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquareText, FolderOpen, CheckCircle2, Circle } from 'lucide-react';
 import CardFoilOverlay from './CardFoilOverlay';
 import CardWear from './CardWear';
+import EditionHologram from './EditionHologram';
 import { LanguageFlag, nombreIdioma } from './LanguageFlag';
 import { useCardName } from './useCardName';
 import { usePrices } from '../context/PricesContext';
@@ -48,22 +49,6 @@ const ABREVIATURAS: Record<string, string> = {
   'short print': 'SP',
   'super short print': 'SSP',
 };
-/**
- * El cuadrito holográfico de la esquina inferior derecha: dorado en 1.ª edición,
- * plateado en Unlimited y Limited. Solo sobre las imágenes de YGOPRODeck: los
- * escaneos de cartas reales (las sacadas de Yugipedia) ya traen el suyo.
- */
-function HologramaEdicion({ card }: { card: Card }) {
-  if (!/images\.ygoprodeck\.com/.test(card.img)) return null;
-  return (
-    <span
-      className={`holo-edicion ${card.is1st ? 'holo-edicion--oro' : 'holo-edicion--plata'}`}
-      title={card.is1st ? '1.ª edición' : card.isLimited ? 'Limited' : 'Unlimited'}
-      aria-hidden="true"
-    />
-  );
-}
-
 /** Cuánto se amplía una carta de la vista mesa al pasar el ratón. */
 const AMPLIACION_MESA = 1.75;
 
@@ -314,7 +299,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                    />
                    
                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
-                   {showFoils && !card.isWanted && <HologramaEdicion card={card} />}
+                   {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                    </div>
                    
@@ -360,7 +345,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     alt={nombre}
                 />
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
-                   {showFoils && !card.isWanted && <HologramaEdicion card={card} />}
+                   {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
 
                 {/*
@@ -447,7 +432,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         decoding="async"
                     />
                     {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
-                   {showFoils && !card.isWanted && <HologramaEdicion card={card} />}
+                   {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                     </div>
                     
@@ -583,7 +568,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 />
 
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
-                   {showFoils && !card.isWanted && <HologramaEdicion card={card} />}
+                   {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                 </div>
                 

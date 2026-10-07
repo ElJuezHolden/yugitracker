@@ -904,7 +904,9 @@
  * CardItem), así que no se le suma el levantamiento de la carta, que la hacía
  * sobresalir de su ficha y se cortaba por los bordes.
  */
-.mesa-carta .card-container:hover .card-tilt {
+.mesa-carta .card-container:hover .card-tilt,
+/* Y en la vista previa de la ficha, que se cortaría por los bordes de su columna. */
+.vista-previa .card-container:hover .card-tilt {
   scale: none;
 }
 

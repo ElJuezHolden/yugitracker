@@ -7,6 +7,10 @@ import { getCardDetails, getYugipediaPrintings } from '../../services/cardServic
 import { CardMarketValue } from '../CardMarketValue';
 import { IDIOMAS, LanguageFlag } from '../LanguageFlag';
 import { NAME_COLORS } from '../nameColors';
+import CardFoilOverlay from '../CardFoilOverlay';
+import CardWear from '../CardWear';
+import EditionHologram from '../EditionHologram';
+import { useCardPointer } from '../useCardPointer';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
 import { leftoverFor, resolvePrintingKey, versionPrice } from '../../services/prices';
@@ -101,6 +105,9 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   });
 
   const conditions = ['MT', 'NM', 'EX', 'GD', 'LP', 'PL', 'PO'];
+  // Vista previa de la carta: se inclina con el ratón como las de la colección.
+  const vistaRef = useCardPointer(true);
+  const imagenVista = customImg || selectedImg || CARD_BACK_IMG;
   const MAX_OBS = 140;
 
   // Load Data
@@ -543,11 +550,37 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
 
                     {/* Columna 1: la carta y sus artes (en el móvil, los artes van al final) */}
                     <div className="contents md:flex md:flex-col md:gap-4">
-                        <img 
-                            src={customImg || selectedImg || CARD_BACK_IMG} 
-                            className={`w-full max-w-[170px] mx-auto md:max-w-none rounded-xl shadow-2xl aspect-[421/614] object-cover ${formData.isWanted ? 'grayscale brightness-90' : ''}`}
-                            alt="Preview"
-                        />
+                        {/*
+                          Vista previa con lo que se va eligiendo: el brillo de la rareza (la
+                          oficial o la de "¿Otra rareza?") con el color del nombre, el holograma
+                          de la edición y el desgaste del estado. Se inclina con el ratón, como
+                          las cartas de la colección (sin levantarse: ver .vista-previa).
+                        */}
+                        <div className="vista-previa w-full max-w-[170px] mx-auto md:max-w-none">
+                            <div ref={vistaRef} className="card-container relative w-full aspect-[421/614] rounded-xl shadow-2xl bg-[#111]">
+                                <div className="card-tilt">
+                                    <img
+                                        src={imagenVista}
+                                        className={`absolute inset-0 w-full h-full object-cover ${formData.isWanted ? 'grayscale brightness-90' : ''}`}
+                                        alt="Vista previa"
+                                    />
+                                    {state.ui.showFoils && !formData.isWanted && selectedSet && (
+                                        <CardFoilOverlay
+                                            rarity={manualRarity || selectedSet.set_rarity}
+                                            img={imagenVista}
+                                            cardType={apiData?.type}
+                                            nameColor={formData.nameColor || undefined}
+                                        />
+                                    )}
+                                    {state.ui.showFoils && !formData.isWanted && (
+                                        <EditionHologram img={imagenVista} is1st={formData.is1st} isLimited={formData.isLimited} />
+                                    )}
+                                    {state.ui.showConditionFlags && !formData.isWanted && (
+                                        <CardWear condition={formData.condition} seed={existingCard?.uid ?? apiData?.id?.toString() ?? 'vista'} />
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                          {releaseDate && (
                             <div className="order-2 md:order-none flex items-center justify-center gap-1.5 text-xs text-muted bg-bg-panel p-2 rounded-lg border border-border-base">
                                 <Calendar size={12} /> Lanzamiento: <span className="text-main font-bold">{releaseDate}</span>
