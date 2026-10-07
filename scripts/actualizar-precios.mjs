@@ -998,12 +998,46 @@ if (process.env.INFORME) await writeFile(process.env.INFORME, JSON.stringify(inf
  */
 if (cartasExtra.length) await writeFile(join(CARPETA, 'cartas-extra.json'), JSON.stringify({ v: 1, actualizado: hoy, cartas: cartasExtra }));
 
+/*
+ * Nombres en español de las fichas (tokens). La lista de nombres sale de
+ * Yugipedia por el número de la carta, y las fichas no tienen número: "Ancient
+ * Gear Token" (SR03-ENTKN) no se encontraba buscando "Ficha Mecanismo Antiguo".
+ * Se piden aparte y se casan por el nombre en inglés.
+ */
+const fichasEs = new Map();
+try {
+  for (const tipo of ['Token', 'Monster Token']) {
+    for (let offset = 0; offset < 2000; offset += 500) {
+      const consulta = `[[Card type::${tipo}]][[Spanish name::+]]|?Spanish name|?English name|limit=500|offset=${offset}`;
+      const res = await fetch(`https://yugipedia.com/api.php?action=ask&format=json&query=${encodeURIComponent(consulta)}`, { headers: { 'User-Agent': AGENTE } });
+      if (!res.ok) break;
+      const json = await res.json();
+      for (const [titulo, { printouts }] of Object.entries(json.query?.results ?? {})) {
+        const es = printouts['Spanish name']?.[0];
+        const en = printouts['English name']?.[0] ?? titulo.replace(/ \(card\)$/, '');
+        if (typeof es === 'string' && es.trim() && typeof en === 'string') fichasEs.set(norm(en), es.trim());
+      }
+      await esperar(1000);
+      if (json['query-continue-offset'] == null) break;
+    }
+  }
+} catch {
+  // Sin Yugipedia: las fichas siguen buscándose solo en inglés.
+}
+
 let nombresAlias = 0;
 try {
   const archivo = join(CARPETA, 'nombres-es.json');
   const datos = JSON.parse(await readFile(archivo, 'utf8'));
   if (datos?.v === 1) {
     const porId = new Map(datos.nombres);
+    for (const c of cartas) {
+      const es = fichasEs.get(norm(c.name));
+      if (es && !porId.has(c.id)) {
+        porId.set(c.id, es);
+        nombresAlias++;
+      }
+    }
     // Las cartas que YGOPRODeck no tiene, también buscables en español.
     for (const c of cartasExtra) {
       if (c.name_es && !porId.has(c.id)) {
