@@ -16,6 +16,7 @@ import { FoilFilters } from './components/FoilFilters';
 import { CollectionValue } from './components/CollectionValue';
 import { useRarityCheck } from './components/useRarityCheck';
 import { useCardLevels } from './components/useCardLevels';
+import { useProvisionalIds } from './components/useProvisionalIds';
 import { useShuffleAnimation } from './components/useShuffleAnimation';
 import { DisplayTable } from './components/DisplayTable';
 import { usePrices } from './context/PricesContext';
@@ -43,6 +44,7 @@ function App() {
   useRarityCheck();
   // Completa el nivel de los monstruos guardados antes de que se apuntara.
   useCardLevels();
+  useProvisionalIds();
   const modoNombres = useNameMode();
   const { activeFolderId, view, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, wantedMode } = state.ui;
 

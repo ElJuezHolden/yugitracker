@@ -134,9 +134,9 @@ async function impresionesYugipedia(nombres) {
     const impresiones = [];
     for (const campo of texto.matchAll(/\|\s*(?:en|na|eu)_sets\s*=([\s\S]*?)(?=\n\s*\||\n\}\})/g)) {
       for (const linea of campo[1].split('\n')) {
-        const [code, , rarezas] = linea.split(';').map((x) => x.trim());
+        const [code, set, rarezas] = linea.split(';').map((x) => x.trim());
         if (!code || !rarezas) continue;
-        for (const rarity of rarezas.split(',').map((r) => r.trim()).filter(Boolean)) impresiones.push({ code, rarity });
+        for (const rarity of rarezas.split(',').map((r) => r.trim()).filter(Boolean)) impresiones.push({ code, set: set ?? '', rarity });
       }
     }
     resultado.set(origen.get(pg.title) ?? pg.title, impresiones);
@@ -869,6 +869,44 @@ try {
 }
 
 /*
+ * Promos del lanzamiento con el prefijo del set: CORI-ENSP1 de Griffoh es la
+ * Secret Rare del "Chaos Origins Premiere! promotional card". YGOPRODeck no la
+ * tiene y Cardmarket la vende dentro de la expansión del set, así que había un
+ * producto más que rarezas y la carta se quedaba sin precio (Griffoh: Ultra,
+ * Starlight y esta). Se buscan en Yugipedia, de las cartas que siguen así, las
+ * impresiones con el mismo prefijo y una colección que empiece por el nombre del
+ * set; si con ellas cuadran rarezas y productos, se reparten por rareza.
+ */
+let promosAnadidas = 0;
+try {
+  const pendientes = conVariantes.filter((v) => sinProducto.has(`${v.exp}|${v.n}`));
+  const nombreDe = new Map(cartas.map((c) => [norm(c.name), c.name]));
+  for (let i = 0; i < pendientes.length; i += 50) {
+    const lote = pendientes.slice(i, i + 50);
+    const porNombre = await impresionesYugipedia([...new Set(lote.map((v) => nombreDe.get(v.n)).filter(Boolean))]);
+    for (const v of lote) {
+      const prefijo = v.impresiones[0].code.split('-')[0];
+      const nuevas = [];
+      for (const x of porNombre.get(nombreDe.get(v.n)) ?? []) {
+        if (x.code.split('-')[0] !== prefijo || x.set === v.nombreSet || !x.set.startsWith(v.nombreSet)) continue;
+        const rarity = formaBuena.get(plana(x.rarity)) ?? x.rarity;
+        if ([...v.impresiones, ...nuevas].some((y) => y.code === x.code && y.rarity === rarity)) continue;
+        nuevas.push({ ...v.impresiones[0], code: x.code, rarity });
+      }
+      if (nuevas.length === 0) continue;
+      const todas = [...v.impresiones, ...nuevas];
+      if (new Set(todas.map((x) => x.rarity)).size !== v.productosCarta.length) continue;
+      sinProducto.delete(`${v.exp}|${v.n}`);
+      asignarEnOrden(todas, v.productosCarta, `${v.exp}|${v.n}`);
+      promosAnadidas += nuevas.length;
+    }
+    await esperar(1000);
+  }
+} catch (e) {
+  console.warn(`No se pudieron buscar en Yugipedia las promos de lanzamiento: ${e.message}`);
+}
+
+/*
  * Ultra Rare con letras plateadas. En Battles of Legend: Chapter 1 cada Ultra
  * Rare sale con el nombre en letras normales y en plateadas (cada sobre trae 1
  * normal y 2 plateadas), y Cardmarket las separa en "V.1" y "V.2 - Special".
@@ -1244,5 +1282,5 @@ try {
   // Sin archivo de nombres no hay nada que completar.
 }
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${otroNombre.size} nombres de Cardmarket casados con su carta.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas, ${promosAnadidas} promos de lanzamiento (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${otroNombre.size} nombres de Cardmarket casados con su carta.`,
 );
