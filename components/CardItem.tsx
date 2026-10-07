@@ -169,7 +169,9 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
   const valor = precioCopia?.eur ?? null;
   const fuenteValor = precioCopia?.fuente;
   const tituloValor = !precioCopia
-    ? 'Sin precio de mercado para esta versión'
+    ? card.personalizado ? 'Sin precio: ponlo en su ficha' : 'Sin precio de mercado para esta versión'
+    : fuenteValor === 'manual'
+    ? 'Precio puesto a mano (artículo personalizado)'
     : `Precio de ${fuenteValor === 'tcgplayer' ? 'TCGplayer (no está en Cardmarket)' : 'Cardmarket'} de esta versión (${card.setCode} · ${card.rarity})` +
       (precioCopia.factor < 1
         ? `: ${formatMoney(precioCopia.mercado)} en NM, al ${Math.round(precioCopia.factor * 100)} % por estar en ${card.condition} (estimación)`
@@ -320,7 +322,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                    {(!mesa || mesa.ancho >= ANCHO_SIN_EFECTOS || ampliada) && (
                      <>
                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
-                   {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
+                   {showFoils && !card.isWanted && !card.personalizado && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                      </>
                    )}
@@ -369,7 +371,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 />
                 {card.isWanted && <VeloWanted />}
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
-                   {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
+                   {showFoils && !card.isWanted && !card.personalizado && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
 
                 {/*
@@ -402,7 +404,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 <div className="absolute inset-0 flex items-end justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[45]" style={{ padding: '0 5% 5%' }}>
                      <div className="w-full bg-black/80 backdrop-blur-md p-[2cqw] text-center rounded-[3cqw] border border-white/10 shadow-lg">
                          <div className="text-white truncate px-1" style={{ fontSize: '9cqw', fontWeight: 700 }}>{nombre}</div>
-                         {!card.isWanted && <div className="text-primary font-mono" style={{ fontSize: '8cqw' }} title={tituloValor}>{valor != null ? `≈ ${formatMoney(valor)}` : '—'}</div>}
+                         {!card.isWanted && <div className="text-primary font-mono" style={{ fontSize: '8cqw' }} title={tituloValor}>{valor != null ? `${fuenteValor === 'manual' ? '✎ ' : '≈ '}${formatMoney(valor)}` : '—'}</div>}
                      </div>
                 </div>
             )}
@@ -457,7 +459,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     />
                 {card.isWanted && <VeloWanted />}
                     {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
-                   {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
+                   {showFoils && !card.isWanted && !card.personalizado && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                     </div>
                     
@@ -496,7 +498,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-sub mt-1">
                             <span style={{ color: rarityColor }} className="font-bold text-sm md:text-base drop-shadow-sm">{card.rarity}</span>
                             <span className="text-muted">•</span>
-                            <span className="font-mono text-main font-medium">{card.setCode}</span>
+                            <span className="font-mono text-main font-medium">{card.personalizado ? 'Personalizado' : card.setCode}</span>
                         </div>
                     )}
                 </div>
@@ -519,7 +521,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     {!card.isWanted && (
                         <div className="text-right" title={tituloValor}>
                             <div className="text-base md:text-xl font-black text-main tracking-tight whitespace-nowrap">
-                                {valor != null ? `≈ ${formatMoney(valor)}` : <span className="text-muted">—</span>}
+                                {valor != null ? `${fuenteValor === 'manual' ? '✎ ' : '≈ '}${formatMoney(valor)}` : <span className="text-muted">—</span>}
                             </div>
                         </div>
                     )}
@@ -594,7 +596,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 {card.isWanted && <VeloWanted />}
 
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
-                   {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
+                   {showFoils && !card.isWanted && !card.personalizado && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                 </div>
                 
@@ -662,7 +664,10 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                           El precio va siempre en su propia línea a la derecha en las pequeñas.
                         */}
                         <div className="flex items-center justify-between text-xs gap-2 @max-[210px]:gap-1">
-                            {card.setCode === '---' ? (
+                            {card.personalizado ? (
+                                // Artículo personalizado: su tipo en lugar de la rareza.
+                                <span className="font-bold truncate text-sky-300" title="Artículo personalizado">{card.type}</span>
+                            ) : card.setCode === '---' ? (
                                 <span className="text-muted italic truncate">Sin versión</span>
                             ) : (
                                 <>
@@ -680,7 +685,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                                 {!isSelectionMode && <EtiquetasCopia card={card} edicion={showEditionFlags} estado={showConditionFlags} />}
                             </span>
                             <span className="font-black text-main whitespace-nowrap @max-[210px]:self-end" title={tituloValor}>
-                                {valor != null ? `≈ ${formatMoney(valor)}` : <span className="text-muted font-bold">—</span>}
+                                {valor != null ? `${fuenteValor === 'manual' ? '✎ ' : '≈ '}${formatMoney(valor)}` : <span className="text-muted font-bold">—</span>}
                             </span>
                         </div>
                     </div>

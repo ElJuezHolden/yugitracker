@@ -13,6 +13,8 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (card: ApiCard) => void;
+  /** Añadir algo que no está en la base de datos de cartas (Field Center Cards…). */
+  onPersonalizado?: () => void;
 }
 
 interface FilterState {
@@ -23,7 +25,7 @@ interface FilterState {
     rarities: string[];
 }
 
-export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
+export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect, onPersonalizado }) => {
   const [results, setResults] = useState<ApiCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -221,6 +223,16 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect }) => {
                     )}
                 </button>
             </div>
+
+            {onPersonalizado && (
+                <button
+                    type="button"
+                    onClick={onPersonalizado}
+                    className="text-xs text-muted hover:text-primary transition-colors pt-1"
+                >
+                    ¿No es una carta? <span className="font-semibold underline underline-offset-2">Añade un artículo personalizado</span> (Field Center, tapete…)
+                </button>
+            )}
 
             <CardFilter 
                 filters={filters}

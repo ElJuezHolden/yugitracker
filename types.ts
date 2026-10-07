@@ -53,6 +53,12 @@ export interface Card {
   nameColor?: string;
   /** Monstruos: nivel, rango (Xyz) o número de enlace (Link). Para ordenar por tipo y nivel. */
   level?: number;
+  /**
+   * Artículo personalizado (Field Center Card, tapete, promocional…): no está en
+   * ninguna base de datos de cartas. Su tipo va en `type` y en `rarity`; el precio
+   * lo pone quien lo añade.
+   */
+  personalizado?: { precio?: number; enlace?: string };
   
   // New Filter Fields
   cardType?: MainCardType;

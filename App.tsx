@@ -7,6 +7,7 @@ import { AlbumView } from './components/AlbumView'; // Import AlbumView
 import { FolderModal } from './components/Modals/FolderModal';
 import { SearchModal } from './components/Modals/SearchModal';
 import { CardModal } from './components/Modals/CardModal';
+import { PersonalizadoModal } from './components/Modals/PersonalizadoModal';
 import { ThemeModal } from './components/Modals/ThemeModal';
 import { BackupModal } from './components/Modals/BackupModal';
 import { PriceMovesModal } from './components/Modals/PriceMovesModal';
@@ -50,6 +51,8 @@ function App() {
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
+  /** Artículo personalizado abierto: `null` para uno nuevo, `undefined` cerrado. */
+  const [personalizado, setPersonalizado] = useState<Card | null | undefined>(undefined);
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isPriceMovesOpen, setIsPriceMovesOpen] = useState(false);
@@ -114,6 +117,11 @@ function App() {
 
   const handleCardPress = useCallback((card: Card) => {
       // Logic moved to CardItem: if selection mode is on, it calls onToggleSelect instead
+      // Los artículos personalizados no tienen ficha de carta: su propio formulario.
+      if (card.personalizado) {
+          setPersonalizado(card);
+          return;
+      }
       setSelectedApiCard(null);
       setEditingCard(card);
       setIsCardModalOpen(true);
@@ -732,7 +740,7 @@ function App() {
                             portada={carpetaActiva?.img}
                             estilo={carpetaActiva?.album}
                             onEstilo={carpetaActiva ? (album) => dispatch({ type: 'SET_FOLDER_ALBUM', payload: { id: carpetaActiva.id, album } }) : undefined}
-                            teclado={!isCardModalOpen && !isSearchModalOpen && !isFolderModalOpen && !isThemeModalOpen && !isBackupModalOpen && !isPriceMovesOpen}
+                            teclado={personalizado === undefined && !isCardModalOpen && !isSearchModalOpen && !isFolderModalOpen && !isThemeModalOpen && !isBackupModalOpen && !isPriceMovesOpen}
                         />
                     )}
                 </motion.div>
@@ -839,7 +847,14 @@ function App() {
                 isOpen={isSearchModalOpen}
                 onClose={() => setIsSearchModalOpen(false)}
                 onSelect={handleSelectApiCard}
+                onPersonalizado={() => {
+                    setIsSearchModalOpen(false);
+                    setPersonalizado(null);
+                }}
             />
+        )}
+        {personalizado !== undefined && (
+            <PersonalizadoModal existente={personalizado} onClose={() => setPersonalizado(undefined)} />
         )}
         {isCardModalOpen && (
             <CardModal 

@@ -30,8 +30,8 @@ export interface CopyPrice {
   mercado: number;
   /** Factor aplicado por el estado (1 en MT y NM). */
   factor: number;
-  /** Cardmarket casi siempre; TCGplayer si la versión no está en Cardmarket. */
-  fuente: 'cardmarket' | 'tcgplayer';
+  /** Cardmarket casi siempre; TCGplayer si la versión no está en Cardmarket; manual en los artículos personalizados. */
+  fuente: 'cardmarket' | 'tcgplayer' | 'manual';
 }
 
 /** Resumen de valor de un grupo de cartas (una carpeta, la colección…). */
@@ -177,6 +177,11 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const priceOf = useCallback(
     (card: Card): CopyPrice | null => {
+      // Artículos personalizados: el precio que puso quien lo añadió, tal cual (ya es el de su copia).
+      if (card.personalizado) {
+        const p = card.personalizado.precio;
+        return p != null && p >= 0 ? { eur: p, mercado: p, factor: 1, fuente: 'manual' } : null;
+      }
       if (!card.setCode || card.setCode === '---') return null;
       const info = prices.get(card.apiId);
       const impresion = info ? findPrinting(info.printings, card.setCode, card.rarity, card.rarityCode) : null;
