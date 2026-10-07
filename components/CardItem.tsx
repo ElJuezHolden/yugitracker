@@ -48,6 +48,22 @@ const ABREVIATURAS: Record<string, string> = {
   'short print': 'SP',
   'super short print': 'SSP',
 };
+/**
+ * El cuadrito holográfico de la esquina inferior derecha: dorado en 1.ª edición,
+ * plateado en Unlimited y Limited. Solo sobre las imágenes de YGOPRODeck: los
+ * escaneos de cartas reales (las sacadas de Yugipedia) ya traen el suyo.
+ */
+function HologramaEdicion({ card }: { card: Card }) {
+  if (!/images\.ygoprodeck\.com/.test(card.img)) return null;
+  return (
+    <span
+      className={`holo-edicion ${card.is1st ? 'holo-edicion--oro' : 'holo-edicion--plata'}`}
+      title={card.is1st ? '1.ª edición' : card.isLimited ? 'Limited' : 'Unlimited'}
+      aria-hidden="true"
+    />
+  );
+}
+
 /** Cuánto se amplía una carta de la vista mesa al pasar el ratón. */
 const AMPLIACION_MESA = 1.75;
 
@@ -63,6 +79,24 @@ function crecerHaciaDentro(e: React.MouseEvent<HTMLElement>) {
   const x = r.left - sobraX < 8 ? '0%' : r.right + sobraX > window.innerWidth - 8 ? '100%' : '50%';
   const y = r.top - sobraY < cabecera ? '0%' : r.bottom + sobraY > window.innerHeight - 8 ? '100%' : '50%';
   e.currentTarget.style.transformOrigin = `${x} ${y}`;
+}
+
+/**
+ * Nombre de la rareza para las fichas pequeñas: el completo, salvo los muy
+ * largos, que se acortan sin perder lo que distingue ("Quarter Century",
+ * "Platinum Secret", "DT Super Parallel").
+ */
+const RAREZAS_CORTAS: Record<string, string> = {
+  'quarter century secret rare': 'Quarter Century',
+  'platinum secret rare': 'Platinum Secret',
+  'prismatic secret rare': 'Prismatic Secret',
+  'ultra rare (special)': 'Ultra Rare Special',
+  'ultra rare (extended art)': 'Ultra Rare Ext. Art',
+  "ultra rare (pharaoh's rare)": "Pharaoh's Rare",
+};
+function rarezaMedia(rareza: string): string {
+  const r = (rareza || 'Common').trim();
+  return RAREZAS_CORTAS[r.toLowerCase()] ?? r.replace(/^Duel Terminal /i, 'DT ');
 }
 
 function abreviarRareza(rareza: string, codigo?: string): string {
@@ -280,6 +314,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                    />
                    
                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
+                   {showFoils && !card.isWanted && <HologramaEdicion card={card} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                    </div>
                    
@@ -325,6 +360,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     alt={nombre}
                 />
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
+                   {showFoils && !card.isWanted && <HologramaEdicion card={card} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
 
                 {/*
@@ -411,6 +447,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         decoding="async"
                     />
                     {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
+                   {showFoils && !card.isWanted && <HologramaEdicion card={card} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                     </div>
                     
@@ -546,6 +583,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 />
 
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
+                   {showFoils && !card.isWanted && <HologramaEdicion card={card} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                 </div>
                 
@@ -618,7 +656,9 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                             ) : (
                                 <>
                                     <span style={{ color: rarityColor }} className="font-bold truncate flex-1 drop-shadow-sm @max-[210px]:hidden" title={card.rarity}>{card.rarity || 'Common'}</span>
-                                    <span style={{ color: rarityColor }} className="font-bold drop-shadow-sm hidden @max-[210px]:inline shrink-0" title={card.rarity}>{abreviarRareza(card.rarity, card.rarityCode)}</span>
+                                    {/* Pequeña: el nombre (acortado si es muy largo); diminuta: la abreviatura. */}
+                                    <span style={{ color: rarityColor }} className="font-bold drop-shadow-sm hidden @max-[210px]:inline @max-[130px]:hidden truncate min-w-0 flex-1 @max-[210px]:text-[11px]" title={card.rarity}>{rarezaMedia(card.rarity)}</span>
+                                    <span style={{ color: rarityColor }} className="font-bold drop-shadow-sm hidden @max-[130px]:inline shrink-0" title={card.rarity}>{abreviarRareza(card.rarity, card.rarityCode)}</span>
                                 </>
                             )}
                             <span className="text-muted whitespace-nowrap @max-[210px]:text-[10px] @max-[150px]:text-[9px]">{card.setCode !== '---' ? card.setCode : ''}</span>

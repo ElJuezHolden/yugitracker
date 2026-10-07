@@ -277,10 +277,14 @@
    ========================================================================= */
 
 /* Super y Ultra: holograma de puntos finos. */
+/*
+ * Super y Ultra: arco iris liso sobre la ilustración, como el holograma real. Antes
+ * llevaba una trama de puntos de 3 px que se veía como una rejilla; sin ella el
+ * brillo es más fuerte, así que va algo más suave.
+ */
 .foil-arte--holo {
   --franja: var(--franja-arcoiris);
-  --textura: var(--tex-puntos);
-  --textura-tam: 3px 3px;
+  --intensidad: 0.5;
 }
 
 /* Secret: diagonales finísimas, que al moverla cortan la luz como un cristal. */
@@ -902,4 +906,51 @@
  */
 .mesa-carta .card-container:hover .card-tilt {
   scale: none;
+}
+
+/* =========================================================================
+   HOLOGRAMA DE EDICIÓN (el "Ojo de Anubis")
+   El cuadrito de la esquina inferior derecha de las cartas reales: dorado en
+   1.ª edición y plateado en Unlimited y Limited. Las imágenes de YGOPRODeck no
+   lo traen; va a la derecha del copyright, debajo de la caja de texto, del alto
+   de esa franja. Su reflejo arco iris se mueve al inclinar la carta.
+   ========================================================================= */
+
+.holo-edicion {
+  position: absolute;
+  left: 91.7%;
+  top: 94.4%;
+  width: 3.6%;
+  aspect-ratio: 1;
+  border-radius: 0.6px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(115deg, transparent 38%, rgba(255, 140, 210, 0.32) 45%, rgba(140, 225, 255, 0.36) 50%, rgba(210, 255, 160, 0.3) 55%, transparent 62%),
+    var(--holo-metal);
+  background-size: 400% 400%, 100% 100%;
+  background-position:
+    calc(100% - var(--background-x, 40%)) calc(100% - var(--background-y, 40%)),
+    center;
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.45),
+    inset 0 0 1px rgba(255, 255, 255, 0.6);
+  transition: background-position 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* El ojo grabado, apenas marcado, como en el holograma real. */
+.holo-edicion::after {
+  content: '';
+  position: absolute;
+  inset: 12%;
+  opacity: 0.3;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M2 10 Q10 3 18 10 Q10 17 2 10 Z' fill='none' stroke='%23000' stroke-width='1.4'/%3E%3Ccircle cx='10' cy='10' r='2.6' fill='%23000'/%3E%3C/svg%3E") center / contain no-repeat;
+  mix-blend-mode: multiply;
+}
+
+.holo-edicion--oro {
+  --holo-metal: linear-gradient(135deg, #7a5a14 0%, #e9c766 35%, #fff3c2 50%, #c9962f 65%, #7a5a14 100%);
+}
+
+.holo-edicion--plata {
+  --holo-metal: linear-gradient(135deg, #6b7380 0%, #d9dee6 35%, #ffffff 50%, #aab2bd 65%, #626a76 100%);
 }
