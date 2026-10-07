@@ -811,6 +811,16 @@ for (const [nombreSet, cartasSet] of [...setsCartas].sort((a, b) => b[1].size - 
       const masCerca = Math.min(...productosCarta.map(lejania));
       const deEsaOleada = productosCarta.filter((x) => lejania(x) <= masCerca + 30 * DIA_REAL_MS);
       if (deEsaOleada.length >= numRarezas) productosCarta = deEsaOleada;
+    } else if (numRarezas > 1 && productosCarta.length > numRarezas) {
+      /*
+       * Sets antiguos: su oleada es la de la fecha de relleno (lo que Cardmarket
+       * tenía antes de 2015). Lo dado de alta después en la misma expansión son
+       * añadidos (Neo Galaxy-Eyes Photon Dragon en Galactic Overlord: las 3
+       * rarezas de 2007 y una cuarta de 2018), y con ellos sobraban productos y la
+       * carta se quedaba sin precio. Solo si los originales cuadran justos, y con varias rarezas (con una sola ya se elige uno y no se toca).
+       */
+      const originales = productosCarta.filter((x) => x.t <= FECHA_UTIL);
+      if (originales.length === numRarezas) productosCarta = originales;
     }
     const rarezas = asignarEnOrden(impresiones, productosCarta, `${exp}|${n}`);
     if (productosCarta.length && productosCarta.length < rarezas && rarezas > 1) dudosas.push({ exp, n, impresiones, productosCarta });
