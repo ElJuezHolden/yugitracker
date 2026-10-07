@@ -9,7 +9,7 @@ import CardFoilOverlay from './CardFoilOverlay';
 import CardWear from './CardWear';
 import EditionHologram from './EditionHologram';
 import VeloWanted from './VeloWanted';
-import { ANCHO_IMAGEN_PEQUENA, ANCHO_SIN_EFECTOS, CARTAS_SIN_LAYOUT, imagenPequena, useMesa } from './mesaContexto';
+import { ANCHO_IMAGEN_PEQUENA, ANCHO_SIN_EFECTOS, CARTAS_SIN_EFECTOS, CARTAS_SIN_LAYOUT, imagenPequena, useMesa } from './mesaContexto';
 import { LanguageFlag, nombreIdioma } from './LanguageFlag';
 import { useCardName } from './useCardName';
 import { usePrices } from '../context/PricesContext';
@@ -326,8 +326,8 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                    />
                 {card.isWanted && <VeloWanted />}
                    
-                   {/* Muy pequeñas, los brillos y el desgaste no se aprecian y pesan: solo en la carta ampliada. */}
-                   {(!mesa || mesa.ancho >= ANCHO_SIN_EFECTOS || ampliada) && (
+                   {/* Siempre, salvo en mesas enormes de cartas diminutas (la colección completa): ahí solo en la ampliada. */}
+                   {(!mesa || mesa.cantidad <= CARTAS_SIN_EFECTOS || mesa.ancho >= ANCHO_SIN_EFECTOS || ampliada) && (
                      <>
                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
                    {showFoils && !card.isWanted && !card.personalizado && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}

@@ -21,8 +21,10 @@ export const useMesa = () => useContext(MesaContexto);
  * 150 se ampliaban cartas de 130 px a 210 y se veían pixeladas hasta que bajaba la grande.
  */
 export const ANCHO_IMAGEN_PEQUENA = 100;
-/** Por debajo de este, brillos y desgaste solo en la carta ampliada (no se aprecian). */
-export const ANCHO_SIN_EFECTOS = 110;
+/** Por debajo de este ancho, brillos y desgaste solo en la carta ampliada (diminutas, no se aprecian y pesan)... */
+export const ANCHO_SIN_EFECTOS = 80;
+/** Y solo en mesas así de grandes (la colección completa): en una carpeta normal, los efectos siempre. */
+export const CARTAS_SIN_EFECTOS = 200;
 /** A partir de cuántas cartas se quita la animación de posición (mide todas en cada render). */
 export const CARTAS_SIN_LAYOUT = 150;
 
