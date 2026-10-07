@@ -578,8 +578,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     )}
                 </div>
 
-                {/* También en las buscadas: qué versión falta y cuánto cuesta. */}
-                {(
+                {!card.isWanted && (
                     <div className="space-y-1 @max-[210px]:space-y-0.5 mt-auto">
                         {/*
                           Con la carta pequeña (la ficha mide menos de ~210 px) la rareza pasa a
@@ -606,8 +605,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         <div className="flex items-center justify-between text-xs gap-2 @max-[210px]:flex-col @max-[210px]:items-stretch @max-[210px]:gap-0.5">
                             <span className="text-muted flex items-center gap-1 min-w-0">
                                 <span className="flex items-center" title={nombreIdioma(card.lang)}><LanguageFlag lang={card.lang} size={12} /></span>
-                                {!isSelectionMode && !card.isWanted && <EtiquetasCopia card={card} edicion={showEditionFlags} estado={showConditionFlags} />}
-                                {card.isWanted && <span className="text-[10px] font-bold text-red-400">WANTED</span>}
+                                {!isSelectionMode && <EtiquetasCopia card={card} edicion={showEditionFlags} estado={showConditionFlags} />}
                             </span>
                             <span className="font-black text-main whitespace-nowrap @max-[210px]:self-end" title={tituloValor}>
                                 {valor != null ? `≈ ${formatMoney(valor)}` : <span className="text-muted font-bold">—</span>}
