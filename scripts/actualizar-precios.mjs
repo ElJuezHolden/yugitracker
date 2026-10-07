@@ -988,6 +988,153 @@ for (let i = 0; i < TROZOS; i++) {
       : { v: VERSION_HISTORIAL, limpio: 1, actualizado: hoy, cartas: {}, productos: {} },
   );
 }
+/*
+ * Nombres en español de las fichas (tokens). La lista de nombres sale de
+ * Yugipedia por el número de la carta, y las fichas no tienen número: "Ancient
+ * Gear Token" (SR03-ENTKN) no se encontraba buscando "Ficha Mecanismo Antiguo".
+ * Se piden aparte y se casan por el nombre en inglés.
+ */
+const fichasEs = new Map();
+try {
+  for (const tipo of ['Token', 'Monster Token']) {
+    for (let offset = 0; offset < 2000; offset += 500) {
+      const consulta = `[[Card type::${tipo}]][[Spanish name::+]]|?Spanish name|?English name|limit=500|offset=${offset}`;
+      const res = await fetch(`https://yugipedia.com/api.php?action=ask&format=json&query=${encodeURIComponent(consulta)}`, { headers: { 'User-Agent': AGENTE } });
+      if (!res.ok) break;
+      const json = await res.json();
+      for (const [titulo, { printouts }] of Object.entries(json.query?.results ?? {})) {
+        const es = printouts['Spanish name']?.[0];
+        const en = printouts['English name']?.[0] ?? titulo.replace(/ \(card\)$/, '');
+        if (typeof es === 'string' && es.trim() && typeof en === 'string') fichasEs.set(norm(en), es.trim());
+      }
+      await esperar(1000);
+      if (json['query-continue-offset'] == null) break;
+    }
+  }
+} catch {
+  // Sin Yugipedia: las fichas siguen buscándose solo en inglés.
+}
+
+/*
+ * Fichas (tokens) de la galería común de Yugipedia ("Card Gallery:Token (card)").
+ * Muchas fichas no salen en ningún otro sitio:
+ *   - las que solo dicen "Token" (en español, "Ficha"), sin nombre propio: las de
+ *     eventos, campeonatos, Battle City… (TKN4, EV09…);
+ *   - las que tienen nombre pero un arte que YGOPRODeck no tiene: LC03-EN006 y
+ *     LC03-EN007, las fichas Kuriboh rosa y naranja de Legendary Collection 3
+ *     (YGOPRODeck solo trae la de AC19/OP30).
+ * Cada impresión en inglés que YGOPRODeck no tenga pasa a ser una carta extra con
+ * su propia imagen. Sin precio: en Cardmarket se llaman casi todas igual y no hay
+ * forma segura de saber qué producto es cuál.
+ */
+const ID_FICHA = ID_EXTRA + 500_000_000;
+/** Número estable a partir del código (el mismo cada día). */
+const numeroDe = (texto) => {
+  let h = 5381;
+  for (const ch of texto) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
+  return h % 400_000_000;
+};
+let fichasGaleria = 0;
+let fichasConPrecio = 0;
+/*
+ * Fichas que en Cardmarket se llaman igual dentro de su expansión: qué producto
+ * es cada una, comprobado en su página (el número que enseña Cardmarket) y con
+ * sus cifras. LC03: "Kuriboh Token (V.2)" es la 006, la rosa (259189); la V.1,
+ * la 007, la naranja (258848). Ojo: el orden de los códigos no sigue el de los
+ * productos, por eso no se deduce.
+ */
+const PRODUCTO_FICHA = new Map([
+  ['LC03-EN006', 259189],
+  ['LC03-EN007', 258848],
+]);
+try {
+  const url = new URL('https://yugipedia.com/api.php');
+  for (const [k, v] of Object.entries({ action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', titles: 'Card Gallery:Token (card)' }))
+    url.searchParams.set(k, v);
+  const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
+  if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
+  const texto = (await res.json()).query?.pages?.[0]?.revisions?.[0]?.content ?? '';
+  // Solo la sección en inglés: de su cabecera a la del siguiente idioma.
+  const desde = texto.indexOf('{{GalleryHeader|lang=en}}');
+  const hasta = texto.indexOf('{{GalleryHeader|', desde + 10);
+  const ingles = desde >= 0 ? texto.slice(desde, hasta > desde ? hasta : undefined) : '';
+  const ygoPorNombre = new Map(cartas.filter((c) => c.id < ID_EXTRA).map((c) => [norm(c.name), c]));
+  const lineas = [];
+  for (const linea of ingles.split('\n')) {
+    const [archivo, ...resto] = linea.split('|');
+    const enlaces = [...resto.join('|').matchAll(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g)].map((m) => m[1].trim());
+    const [code, abreviada] = enlaces;
+    const rarity = abreviada ? ABREVIADAS[plana(abreviada)] : undefined;
+    if (!code || !rarity || !/^[A-Z0-9]+-(EN)?\d+$/.test(code)) continue;
+    // Las "Official Proxy" son copias de sustitución, no cartas que se vendan.
+    if (enlaces.includes('Official Proxy')) continue;
+    // Tras código y rareza: la edición (si la pone), la colección y, si tiene nombre, la ficha.
+    const iSet = /Edition$/.test(enlaces[2] ?? '') ? 3 : 2;
+    const set = enlaces[iSet];
+    if (!set) continue;
+    const nombrada = enlaces.slice(iSet + 1).find((x) => / Token$/.test(x));
+    const base = nombrada ? ygoPorNombre.get(norm(nombrada)) : undefined;
+    if (base?.card_sets?.some((x) => String(x.set_code).toUpperCase() === code)) continue; // Esa ya la tiene YGOPRODeck.
+    lineas.push({ archivo: archivo.trim().replace(/^File:/, ''), code, rarity, set, nombre: nombrada ?? 'Token', base });
+  }
+  const imagenDe = new Map();
+  const archivos = [...new Set(lineas.map((l) => l.archivo))];
+  for (let i = 0; i < archivos.length; i += 50) {
+    const u = new URL('https://yugipedia.com/api.php');
+    for (const [k, v] of Object.entries({ action: 'query', prop: 'imageinfo', iiprop: 'url', format: 'json', formatversion: '2', titles: archivos.slice(i, i + 50).map((a) => `File:${a}`).join('|') }))
+      u.searchParams.set(k, v);
+    const r = await fetch(u, { headers: { 'User-Agent': AGENTE } });
+    if (!r.ok) break;
+    const { query } = await r.json();
+    const origen = new Map((query.normalized ?? []).map((x) => [x.to, x.from]));
+    for (const pg of query.pages ?? []) {
+      const img = pg.imageinfo?.[0]?.url;
+      if (img) imagenDe.set((origen.get(pg.title) ?? pg.title).replace(/^File:/, ''), img);
+    }
+    await esperar(1000);
+  }
+  for (const l of lineas) {
+    // Por código y arte: algún código está repetido con dos dibujos (TKN4-EN020).
+    const id = ID_FICHA + numeroDe(`${l.code}|${l.archivo}`);
+    if (cartasExtra.some((c) => c.id === id)) continue;
+    const imagen = imagenDe.get(l.archivo);
+    cartasExtra.push({
+      id,
+      name: l.nombre,
+      name_es: l.base ? fichasEs.get(norm(l.base.name)) : l.nombre === 'Token' ? 'Ficha' : fichasEs.get(norm(l.nombre)),
+      type: 'Token',
+      frameType: 'token',
+      desc: l.base?.desc ?? '',
+      race: l.base?.race ?? '',
+      card_sets: [{ set_name: l.set, set_code: l.code, set_rarity: l.rarity, set_rarity_code: '', set_price: '0' }],
+      card_images: imagen ? [{ id, image_url: imagen, image_url_small: imagen, image_url_cropped: imagen }] : [],
+    });
+    fichasGaleria++;
+    /*
+     * Precio: el producto de Cardmarket con su nombre en la expansión de su
+     * colección, solo si es el único (y la única impresión así en la galería).
+     * Si hay varios iguales (las dos Kuriboh de LC03 se llaman igual en los
+     * archivos de Cardmarket), solo los de PRODUCTO_FICHA, comprobados a mano.
+     */
+    const exp = emparejados.find(([nombre]) => nombre === l.set)?.[1];
+    const candidatos = exp != null ? (expansiones.get(exp)?.get(norm(l.nombre)) ?? []) : [];
+    const fijado = PRODUCTO_FICHA.get(l.code);
+    const iguales = lineas.filter((x) => x.set === l.set && x.nombre === l.nombre).length;
+    const producto = fijado != null ? candidatos.find((x) => x.idProduct === fijado) : candidatos.length === 1 && iguales === 1 ? candidatos[0] : undefined;
+    const precio = producto && precioProducto.get(producto.idProduct);
+    if (precio) {
+      const clave = `${l.code}|${l.rarity}`;
+      deHoy.set(id, { [clave]: precio.ref });
+      cifrasDe.set(id, { [clave]: precio.cifras });
+      productoDe.set(id, { [clave]: producto.idProduct });
+      fichasConPrecio++;
+    }
+  }
+} catch (e) {
+  console.warn(`No se pudo leer la galería de fichas de Yugipedia: ${e.message}`);
+}
+if (cartasExtra.length) await writeFile(join(CARPETA, 'cartas-extra.json'), JSON.stringify({ v: 1, actualizado: hoy, cartas: cartasExtra }));
+
 // El historial apuntado con una rareza falsa pasa a la buena (BLMM-EN038|New → |Ultra Rare).
 for (const [id, cambiosClave] of renombrar) {
   const porClave = historiales[id % TROZOS].cartas[id];
@@ -1060,121 +1207,6 @@ if (process.env.INFORME) await writeFile(process.env.INFORME, JSON.stringify(inf
  * de actualizar-nombres.mjs (ver el workflow).
  */
 
-/*
- * Nombres en español de las fichas (tokens). La lista de nombres sale de
- * Yugipedia por el número de la carta, y las fichas no tienen número: "Ancient
- * Gear Token" (SR03-ENTKN) no se encontraba buscando "Ficha Mecanismo Antiguo".
- * Se piden aparte y se casan por el nombre en inglés.
- */
-const fichasEs = new Map();
-try {
-  for (const tipo of ['Token', 'Monster Token']) {
-    for (let offset = 0; offset < 2000; offset += 500) {
-      const consulta = `[[Card type::${tipo}]][[Spanish name::+]]|?Spanish name|?English name|limit=500|offset=${offset}`;
-      const res = await fetch(`https://yugipedia.com/api.php?action=ask&format=json&query=${encodeURIComponent(consulta)}`, { headers: { 'User-Agent': AGENTE } });
-      if (!res.ok) break;
-      const json = await res.json();
-      for (const [titulo, { printouts }] of Object.entries(json.query?.results ?? {})) {
-        const es = printouts['Spanish name']?.[0];
-        const en = printouts['English name']?.[0] ?? titulo.replace(/ \(card\)$/, '');
-        if (typeof es === 'string' && es.trim() && typeof en === 'string') fichasEs.set(norm(en), es.trim());
-      }
-      await esperar(1000);
-      if (json['query-continue-offset'] == null) break;
-    }
-  }
-} catch {
-  // Sin Yugipedia: las fichas siguen buscándose solo en inglés.
-}
-
-/*
- * Fichas (tokens) de la galería común de Yugipedia ("Card Gallery:Token (card)").
- * Muchas fichas no salen en ningún otro sitio:
- *   - las que solo dicen "Token" (en español, "Ficha"), sin nombre propio: las de
- *     eventos, campeonatos, Battle City… (TKN4, EV09…);
- *   - las que tienen nombre pero un arte que YGOPRODeck no tiene: LC03-EN006 y
- *     LC03-EN007, las fichas Kuriboh rosa y naranja de Legendary Collection 3
- *     (YGOPRODeck solo trae la de AC19/OP30).
- * Cada impresión en inglés que YGOPRODeck no tenga pasa a ser una carta extra con
- * su propia imagen. Sin precio: en Cardmarket se llaman casi todas igual y no hay
- * forma segura de saber qué producto es cuál.
- */
-const ID_FICHA = ID_EXTRA + 500_000_000;
-/** Número estable a partir del código (el mismo cada día). */
-const numeroDe = (texto) => {
-  let h = 5381;
-  for (const ch of texto) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
-  return h % 400_000_000;
-};
-let fichasGaleria = 0;
-try {
-  const url = new URL('https://yugipedia.com/api.php');
-  for (const [k, v] of Object.entries({ action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', titles: 'Card Gallery:Token (card)' }))
-    url.searchParams.set(k, v);
-  const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
-  if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
-  const texto = (await res.json()).query?.pages?.[0]?.revisions?.[0]?.content ?? '';
-  // Solo la sección en inglés: de su cabecera a la del siguiente idioma.
-  const desde = texto.indexOf('{{GalleryHeader|lang=en}}');
-  const hasta = texto.indexOf('{{GalleryHeader|', desde + 10);
-  const ingles = desde >= 0 ? texto.slice(desde, hasta > desde ? hasta : undefined) : '';
-  const ygoPorNombre = new Map(cartas.filter((c) => c.id < ID_EXTRA).map((c) => [norm(c.name), c]));
-  const lineas = [];
-  for (const linea of ingles.split('\n')) {
-    const [archivo, ...resto] = linea.split('|');
-    const enlaces = [...resto.join('|').matchAll(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g)].map((m) => m[1].trim());
-    const [code, abreviada] = enlaces;
-    const rarity = abreviada ? ABREVIADAS[plana(abreviada)] : undefined;
-    if (!code || !rarity || !/^[A-Z0-9]+-(EN)?\d+$/.test(code)) continue;
-    // Las "Official Proxy" son copias de sustitución, no cartas que se vendan.
-    if (enlaces.includes('Official Proxy')) continue;
-    // Tras código y rareza: la edición (si la pone), la colección y, si tiene nombre, la ficha.
-    const iSet = /Edition$/.test(enlaces[2] ?? '') ? 3 : 2;
-    const set = enlaces[iSet];
-    if (!set) continue;
-    const nombrada = enlaces.slice(iSet + 1).find((x) => / Token$/.test(x));
-    const base = nombrada ? ygoPorNombre.get(norm(nombrada)) : undefined;
-    if (base?.card_sets?.some((x) => String(x.set_code).toUpperCase() === code)) continue; // Esa ya la tiene YGOPRODeck.
-    lineas.push({ archivo: archivo.trim().replace(/^File:/, ''), code, rarity, set, nombre: nombrada ?? 'Token', base });
-  }
-  const imagenDe = new Map();
-  const archivos = [...new Set(lineas.map((l) => l.archivo))];
-  for (let i = 0; i < archivos.length; i += 50) {
-    const u = new URL('https://yugipedia.com/api.php');
-    for (const [k, v] of Object.entries({ action: 'query', prop: 'imageinfo', iiprop: 'url', format: 'json', formatversion: '2', titles: archivos.slice(i, i + 50).map((a) => `File:${a}`).join('|') }))
-      u.searchParams.set(k, v);
-    const r = await fetch(u, { headers: { 'User-Agent': AGENTE } });
-    if (!r.ok) break;
-    const { query } = await r.json();
-    const origen = new Map((query.normalized ?? []).map((x) => [x.to, x.from]));
-    for (const pg of query.pages ?? []) {
-      const img = pg.imageinfo?.[0]?.url;
-      if (img) imagenDe.set((origen.get(pg.title) ?? pg.title).replace(/^File:/, ''), img);
-    }
-    await esperar(1000);
-  }
-  for (const l of lineas) {
-    // Por código y arte: algún código está repetido con dos dibujos (TKN4-EN020).
-    const id = ID_FICHA + numeroDe(`${l.code}|${l.archivo}`);
-    if (cartasExtra.some((c) => c.id === id)) continue;
-    const imagen = imagenDe.get(l.archivo);
-    cartasExtra.push({
-      id,
-      name: l.nombre,
-      name_es: l.base ? fichasEs.get(norm(l.base.name)) : l.nombre === 'Token' ? 'Ficha' : fichasEs.get(norm(l.nombre)),
-      type: 'Token',
-      frameType: 'token',
-      desc: l.base?.desc ?? '',
-      race: l.base?.race ?? '',
-      card_sets: [{ set_name: l.set, set_code: l.code, set_rarity: l.rarity, set_rarity_code: '', set_price: '0' }],
-      card_images: imagen ? [{ id, image_url: imagen, image_url_small: imagen, image_url_cropped: imagen }] : [],
-    });
-    fichasGaleria++;
-  }
-} catch (e) {
-  console.warn(`No se pudo leer la galería de fichas de Yugipedia: ${e.message}`);
-}
-if (cartasExtra.length) await writeFile(join(CARPETA, 'cartas-extra.json'), JSON.stringify({ v: 1, actualizado: hoy, cartas: cartasExtra }));
 
 let nombresAlias = 0;
 try {
@@ -1212,5 +1244,5 @@ try {
   // Sin archivo de nombres no hay nada que completar.
 }
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería); ${reediciones25} versiones de reediciones del 25 aniversario; ${otroNombre.size} nombres de Cardmarket casados con su carta.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${otroNombre.size} nombres de Cardmarket casados con su carta.`,
 );
