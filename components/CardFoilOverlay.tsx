@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import './CardFoilOverlay.css';
+import { esRenderYgoprodeck } from './nameColors';
 
 /*
  * Brillos de rareza.
@@ -346,7 +347,7 @@ export default function CardFoilOverlay({ rarity, img, cardType, nameColor }: Pr
           <div className="foil-oro__brillo" />
         </div>
       )}
-      {spec.name && img && (
+      {spec.name && esRenderYgoprodeck(img) && (
         <div className={`foil-letras foil-letras--tinta-${tinta}`}>
           <div className="foil-letras__mascara" />
           <div className={`foil-letras__metal foil-metal--${spec.name}`} />
