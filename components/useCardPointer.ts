@@ -1,9 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 
 /**
  * Hace que una carta reaccione al puntero como una carta física bajo la luz.
  *
- * Devuelve un `ref` que hay que poner en el contenedor de la carta. Mientras el
+ * Devuelve un `ref` (de función) que hay que poner en el contenedor de la carta;
+ * funciona aunque el contenedor aparezca después (la vista previa de la ficha
+ * no existe hasta que se cargan los datos de la carta). Mientras el
  * cursor está encima escribe estas variables CSS sobre ese elemento:
  *
  *   --pointer-x / --pointer-y      posición del cursor dentro de la carta (%)
@@ -25,10 +27,9 @@ import { useEffect, useRef } from 'react';
  * cientos de cartas en pantalla no hay cientos de escuchas activas.
  */
 export function useCardPointer(enabled = true) {
-  const ref = useRef<HTMLDivElement>(null);
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const el = ref.current;
     if (!el || !enabled) return;
 
     let frame = 0;
@@ -97,7 +98,7 @@ export function useCardPointer(enabled = true) {
       el.removeEventListener('pointermove', onMove);
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [enabled]);
+  }, [el, enabled]);
 
-  return ref;
+  return setEl;
 }
