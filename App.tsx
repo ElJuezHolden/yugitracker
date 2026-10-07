@@ -729,7 +729,8 @@ function App() {
                 initial={{ y: 100 }}
                 animate={{ y: 0 }}
                 exit={{ y: 100 }}
-                className="fixed bottom-6 left-0 right-0 flex justify-center z-50 pointer-events-none"
+                // Por encima de la carta levantada al pasar el ratón (z-80), que la tapaba.
+                className="fixed bottom-6 left-0 right-0 flex justify-center z-[95] pointer-events-none"
             >
                 <div className="bg-bg-panel border-none shadow-2xl rounded-2xl flex items-center gap-4 p-2 pointer-events-auto overflow-hidden ring-1 ring-white/5">
                     {showBulkDeleteConfirm ? (

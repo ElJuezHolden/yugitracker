@@ -21,6 +21,9 @@ interface Props {
   newFolderId?: string | null;
 }
 
+/** Variantes de Cardmarket ya creadas (ver variantesCardmarket): el mismo objeto en cada render. */
+const variantesGuardadas = new Map<string, CardSet>();
+
 // Expanded Manual Rarity Options for Global Override
 const MANUAL_RARITIES = [
     'Common',
@@ -388,10 +391,38 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
 
   // Todas las versiones: las de la API, las de Yugipedia y las añadidas a mano.
   // Las de rareza falsa de YGOPRODeck sobran si Yugipedia da la buena.
+  /*
+   * Variantes que solo separa Cardmarket (y el proceso diario, con la lista del
+   * set de Yugipedia): p. ej. "Ultra Rare (Extended Art)" de Magnificent
+   * Monsters. Salen de las claves de precio "código|Rareza (Variante)" cuya
+   * versión base sí está. Se guardan para no cambiar de objeto en cada render
+   * (la versión elegida se compara por identidad).
+   */
+  const variantesCardmarket = useMemo(() => {
+    const base = [...(apiData?.card_sets ?? []), ...versionesExtra];
+    const ya = new Set(base.map(v => claveVersion(v.set_code, v.set_rarity)));
+    const out: CardSet[] = [];
+    for (const k of Object.keys(preciosCardmarket.precios)) {
+      const [code = '', rarity = ''] = k.split('|');
+      const variante = /^(.+?)\s*\((.+)\)$/.exec(rarity);
+      if (!variante || ya.has(claveVersion(code, rarity))) continue;
+      const deBase = base.find(v => claveVersion(v.set_code, v.set_rarity) === claveVersion(code, variante[1]!));
+      if (!deBase) continue;
+      const clave = `${apiData?.id}|${k}`;
+      let v = variantesGuardadas.get(clave);
+      if (!v) {
+        v = { set_name: deBase.set_name, set_code: deBase.set_code, set_rarity: rarity, set_rarity_code: '', set_price: '0', origen: 'cardmarket' };
+        variantesGuardadas.set(clave, v);
+      }
+      out.push(v);
+    }
+    return out;
+  }, [apiData, versionesExtra, preciosCardmarket.precios]);
+
   const todasVersiones = useMemo(() => {
     const api = (apiData?.card_sets ?? []).filter(s => !sustituidas.has(claveVersion(s.set_code, s.set_rarity)));
-    return [...api, ...versionesExtra];
-  }, [apiData, versionesExtra, sustituidas]);
+    return [...api, ...versionesExtra, ...variantesCardmarket];
+  }, [apiData, versionesExtra, sustituidas, variantesCardmarket]);
 
   // Versiones que casan con el filtro (la elegida no se esconde nunca).
   const versionesVisibles = useMemo(() => {
@@ -647,7 +678,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                         // Reset manual rarity to ensure clean state on switch
                                                         setManualRarity('');
                                                     }}
-                                                    title={`${set.set_name}${set.origen === 'yugipedia' ? ' · no está en la base de datos; sacada de Yugipedia' : set.origen === 'mano' ? ' · añadida a mano' : ''}`}
+                                                    title={`${set.set_name}${set.origen === 'yugipedia' ? ' · no está en la base de datos; sacada de Yugipedia' : set.origen === 'cardmarket' ? ' · variante que Cardmarket vende aparte' : set.origen === 'mano' ? ' · añadida a mano' : ''}`}
                                                     className={`relative p-2 rounded cursor-pointer text-center border transition-all flex flex-col justify-center min-h-[50px] ${
                                                         selectedSet === set 
                                                             ? 'bg-primary/10 border-primary' 
@@ -656,7 +687,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                 >
                                                     {set.origen && (
                                                         <span className="absolute top-0.5 right-1 text-[8px] font-bold uppercase text-muted">
-                                                            {set.origen === 'yugipedia' ? 'wiki' : 'manual'}
+                                                            {set.origen === 'yugipedia' ? 'wiki' : set.origen === 'cardmarket' ? 'variante' : 'manual'}
                                                         </span>
                                                     )}
                                                     <div className="font-bold text-xs text-main">{set.set_code}</div>

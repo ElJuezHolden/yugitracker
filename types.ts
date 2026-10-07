@@ -51,8 +51,8 @@ export interface CardSet {
   set_rarity: string;
   set_rarity_code: string;
   set_price: string;
-  /** Si no viene de YGOPRODeck: añadida desde Yugipedia o a mano. */
-  origen?: 'yugipedia' | 'mano';
+  /** Si no viene de YGOPRODeck: de Yugipedia, una variante que separa Cardmarket (arte extendido…) o a mano. */
+  origen?: 'yugipedia' | 'cardmarket' | 'mano';
 }
 
 export interface CardImage {

@@ -28,6 +28,8 @@ const ABREVIATURAS: Record<string, string> = {
   'super rare': 'SR',
   'ultra rare': 'UR',
   'ultra rare (special)': 'URS',
+  'ultra rare (extended art)': 'URX',
+  'grand master rare': 'GMR',
   'secret rare': 'ScR',
   'ultimate rare': 'UtR',
   'ghost rare': 'GR',
