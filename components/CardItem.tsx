@@ -52,12 +52,13 @@ const ABREVIATURAS: Record<string, string> = {
   'super short print': 'SSP',
 };
 /**
- * Cuánto se amplía una carta de la vista mesa al pasar el ratón: hasta unos
- * 300 px de ancho. Antes era siempre 1,75 veces, y con pocas cartas (grandes) la
- * ampliada salía enorme y tapaba media mesa; con muchas (pequeñas), se quedaba corta.
+ * Cuánto se amplía una carta de la vista mesa al pasar el ratón: hacia unos 240
+ * px de ancho, pero siempre entre 1,2 y 1,6 veces. Con 1,75 fijo, las cartas
+ * grandes (pocas en la mesa) tapaban media mesa; llevándolas todas a 300 px, las
+ * pequeñas crecían más del doble. Este es el punto medio.
  */
-const ANCHO_AMPLIADA = 300;
-const ampliacionMesa = (ancho: number | undefined) => (ancho ? Math.min(3, Math.max(1.12, ANCHO_AMPLIADA / ancho)) : 1.5);
+const ANCHO_AMPLIADA = 240;
+const ampliacionMesa = (ancho: number | undefined) => (ancho ? Math.min(1.6, Math.max(1.2, ANCHO_AMPLIADA / ancho)) : 1.4);
 
 /**
  * En la vista mesa, la carta ampliada crece hacia dentro de la ventana: las de
