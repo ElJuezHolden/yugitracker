@@ -545,8 +545,8 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 {!isSelectionMode && !card.isWanted && <div className="absolute bottom-0 left-0 right-0 h-1 shadow-lg z-30" style={{ backgroundColor: rarityColor }} />}
             </div>
 
-            <div className="p-3 flex flex-col justify-between gap-2 bg-bg-surface relative z-30 flex-1 min-h-[80px]">
-                <div className="flex flex-col gap-1">
+            <div className="p-3 flex flex-col justify-between gap-2 @max-[210px]:p-2 @max-[210px]:gap-1.5 bg-bg-surface relative z-30 flex-1 min-h-[80px] @max-[210px]:min-h-0">
+                <div className="flex flex-col gap-1 @max-[210px]:gap-0.5">
                     <div className="flex justify-between items-start gap-1">
                         <div className={`font-bold text-sm leading-tight line-clamp-2 ${card.isWanted ? 'text-muted' : 'text-main'}`} title={otroNombre ? `${nombre} · ${otroNombre}` : nombre}>{nombre}</div>
                         {card.obs && !isSelectionMode && (
@@ -578,8 +578,9 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     )}
                 </div>
 
-                {!card.isWanted && (
-                    <div className="space-y-1 mt-auto">
+                {/* También en las buscadas: qué versión falta y cuánto cuesta. */}
+                {(
+                    <div className="space-y-1 @max-[210px]:space-y-0.5 mt-auto">
                         {/*
                           Con la carta pequeña (la ficha mide menos de ~210 px) la rareza pasa a
                           su abreviatura y las etiquetas bajan de línea en vez de cortarse.
@@ -588,19 +589,25 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                           Disposición FIJA según el ancho de la ficha (nada de "partir donde
                           quepa", que dejaba unas fichas en una línea y otras en dos):
                           - ancha: rareza completa y código en una línea;
-                          - menos de 210 px: rareza abreviada y código más pequeño, en una línea;
-                          - menos de 150 px: rareza en una línea y código en la siguiente.
+                          - menos de 210 px: rareza abreviada y código más pequeño, en una línea.
                           El precio va siempre en su propia línea a la derecha en las pequeñas.
                         */}
-                        <div className="flex items-center justify-between text-xs gap-2 @max-[150px]:flex-col @max-[150px]:items-start @max-[150px]:gap-0">
-                            <span style={{ color: rarityColor }} className="font-bold truncate flex-1 drop-shadow-sm @max-[210px]:hidden" title={card.rarity}>{card.rarity || 'Common'}</span>
-                            <span style={{ color: rarityColor }} className="font-bold drop-shadow-sm hidden @max-[210px]:inline shrink-0" title={card.rarity}>{abreviarRareza(card.rarity, card.rarityCode)}</span>
-                            <span className="text-muted whitespace-nowrap @max-[210px]:text-[10px]">{card.setCode}</span>
+                        <div className="flex items-center justify-between text-xs gap-2 @max-[210px]:gap-1">
+                            {card.setCode === '---' ? (
+                                <span className="text-muted italic truncate">Sin versión</span>
+                            ) : (
+                                <>
+                                    <span style={{ color: rarityColor }} className="font-bold truncate flex-1 drop-shadow-sm @max-[210px]:hidden" title={card.rarity}>{card.rarity || 'Common'}</span>
+                                    <span style={{ color: rarityColor }} className="font-bold drop-shadow-sm hidden @max-[210px]:inline shrink-0" title={card.rarity}>{abreviarRareza(card.rarity, card.rarityCode)}</span>
+                                </>
+                            )}
+                            <span className="text-muted whitespace-nowrap @max-[210px]:text-[10px] @max-[150px]:text-[9px]">{card.setCode !== '---' ? card.setCode : ''}</span>
                         </div>
-                        <div className="flex items-center justify-between text-xs gap-2 @max-[210px]:flex-col @max-[210px]:items-stretch @max-[210px]:gap-1">
+                        <div className="flex items-center justify-between text-xs gap-2 @max-[210px]:flex-col @max-[210px]:items-stretch @max-[210px]:gap-0.5">
                             <span className="text-muted flex items-center gap-1 min-w-0">
                                 <span className="flex items-center" title={nombreIdioma(card.lang)}><LanguageFlag lang={card.lang} size={12} /></span>
-                                {!isSelectionMode && <EtiquetasCopia card={card} edicion={showEditionFlags} estado={showConditionFlags} />}
+                                {!isSelectionMode && !card.isWanted && <EtiquetasCopia card={card} edicion={showEditionFlags} estado={showConditionFlags} />}
+                                {card.isWanted && <span className="text-[10px] font-bold text-red-400">WANTED</span>}
                             </span>
                             <span className="font-black text-main whitespace-nowrap @max-[210px]:self-end" title={tituloValor}>
                                 {valor != null ? `≈ ${formatMoney(valor)}` : <span className="text-muted font-bold">—</span>}

@@ -116,7 +116,9 @@ export type ViewMode = 'grid' | 'list' | 'album' | 'display';
 export type AlbumColumns = 2 | 3 | 4;
 
 export type FolderSort = 'manual' | 'name' | 'value';
-export type CardSort = 'manual' | 'type' | 'rarity' | 'name' | 'price';
+export type CardSort = 'manual' | 'type' | 'rarity' | 'name' | 'price' | 'set';
+/** Cartas buscadas (WANTED): verlas todas, ocultarlas o ver solo esas. */
+export type WantedMode = 'todas' | 'ocultar' | 'solo';
 export type SortDirection = 'asc' | 'desc';
 
 export interface ThemeConfig {

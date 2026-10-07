@@ -31,10 +31,13 @@ interface Props {
  * sin precio no cuentan como 0; se indican aparte.
  */
 export function CollectionValue({ cards, titulo }: Props) {
-  const { summarize, loading, error, rate, oldestFetch, marketDate, refresh, metric, setMetric } = usePrices();
+  const { summarize, summarizeWanted, loading, error, rate, oldestFetch, marketDate, refresh, metric, setMetric } = usePrices();
   const metrica = PRICE_METRICS.find((m) => m.id === metric)!;
   const r = summarize(cards);
-  if (r.priced === 0 && r.unpriced === 0) return null; // Nada que valorar (vacío o solo buscadas).
+  // Lo que falta: las buscadas (WANTED).
+  const faltan = summarizeWanted(cards);
+  const numFaltan = faltan.priced + faltan.unpriced;
+  if (r.priced === 0 && r.unpriced === 0 && numFaltan === 0) return null; // Nada que valorar.
 
   const ayuda =
     `Precios de Cardmarket de cada versión concreta, actualizados cada día, con la cifra «${metrica.etiqueta}»: ${metrica.ayuda}` +
@@ -50,6 +53,22 @@ export function CollectionValue({ cards, titulo }: Props) {
         <span className="text-sm text-muted">{titulo} vale</span>{' '}
         <span className="text-xl font-black text-main">{r.priced > 0 ? `≈ ${formatMoney(r.eur)}` : '—'}</span>
       </div>
+
+      {numFaltan > 0 && (
+        <div
+          className="cursor-help"
+          title={
+            'Lo que costaría conseguir las cartas marcadas como WANTED, a precio de mercado de la versión elegida' +
+            ' (sin descuento por estado). Las buscadas sin versión se valoran con su versión más barata.' +
+            (faltan.unpriced > 0 ? ` ${faltan.unpriced} sin precio: no se cuentan.` : '')
+          }
+        >
+          <span className="text-sm text-muted">
+            Te {numFaltan === 1 ? 'falta' : 'faltan'} {numFaltan}
+          </span>{' '}
+          <span className="text-lg font-black text-red-400">{faltan.priced > 0 ? `≈ ${formatMoney(faltan.eur)}` : '—'}</span>
+        </div>
+      )}
 
       <label className="flex items-center gap-2 text-sm text-muted" title={metrica.ayuda}>
         Valorar con

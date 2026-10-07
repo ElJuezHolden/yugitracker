@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useStore } from '../../context/StoreContext';
 import type { ApiCard, Card, CardSet, CardCondition } from '../../types';
 import { formatMoney, normalizeStr, generateId, getCardMarketLink, getCardMarketProductLink, getRarityColor, ID_ALL, getConditionMeta, analyzeCardType, CARD_BACK_IMG } from '../../utils';
@@ -298,9 +298,10 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         is1st: formData.isWanted ? false : formData.is1st,
         isLimited: formData.isWanted ? false : formData.isLimited,
         isWanted: formData.isWanted,
-        setCode: (formData.isWanted || !selectedSet) ? '---' : selectedSet.set_code,
-        rarity: (formData.isWanted || !selectedSet) ? 'Common' : finalRarity,
-        rarityCode: (formData.isWanted || !selectedSet) ? 'C' : selectedSet.set_rarity_code,
+        // Las buscadas guardan también su versión: así se sabe cuál falta y cuánto vale.
+        setCode: !selectedSet ? '---' : selectedSet.set_code,
+        rarity: !selectedSet ? 'Common' : finalRarity,
+        rarityCode: !selectedSet ? 'C' : selectedSet.set_rarity_code,
         cardType,
         monsterType,
         property
@@ -615,14 +616,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                             </button>
                         </div>
 
-                        <AnimatePresence>
-                            {!formData.isWanted && (
-                                <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: 'auto' }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    className="space-y-4 overflow-hidden"
-                                >
+                        {/* La versión y el idioma también en las buscadas: así se sabe cuál falta y lo que vale. */}
+                        <div className="space-y-4">
                                     {/* Tu versión: set y rareza, con su precio */}
                                     <div>
                                         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
@@ -796,7 +791,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                 })}
                                             </div>
                                         </div>
-                                        <div>
+                                        {!formData.isWanted && <div>
                                             <label className="text-xs font-medium text-muted block mb-1">Lo que pagaste (opcional)</label>
                                             <input 
                                                 type="number" 
@@ -808,9 +803,11 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                 placeholder="Sin apuntar"
                                                 title="Solo se usa en esta ficha, para compararlo con su valor actual"
                                             />
-                                        </div>
+                                        </div>}
                                     </div>
 
+                                    {/* Estado y edición: solo de las copias que tienes */}
+                                    {!formData.isWanted && <>
                                     {/* Condition Selector */}
                                     <div>
                                          <label className="text-xs font-medium text-muted block mb-2">Estado</label>
@@ -878,9 +875,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                             </button>
                                         </div>
                                     </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                                    </>}
+                        </div>
 
                         {/* Etiquetas y notas */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useReducer, useCallback, useRef } from 'react';
-import type { Database, Folder, Card, ViewMode, FolderSort, CardSort, ToastData, SortDirection, ThemeConfig, AlbumColumns } from '../types';
+import type { Database, Folder, Card, ViewMode, FolderSort, CardSort, ToastData, SortDirection, ThemeConfig, AlbumColumns, WantedMode } from '../types';
 import { generateId } from '../utils';
 import { createEmptyDatabase, normalizeDatabase } from '../services/database';
 
@@ -23,7 +23,8 @@ interface AppState {
     showFoils: boolean; 
     showConditionFlags: boolean;
     showEditionFlags: boolean;
-    showWantedCards: boolean; // New State for Wanted cards toggle
+    /** Cartas buscadas (WANTED): todas, ocultarlas o ver solo esas. */
+    wantedMode: WantedMode;
   };
 }
 
@@ -46,7 +47,8 @@ type Action =
   | { type: 'TOGGLE_FOILS' }
   | { type: 'TOGGLE_CONDITION_FLAGS' }
   | { type: 'TOGGLE_EDITION_FLAGS' }
-  | { type: 'TOGGLE_WANTED_CARDS' } // New Action
+  | { type: 'TOGGLE_WANTED_CARDS' } // Pasa al siguiente modo: todas → solo buscadas → sin buscadas
+  | { type: 'SET_WANTED_MODE'; payload: WantedMode }
   // DB Actions
   | { type: 'SAVE_FOLDER'; payload: Folder }
   | { type: 'DELETE_FOLDER'; payload: string }
@@ -103,7 +105,7 @@ const INITIAL_STATE: AppState = {
     showFoils: true, // Default enabled
     showConditionFlags: true, // Default enabled
     showEditionFlags: true, // Default enabled
-    showWantedCards: true // Default enabled
+    wantedMode: 'todas'
   }
 };
 
@@ -240,8 +242,12 @@ const reducer = (state: AppState, action: Action): AppState => {
       return { ...state, ui: { ...state.ui, showConditionFlags: !state.ui.showConditionFlags } };
     case 'TOGGLE_EDITION_FLAGS':
       return { ...state, ui: { ...state.ui, showEditionFlags: !state.ui.showEditionFlags } };
-    case 'TOGGLE_WANTED_CARDS':
-      return { ...state, ui: { ...state.ui, showWantedCards: !state.ui.showWantedCards } };
+    case 'TOGGLE_WANTED_CARDS': {
+      const siguiente: Record<WantedMode, WantedMode> = { todas: 'solo', solo: 'ocultar', ocultar: 'todas' };
+      return { ...state, ui: { ...state.ui, wantedMode: siguiente[state.ui.wantedMode] } };
+    }
+    case 'SET_WANTED_MODE':
+      return { ...state, ui: { ...state.ui, wantedMode: action.payload } };
     case 'SAVE_FOLDER': {
       const exists = state.db.folders.find(f => f.id === action.payload.id);
       let newFolders;

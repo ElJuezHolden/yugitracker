@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { MainCardType, MonsterType, CardProperty } from '../types';
-import { X, Filter, ChevronDown, ChevronUp, Layers, Diamond, Tag, Languages } from 'lucide-react';
+import { X, Filter, ChevronDown, ChevronUp, Layers, Diamond, Tag, Languages, Target } from 'lucide-react';
 import { useStore } from '../context/StoreContext';
 import { IDIOMAS, LanguageFlag } from './LanguageFlag';
 
@@ -29,8 +29,8 @@ const TRAP_PROPS: CardProperty[] = ['Normal', 'Continuous', 'Counter'];
 
 
 export const CardFilter: React.FC<Props> = ({ filters, onChange, isOpen, availableSets, availableRarities }) => {
-    const { state } = useStore();
-    const { theme } = state.ui;
+    const { state, dispatch } = useStore();
+    const { theme, wantedMode } = state.ui;
     
     const getIsRgbDark = (rgbStr: string) => {
         const [r, g, b] = rgbStr.split(' ').map(Number);
@@ -226,6 +226,27 @@ export const CardFilter: React.FC<Props> = ({ filters, onChange, isOpen, availab
                                         >
                                             <LanguageFlag lang={idioma.id} size={13} />
                                             {idioma.nombre}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            )}
+
+                            {/* Buscadas (WANTED): todas, solo esas o ninguna */}
+                            {filters.langs && (
+                            <div>
+                                <h4 className="text-[10px] font-bold text-muted mb-2 uppercase tracking-wider flex items-center gap-1">
+                                    <Target size={12} className="text-primary"/> Buscadas (WANTED)
+                                </h4>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {([['todas', 'Todas'], ['solo', 'Solo WANTED'], ['ocultar', 'Ocultarlas']] as const).map(([modo, texto]) => (
+                                        <button
+                                            key={modo}
+                                            onClick={() => dispatch({ type: 'SET_WANTED_MODE', payload: modo })}
+                                            aria-pressed={wantedMode === modo}
+                                            className={getItemClass(wantedMode === modo, false)}
+                                        >
+                                            {texto}
                                         </button>
                                     ))}
                                 </div>

@@ -177,6 +177,19 @@ async function textoDeYugipedia(titulo: string, signal?: AbortSignal): Promise<s
   return texto && texto.includes('CardTable2') ? texto : null;
 }
 
+/** Las impresiones en inglés de la ficha de Yugipedia (campos en_sets, na_sets y eu_sets). */
+function impresionesDeTexto(texto: string): Printing[] {
+  const impresiones: Printing[] = [];
+  for (const campo of texto.matchAll(/\|\s*(?:en|na|eu)_sets\s*=([\s\S]*?)(?=\n\s*\||\n\}\})/g)) {
+    for (const linea of campo[1]!.split('\n')) {
+      const [code, set, rarezas] = linea.split(';').map((x) => x.trim());
+      if (!code || !set || !rarezas) continue;
+      for (const rarity of rarezas.split(',').map((r) => r.trim()).filter(Boolean)) impresiones.push({ code, set, rarity });
+    }
+  }
+  return impresiones;
+}
+
 /** Impresiones en inglés de una carta según Yugipedia (vacío si no se pudo consultar). */
 export function getYugipediaPrintings(nombreIngles: string, signal?: AbortSignal): Promise<Printing[]> {
   let p = impresionesPedidas.get(nombreIngles);
@@ -184,16 +197,7 @@ export function getYugipediaPrintings(nombreIngles: string, signal?: AbortSignal
     p = (async () => {
       // Algunas cartas tienen página de desambiguación: la ficha es "Nombre (card)".
       const texto = (await textoDeYugipedia(nombreIngles, signal)) ?? (await textoDeYugipedia(`${nombreIngles} (card)`, signal));
-      if (!texto) return [];
-      const impresiones: Printing[] = [];
-      for (const campo of texto.matchAll(/\|\s*(?:en|na|eu)_sets\s*=([\s\S]*?)(?=\n\s*\||\n\}\})/g)) {
-        for (const linea of campo[1]!.split('\n')) {
-          const [code, set, rarezas] = linea.split(';').map((x) => x.trim());
-          if (!code || !set || !rarezas) continue;
-          for (const rarity of rarezas.split(',').map((r) => r.trim()).filter(Boolean)) impresiones.push({ code, set, rarity });
-        }
-      }
-      return impresiones;
+      return texto ? impresionesDeTexto(texto) : [];
     })().catch(() => {
       impresionesPedidas.delete(nombreIngles);
       return [];
@@ -201,6 +205,51 @@ export function getYugipediaPrintings(nombreIngles: string, signal?: AbortSignal
     impresionesPedidas.set(nombreIngles, p);
   }
   return p;
+}
+
+/**
+ * Impresiones de muchas cartas a la vez: 50 por consulta a Yugipedia en vez de
+ * una (para revisar la colección entera). Comparte la caché con la de arriba.
+ */
+export async function getYugipediaPrintingsBatch(nombres: string[]): Promise<Map<string, Printing[]>> {
+  const resultado = new Map<string, Printing[]>();
+  const faltan: string[] = [];
+  for (const n of new Set(nombres)) {
+    const ya = impresionesPedidas.get(n);
+    if (ya) resultado.set(n, await ya);
+    else faltan.push(n);
+  }
+  for (let i = 0; i < faltan.length; i += 50) {
+    const lote = faltan.slice(i, i + 50);
+    const url = new URL(YUGIPEDIA);
+    const params = { action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', redirects: '1', origin: '*', titles: lote.join('|') };
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+    try {
+      const res = await fetch(url, { headers: { 'Api-User-Agent': 'YugiTracker (coleccion personal)' } });
+      if (!res.ok) continue;
+      const { query } = (await res.json()) as {
+        query?: {
+          normalized?: { from: string; to: string }[];
+          redirects?: { from: string; to: string }[];
+          pages?: { title: string; revisions?: { content?: string }[] }[];
+        };
+      };
+      // Título de la página → nombre pedido (por si redirige).
+      const origen = new Map<string, string>();
+      for (const r of [...(query?.normalized ?? []), ...(query?.redirects ?? [])]) origen.set(r.to, origen.get(r.from) ?? r.from);
+      for (const pg of query?.pages ?? []) {
+        const texto = pg.revisions?.[0]?.content ?? '';
+        if (!texto.includes('CardTable2')) continue;
+        const nombre = origen.get(pg.title) ?? pg.title;
+        const impresiones = impresionesDeTexto(texto);
+        impresionesPedidas.set(nombre, Promise.resolve(impresiones));
+        resultado.set(nombre, impresiones);
+      }
+    } catch {
+      // Sin Yugipedia no se revisa ese lote: se intentará otro día.
+    }
+  }
+  return resultado;
 }
 
 /** Ficha completa de una carta: primero por nombre exacto, luego aproximado. */

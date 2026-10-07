@@ -43,6 +43,26 @@ export const formatMoney = (val: number): string => {
  */
 export const compareNames = new Intl.Collator('es', { numeric: true, sensitivity: 'base' }).compare;
 
+/**
+ * Orden por número dentro del set: primero el set (LART, MP22…) y luego el
+ * número final del código, sin mirar el idioma (LART-SP001 antes que
+ * LART-EN029; LOB-E099 y LOB-EN099 empatan). Las que no tienen versión, al final.
+ */
+export function compareSetNumber(a: string, b: string): number {
+  const partes = (code: string) => {
+    if (!code || code === '---') return null;
+    const [prefijo = '', resto = ''] = code.toUpperCase().split('-');
+    const num = /(\d+)$/.exec(resto);
+    // El número final, y lo que va delante sin el idioma (EN, SP, E…) por si hay letras de serie (ENS33, ENX43).
+    const serie = resto.replace(/^(EN|SP|DE|FR|IT|PT|JP|KR|E|S|G|F|I|P)/, '').replace(/\d+$/, '');
+    return { prefijo, serie, num: num ? Number(num[1]) : Number.POSITIVE_INFINITY };
+  };
+  const pa = partes(a);
+  const pb = partes(b);
+  if (!pa || !pb) return pa ? -1 : pb ? 1 : 0;
+  return compareNames(pa.prefijo, pb.prefijo) || compareNames(pa.serie, pb.serie) || pa.num - pb.num;
+}
+
 export const normalizeStr = (str: string): string => {
   return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };

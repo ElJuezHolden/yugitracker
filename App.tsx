@@ -13,11 +13,12 @@ import { PriceMovesModal } from './components/Modals/PriceMovesModal';
 import { useBackup } from './context/BackupContext';
 import { FoilFilters } from './components/FoilFilters';
 import { CollectionValue } from './components/CollectionValue';
+import { useRarityCheck } from './components/useRarityCheck';
 import { usePrices } from './context/PricesContext';
 import { displayName, useNameMode, useSpanishNames } from './components/useCardName';
 import { CardFilter } from './components/CardFilter';
 import { ToastContainer } from './components/Toast';
-import { ID_ALL, getTypeWeight, getRarityWeight, normalizeStr, analyzeCardType, compareNames } from './utils';
+import { ID_ALL, getTypeWeight, getRarityWeight, normalizeStr, analyzeCardType, compareNames, compareSetNumber } from './utils';
 import type { Card, ApiCard, Folder, MainCardType, MonsterType, CardProperty } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Trash, X } from 'lucide-react';
@@ -34,8 +35,10 @@ function App() {
   const { valueOf } = usePrices();
   // Nombres en español: la búsqueda y el orden por nombre usan el nombre que se ve.
   const nombresEs = useSpanishNames();
+  // Corrige las rarezas guardadas que no existen (YGOPRODeck tiene algunas de más).
+  useRarityCheck();
   const modoNombres = useNameMode();
-  const { activeFolderId, view, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, showWantedCards } = state.ui;
+  const { activeFolderId, view, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, wantedMode } = state.ui;
 
   // Modals State
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
@@ -70,7 +73,7 @@ function App() {
       langs: []
   });
 
-  const activeFilterCount = filters.cardTypes.length + filters.monsterTypes.length + filters.properties.length + filters.sets.length + filters.rarities.length + filters.langs.length;
+  const activeFilterCount = filters.cardTypes.length + filters.monsterTypes.length + filters.properties.length + filters.sets.length + filters.rarities.length + filters.langs.length + (wantedMode !== 'todas' ? 1 : 0);
 
   // Card Modal Data
   const [selectedApiCard, setSelectedApiCard] = useState<ApiCard | null>(null);
@@ -358,10 +361,9 @@ function App() {
         // valor memoizado que no debe mutarse.
         let list = [...(baseData as Card[])];
 
-        // 0. FILTER: Wanted Cards
-        if (!showWantedCards) {
-            list = list.filter(c => !c.isWanted);
-        }
+        // 0. FILTER: Buscadas (WANTED): ocultarlas o ver solo esas
+        if (wantedMode === 'ocultar') list = list.filter(c => !c.isWanted);
+        else if (wantedMode === 'solo') list = list.filter(c => c.isWanted);
 
         // A. FILTER: Types
         if (filters.cardTypes.length > 0 || filters.monsterTypes.length > 0 || filters.properties.length > 0) {
@@ -441,6 +443,12 @@ function App() {
                     if (attrDiff !== 0) return attrDiff;
                     return 0;
                 }
+                if (sortCards === 'set') {
+                    // Por número dentro del set: LART-SP001 antes que LART-EN029 (el idioma no cuenta).
+                    const setDiff = compareSetNumber(a.setCode, b.setCode) * dir;
+                    if (setDiff !== 0) return setDiff;
+                    return compareNames(displayName(a, nombresEs, modoNombres), displayName(b, nombresEs, modoNombres)) * dir;
+                }
                 if (sortCards === 'type') {
                      const wA = getTypeWeight(a.type);
                      const wB = getTypeWeight(b.type);
@@ -457,7 +465,7 @@ function App() {
         }
         return list;
     }
-  }, [baseData, isHome, sortFolders, sortFoldersDir, sortCards, sortCardsDir, filters, state.db.cards, showWantedCards, valueOf, nombresEs, modoNombres]);
+  }, [baseData, isHome, sortFolders, sortFoldersDir, sortCards, sortCardsDir, filters, state.db.cards, wantedMode, valueOf, nombresEs, modoNombres]);
 
   // Derived Values for Selection UI
   const totalSelectable = isHome 

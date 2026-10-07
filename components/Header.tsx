@@ -37,7 +37,7 @@ export const Header: React.FC<Props> = ({
   const { state, dispatch } = useStore();
   const modoNombres = useNameMode();
   const backup = useBackup();
-  const { view, activeFolderId, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, isTagsPanelOpen, showFoils, showConditionFlags, showEditionFlags, showWantedCards } = state.ui;
+  const { view, activeFolderId, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, isTagsPanelOpen, showFoils, showConditionFlags, showEditionFlags, wantedMode } = state.ui;
   const searchContainerRef = useRef<HTMLDivElement>(null);
   
   // Ref for the slider container to attach non-passive wheel listener
@@ -221,10 +221,17 @@ export const Header: React.FC<Props> = ({
             <div className="hidden md:flex items-center gap-1 bg-bg-surface p-1 rounded-lg">
                 <button 
                     onClick={() => dispatch({ type: 'TOGGLE_WANTED_CARDS' })}
-                    className={`p-1.5 rounded transition-colors ${showWantedCards ? 'text-primary hover:text-primary/80' : 'text-main/60 hover:text-main'}`}
-                    title={showWantedCards ? "Ocultar Wanted" : "Mostrar Wanted"}
+                    className={`p-1.5 rounded transition-colors ${
+                        wantedMode === 'solo' ? 'text-red-400 bg-red-500/15' : wantedMode === 'todas' ? 'text-primary hover:text-primary/80' : 'text-main/60 hover:text-main'
+                    }`}
+                    title={
+                        wantedMode === 'todas' ? 'Buscadas (WANTED): se ven todas. Clic: ver solo las buscadas'
+                        : wantedMode === 'solo' ? 'Viendo solo las buscadas (WANTED). Clic: ocultarlas'
+                        : 'Buscadas (WANTED) ocultas. Clic: verlas todas'
+                    }
+                    aria-label="Cartas buscadas (WANTED)"
                 >
-                    <Target size={16} className={showWantedCards ? "fill-primary" : ""} />
+                    <Target size={16} className={wantedMode !== 'ocultar' ? (wantedMode === 'solo' ? 'fill-red-400' : 'fill-primary') : ''} />
                 </button>
                 <button 
                     onClick={() => dispatch({ type: 'TOGGLE_EDITION_FLAGS' })}
@@ -411,6 +418,7 @@ export const Header: React.FC<Props> = ({
                             <option value="rarity" className="bg-bg-panel text-main">💎 Rareza</option>
                             <option value="name" className="bg-bg-panel text-main">Aa Nombre</option>
                             <option value="price" className="bg-bg-panel text-main">💰 Precio</option>
+                            <option value="set" className="bg-bg-panel text-main"># Nº de set</option>
                         </select>
                         {sortCards !== 'manual' && (
                             <button 
