@@ -100,4 +100,6 @@
 /* Mientras se barajan (components/useShuffleAnimation.ts), las cartas de verdad no se ven: las mueve la animación. */
 main.barajando .card-container {
   visibility: hidden;
+  /* Con solo `visibility`, el brillo del nombre (capa con mezcla y máscara) se seguía pintando: una barra blanca. */
+  opacity: 0;
 }

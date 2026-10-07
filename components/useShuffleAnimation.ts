@@ -11,6 +11,7 @@ import { CARD_BACK_IMG } from '../utils';
  * verdad se ocultan, y se reparten a donde han quedado ya ordenadas.
  */
 const MAX_CARTAS = 36;
+const P = 'perspective(900px)';
 
 // El dorso se descarga ya, para que no salga un hueco en blanco la primera vez que se baraja.
 if (typeof Image !== 'undefined') new Image().src = CARD_BACK_IMG;
@@ -66,7 +67,9 @@ async function barajar() {
   if (origen.length < 2) return;
   const main = document.querySelector('main');
   const capa = document.createElement('div');
-  Object.assign(capa.style, { position: 'fixed', inset: '0', zIndex: '85', pointerEvents: 'none', perspective: '1400px' });
+  // Sin perspectiva común: cada carta lleva la suya (P) y gira sobre sí misma; con una
+  // sola para toda la pantalla, las de los lados se deformaban como cuñas al girar.
+  Object.assign(capa.style, { position: 'fixed', inset: '0', zIndex: '85', pointerEvents: 'none' });
   document.body.appendChild(capa);
   main?.classList.add('barajando');
 
@@ -91,10 +94,10 @@ async function barajar() {
         const dy = cy - (r.top + r.height / 2);
         return el.animate(
           [
-            { transform: 'translate(0,0) rotateY(0deg)' },
-            { transform: 'translate(0,0) rotateY(180deg)', offset: 0.3 },
-            { transform: `translate(${dx}px,${dy}px) rotateY(180deg) rotateZ(${g}) scale(.8)`, offset: 0.75 },
-            { transform: `translate(${dx + mitad * separa}px,${dy - 6}px) rotateY(180deg) rotateZ(${g}) scale(.8)` },
+            { transform: `${P} translate(0,0) rotateY(0deg)` },
+            { transform: `${P} translate(0,0) rotateY(180deg)`, offset: 0.3 },
+            { transform: `${P} translate(${dx}px,${dy}px) rotateY(180deg) rotateZ(${g}) scale(.8)`, offset: 0.75 },
+            { transform: `${P} translate(${dx + mitad * separa}px,${dy - 6}px) rotateY(180deg) rotateZ(${g}) scale(.8)` },
           ],
           { duration: RECOGER_MS, delay: Math.min(i * 6, 120), easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' },
         ).finished;
@@ -118,10 +121,10 @@ async function barajar() {
         el.getAnimations().forEach((a) => a.cancel());
         return el.animate(
           [
-            { transform: `translate(${dx + mitad * separa}px,${dy - 6}px) rotateY(180deg) rotateZ(${g}) scale(.8)` },
-            { transform: `translate(${dx}px,${dy}px) rotateY(180deg) rotateZ(${g}) scale(.8)`, offset: 0.2 },
-            { transform: 'translate(0,0) rotateY(180deg) rotateZ(0deg) scale(1)', offset: 0.72 },
-            { transform: 'translate(0,0) rotateY(360deg) rotateZ(0deg) scale(1)' },
+            { transform: `${P} translate(${dx + mitad * separa}px,${dy - 6}px) rotateY(180deg) rotateZ(${g}) scale(.8)` },
+            { transform: `${P} translate(${dx}px,${dy}px) rotateY(180deg) rotateZ(${g}) scale(.8)`, offset: 0.2 },
+            { transform: `${P} translate(0,0) rotateY(180deg) rotateZ(0deg) scale(1)`, offset: 0.72 },
+            { transform: `${P} translate(0,0) rotateY(360deg) rotateZ(0deg) scale(1)` },
           ],
           { duration: REPARTIR_MS, delay: Math.min(i * 14, 260), easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' },
         ).finished;

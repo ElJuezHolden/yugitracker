@@ -894,3 +894,12 @@
     transition: none;
   }
 }
+
+/*
+ * Vista mesa: la carta ya se amplía entera al pasar el ratón (framer-motion, en
+ * CardItem), así que no se le suma el levantamiento de la carta, que la hacía
+ * sobresalir de su ficha y se cortaba por los bordes.
+ */
+.mesa-carta .card-container:hover .card-tilt {
+  scale: none;
+}

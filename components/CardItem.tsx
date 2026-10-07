@@ -48,6 +48,23 @@ const ABREVIATURAS: Record<string, string> = {
   'short print': 'SP',
   'super short print': 'SSP',
 };
+/** Cuánto se amplía una carta de la vista mesa al pasar el ratón. */
+const AMPLIACION_MESA = 1.75;
+
+/**
+ * En la vista mesa, la carta ampliada crece hacia dentro de la ventana: las de
+ * los bordes se amplían desde ese borde, para no salirse ni quedar bajo la cabecera.
+ */
+function crecerHaciaDentro(e: React.MouseEvent<HTMLElement>) {
+  const r = e.currentTarget.getBoundingClientRect();
+  const sobraX = (r.width * (AMPLIACION_MESA - 1)) / 2;
+  const sobraY = (r.height * (AMPLIACION_MESA - 1)) / 2;
+  const cabecera = 90;
+  const x = r.left - sobraX < 8 ? '0%' : r.right + sobraX > window.innerWidth - 8 ? '100%' : '50%';
+  const y = r.top - sobraY < cabecera ? '0%' : r.bottom + sobraY > window.innerHeight - 8 ? '100%' : '50%';
+  e.currentTarget.style.transformOrigin = `${x} ${y}`;
+}
+
 function abreviarRareza(rareza: string, codigo?: string): string {
   const r = (rareza || 'Common').toLowerCase().trim();
   if (ABREVIATURAS[r]) return ABREVIATURAS[r];
@@ -238,10 +255,12 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
             layout
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            whileHover={!isSelectionMode ? { scale: 1.75, zIndex: 100, transition: { duration: 0.2 } } : {}}
+            whileHover={!isSelectionMode ? { scale: AMPLIACION_MESA, zIndex: 100, transition: { duration: 0.2 } } : {}}
+            onMouseEnter={crecerHaciaDentro}
             onClick={handleClick}
             style={{ containerType: 'inline-size' }} // Critical for CQW units in WANTED overlay
-            className={`group relative rounded-lg overflow-hidden hover:bg-transparent hover:shadow-none cursor-pointer shadow-md bg-black border w-full h-full ${
+            // Sin recortar: la carta ampliada tiene que verse entera (ver .mesa-carta en CardFoilOverlay.css).
+            className={`group mesa-carta relative rounded-lg cursor-pointer shadow-md border w-full h-full ${
                 isSelectionMode 
                 ? (isSelected ? 'border-primary ring-2 ring-primary' : 'border-transparent opacity-80') 
                 : 'border-transparent'
