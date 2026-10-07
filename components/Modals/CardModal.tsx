@@ -6,11 +6,12 @@ import { formatMoney, normalizeStr, generateId, getCardMarketLink, getCardMarket
 import { getCardDetails, getYugipediaPrintings } from '../../services/cardService';
 import { CardMarketValue } from '../CardMarketValue';
 import { IDIOMAS, LanguageFlag } from '../LanguageFlag';
+import { NAME_COLORS } from '../nameColors';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
 import { leftoverFor, resolvePrintingKey, versionPrice } from '../../services/prices';
 import { RAREZA_ESPECIAL, claveVersion, conVariantesEspeciales, cruzarVersiones, sameRarity } from '../../services/versiones';
-import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search } from 'lucide-react';
+import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search, Palette } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -94,7 +95,9 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
     is1st: true,
     isLimited: false,
     isWanted: false,
-    moveToFolder: ''
+    moveToFolder: '',
+    /** Color del brillo del nombre ('' = el de su rareza). */
+    nameColor: ''
   });
 
   const conditions = ['MT', 'NM', 'EX', 'GD', 'LP', 'PL', 'PO'];
@@ -126,7 +129,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
             is1st: existingCard.is1st,
             isLimited: existingCard.isLimited || false,
             isWanted: existingCard.isWanted || false,
-            moveToFolder: existingCard.folderId
+            moveToFolder: existingCard.folderId,
+            nameColor: existingCard.nameColor ?? ''
         });
         setSelectedImg(existingCard.img);
         
@@ -204,7 +208,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
             is1st: true,
             isLimited: false,
             isWanted: false,
-            moveToFolder: defaultFolder
+            moveToFolder: defaultFolder,
+            nameColor: ''
           });
           data = { ...data, card_sets: conVariantesEspeciales(data.card_sets ?? []) };
           setSelectedImg(data.card_images[0].image_url);
@@ -305,6 +310,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         setCode: !selectedSet ? '---' : selectedSet.set_code,
         rarity: !selectedSet ? 'Common' : finalRarity,
         rarityCode: !selectedSet ? 'C' : selectedSet.set_rarity_code,
+        nameColor: formData.nameColor || undefined,
         cardType,
         monsterType,
         property
@@ -790,6 +796,48 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                         <option key={r} value={r}>{r}</option>
                                                     ))}
                                                 </select>
+                                            </div>
+                                        )}
+
+                                        {/*
+                                          Color del nombre: algunas cartas se imprimieron con el nombre en
+                                          otro color (p. ej. Ultra Rare con el nombre rojo). Solo cambia las
+                                          letras; el resto del brillo sigue siendo el de su rareza.
+                                        */}
+                                        {selectedSet && !formData.isWanted && (
+                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                <span className="text-xs text-muted flex items-center gap-1.5">
+                                                    <Palette size={13} className="text-primary" /> Color del nombre
+                                                </span>
+                                                <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Color del nombre">
+                                                    <button
+                                                        type="button"
+                                                        role="radio"
+                                                        aria-checked={!formData.nameColor}
+                                                        onClick={() => setFormData(prev => ({ ...prev, nameColor: '' }))}
+                                                        className={`px-2 h-6 rounded-full text-[10px] font-bold border transition-colors ${
+                                                            !formData.nameColor ? 'border-primary text-main bg-primary/15' : 'border-border-base text-muted hover:text-main'
+                                                        }`}
+                                                        title="El color que le toca por su rareza"
+                                                    >
+                                                        Según rareza
+                                                    </button>
+                                                    {NAME_COLORS.map(color => (
+                                                        <button
+                                                            key={color.id}
+                                                            type="button"
+                                                            role="radio"
+                                                            aria-checked={formData.nameColor === color.id}
+                                                            aria-label={color.nombre}
+                                                            title={color.nombre}
+                                                            onClick={() => setFormData(prev => ({ ...prev, nameColor: color.id }))}
+                                                            className={`w-6 h-6 rounded-full ring-1 ring-black/40 transition-transform ${
+                                                                formData.nameColor === color.id ? 'outline outline-2 outline-offset-2 outline-primary scale-110' : 'hover:scale-110'
+                                                            }`}
+                                                            style={{ background: color.muestra }}
+                                                        />
+                                                    ))}
+                                                </div>
                                             </div>
                                         )}
                                     </div>

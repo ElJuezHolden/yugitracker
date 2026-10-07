@@ -49,7 +49,7 @@ import './CardFoilOverlay.css';
  *   Parallel y Duel Terminal      según su rareza base            + líneas paralelas
  */
 
-type NameFoil = 'silver' | 'gold' | 'rainbow' | 'speckled' | 'platinum' | 'champan';
+type NameFoil = 'silver' | 'gold' | 'rainbow' | 'speckled' | 'platinum' | 'champan' | 'red' | 'blue' | 'green' | 'purple' | 'pink' | 'bronze';
 type ArtFoil = 'holo' | 'diagonal' | 'grid' | 'emboss' | 'ghost' | 'oilslick' | 'hieroglyph' | 'platino';
 type CardFoil =
   | 'parallel'
@@ -262,6 +262,8 @@ interface Props {
   img?: string;
   /** Tipo de carta de la API ("Spell Card", "XYZ Monster"...): decide el color de la tinta. */
   cardType?: string;
+  /** Color del nombre elegido a mano para esta copia: cambia solo el metal de las letras. */
+  nameColor?: string;
 }
 
 /**
@@ -304,8 +306,12 @@ function asegurarPurpurina() {
   }
 }
 
-export default function CardFoilOverlay({ rarity, img, cardType }: Props) {
-  const spec = useMemo(() => resolveFoil(rarity), [rarity]);
+export default function CardFoilOverlay({ rarity, img, cardType, nameColor }: Props) {
+  const spec = useMemo(() => {
+    const base = resolveFoil(rarity);
+    // El color elegido manda sobre el de la rareza (y lo pone aunque la rareza no lleve nombre metálico).
+    return nameColor ? { ...(base ?? {}), name: nameColor as NameFoil } : base;
+  }, [rarity, nameColor]);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

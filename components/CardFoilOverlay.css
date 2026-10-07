@@ -512,6 +512,13 @@
 .foil-metal--rainbow { --metal: var(--metal-arcoiris); }
 .foil-metal--speckled { --metal: var(--metal-moteado); --metal-luz-oscura: 0.85; }
 .foil-metal--champan { --metal: var(--metal-champan); --metal-luz-oscura: 0.85; }
+/* Nombres recoloreados a mano (ver components/nameColors.ts): mismo reparto de luces que el oro. */
+.foil-metal--red { --metal: linear-gradient(100deg, #5a0808 0%, #9e1c18 22%, #e2564c 38%, #ffd0c8 46%, #d8443a 54%, #8e1814 72%, #520707 100%); }
+.foil-metal--blue { --metal: linear-gradient(100deg, #0b2560 0%, #1d4fae 22%, #5c95ec 38%, #dcebff 46%, #4d86e0 54%, #1a469e 72%, #0a2258 100%); }
+.foil-metal--green { --metal: linear-gradient(100deg, #083f1b 0%, #157a37 22%, #4cc675 38%, #d6fbe0 46%, #3fb768 54%, #136f32 72%, #073a19 100%); }
+.foil-metal--purple { --metal: linear-gradient(100deg, #2c0e55 0%, #5a24a0 22%, #a173e6 38%, #f0e2ff 46%, #9263dc 54%, #521f94 72%, #290d4f 100%); }
+.foil-metal--pink { --metal: linear-gradient(100deg, #5e0f3a 0%, #a8286f 22%, #ec74b4 38%, #ffe0f0 46%, #e062a6 54%, #9a2366 72%, #570d35 100%); }
+.foil-metal--bronze { --metal: linear-gradient(100deg, #3f210a 0%, #7a4519 22%, #c4823f 38%, #fbe0c2 46%, #b87534 54%, #6e3d15 72%, #3a1e09 100%); }
 
 /* =========================================================================
    SERIE DORADA (Gold, Gold Secret, Premium Gold, Ghost/Gold)

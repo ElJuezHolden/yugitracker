@@ -38,6 +38,8 @@ export interface Card {
   setCode: string;
   rarity: string;
   rarityCode: string;
+  /** Color del brillo del nombre si no es el de su rareza (ver components/nameColors.ts). */
+  nameColor?: string;
   
   // New Filter Fields
   cardType?: MainCardType;

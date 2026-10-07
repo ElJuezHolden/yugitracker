@@ -260,7 +260,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         alt={nombre}
                    />
                    
-                   {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
+                   {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                    </div>
                    
@@ -305,7 +305,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     loading="lazy"
                     alt={nombre}
                 />
-                {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
+                {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
 
                 {/*
@@ -391,7 +391,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         loading="lazy"
                         decoding="async"
                     />
-                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
+                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                     </div>
                     
@@ -526,7 +526,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     alt={nombre} 
                 />
 
-                {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} />}
+                {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
                 </div>
                 
