@@ -213,6 +213,151 @@ for (const p of productos) {
   if (!(fechaExpansion.get(p.idExpansion) <= t)) fechaExpansion.set(p.idExpansion, t);
 }
 
+/*
+ * Cartas que YGOPRODeck no tiene. Le faltan las "no jugables" y alguna más
+ * (p. ej. "Yu-Gi-Oh! ZEXAL", LART-EN054 de las Lost Art), así que no salían en
+ * el buscador aunque Cardmarket las vende. Se buscan así: los productos de
+ * Cardmarket cuyo nombre no es de ninguna carta de YGOPRODeck se miran en
+ * Yugipedia ("<nombre> (card)" o "<nombre>"); si tienen edición en inglés, se
+ * crean con su código, rareza, imagen, texto y nombre en español, y se emparejan
+ * con Cardmarket como las demás. Su número es 2.000.000.000 + el de la página de
+ * Yugipedia (los de las cartas reales tienen 8 dígitos). La web las lee de
+ * cartas-extra.json.
+ */
+const ID_EXTRA = 2_000_000_000;
+const cartasExtra = [];
+/** Nombre de Cardmarket (normalizado) → el de la carta de YGOPRODeck, cuando no coinciden. */
+const otroNombre = new Map();
+try {
+  const nombresYgo = new Set(cartas.map((c) => norm(c.name)));
+  const candidatos = [...new Set(productos.filter((p) => !nombresYgo.has(norm(p.name))).map((p) => p.name.trim()))];
+  /** Set de YGOPRODeck por nombre, y el más grande de cada prefijo (para sets que YGOPRODeck no tiene). */
+  const setsYgoPorNombre = new Set(setsYgo.map((x) => x.set_name));
+  const mayorPorPrefijo = new Map();
+  for (const x of setsYgo) {
+    const pre = String(x.set_code || '').toUpperCase();
+    if (!pre) continue;
+    const ya = mayorPorPrefijo.get(pre);
+    if (!ya || (x.num_of_cards ?? 0) > (ya.num_of_cards ?? 0)) mayorPorPrefijo.set(pre, x);
+  }
+  const limpiar = (t) =>
+    t
+      .replace(/\[\[(?:[^|\]]*\|)?([^\]]*)\]\]/g, '$1')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/'{2,}/g, '')
+      .replace(/\{\{[^}]*\}\}/g, '')
+      .trim();
+  const campo = (texto, nombre) => new RegExp(`\\|\\s*${nombre}\\s*=\\s*([^\\n]*)`).exec(texto)?.[1]?.trim() ?? '';
+  const encontradas = new Map();
+  for (let i = 0; i < candidatos.length; i += 25) {
+    const lote = candidatos.slice(i, i + 25);
+    const url = new URL('https://yugipedia.com/api.php');
+    const titulos = lote.flatMap((n) => [`${n} (card)`, n]);
+    for (const [k, v] of Object.entries({ action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', redirects: '1', titles: titulos.join('|') }))
+      url.searchParams.set(k, v);
+    const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
+    if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
+    const { query } = await res.json();
+    const origen = new Map();
+    for (const r of [...(query.normalized ?? []), ...(query.redirects ?? [])]) origen.set(r.to, origen.get(r.from) ?? r.from);
+    for (const pg of query.pages ?? []) {
+      const texto = pg.revisions?.[0]?.content ?? '';
+      if (!texto.includes('CardTable2') || !/\|\s*(?:en|na|eu)_sets\s*=/.test(texto)) continue;
+      const pedido = (origen.get(pg.title) ?? pg.title).replace(/ \(card\)$/, '');
+      // Solo si la página es de esa carta: "Zane Truesdale Token" redirige a la
+      // de las fichas en general, con decenas de códigos que no son suyos.
+      if (norm(pg.title.replace(/ \(card\)$/, '')) !== norm(pedido)) continue;
+      // Si salen las dos (con y sin "(card)"), vale la de "(card)".
+      if (encontradas.has(pedido) && !pg.title.endsWith('(card)')) continue;
+      encontradas.set(pedido, { pageid: pg.pageid, texto });
+    }
+    await esperar(1000);
+  }
+  // Imágenes: la URL de cada archivo, 50 por consulta.
+  const imagenDe = new Map();
+  const archivos = [...encontradas.values()].map((e) => campo(e.texto, 'image')).filter(Boolean);
+  for (let i = 0; i < archivos.length; i += 50) {
+    const url = new URL('https://yugipedia.com/api.php');
+    for (const [k, v] of Object.entries({ action: 'query', prop: 'imageinfo', iiprop: 'url', format: 'json', formatversion: '2', titles: archivos.slice(i, i + 50).map((a) => `File:${a}`).join('|') }))
+      url.searchParams.set(k, v);
+    const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
+    if (!res.ok) break;
+    const { query } = await res.json();
+    const origen = new Map((query.normalized ?? []).map((r) => [r.to, r.from]));
+    for (const pg of query.pages ?? []) {
+      const u = pg.imageinfo?.[0]?.url;
+      if (u) imagenDe.set((origen.get(pg.title) ?? pg.title).replace(/^File:/, ''), u);
+    }
+    await esperar(1000);
+  }
+  const idsYgo = new Map(cartas.map((c) => [c.id, c]));
+  for (const [nombre, { pageid, texto }] of encontradas) {
+    // Si es una carta que YGOPRODeck sí tiene con otro nombre (Cardmarket
+    // "Kuwagata alpha" = "Kuwagata α"), no es nueva: se apunta el nombre de
+    // Cardmarket como suyo para casar sus productos.
+    const password = Number.parseInt(campo(texto, 'password'), 10);
+    const real = Number.isFinite(password) ? idsYgo.get(password) : undefined;
+    if (real) {
+      otroNombre.set(norm(nombre), norm(real.name));
+      continue;
+    }
+    const impresiones = [];
+    for (const m of texto.matchAll(/\|\s*(?:en|na|eu)_sets\s*=([\s\S]*?)(?=\n\s*\||\n\}\})/g)) {
+      for (const linea of m[1].split('\n')) {
+        const [code, set, rarezas] = linea.split(';').map((x) => x.trim());
+        if (!code || !set || !rarezas) continue;
+        for (const rarity of rarezas.split(',').map((r) => r.trim()).filter(Boolean)) {
+          if (impresiones.some((x) => x.set_code === code && x.set_rarity === rarity)) continue;
+          impresiones.push({ set_name: set, set_code: code, set_rarity: formaBuena.get(plana(rarity)) ?? rarity, set_rarity_code: '', set_price: '0' });
+        }
+      }
+    }
+    // Sin edición en inglés, o una página genérica (la de "Token" lista decenas de fichas distintas).
+    if (!impresiones.length || impresiones.length > 20) continue;
+    const imagen = imagenDe.get(campo(texto, 'image'));
+    const tipo = campo(texto, 'card_type') || 'Non-game';
+    const id = ID_EXTRA + pageid;
+    const carta = {
+      id,
+      name: nombre,
+      name_es: limpiar(campo(texto, 'es_name')) || undefined,
+      type: /non-game/i.test(tipo) ? 'Non-game Card' : `${tipo} Card`,
+      frameType: 'non-game',
+      desc: limpiar(campo(texto, 'text')),
+      race: '',
+      attribute: campo(texto, 'attribute') || undefined,
+      card_sets: impresiones,
+      card_images: imagen ? [{ id, image_url: imagen, image_url_small: imagen, image_url_cropped: imagen }] : [],
+    };
+    cartasExtra.push(carta);
+    // Para emparejarla con Cardmarket, en un set que YGOPRODeck sí tenga: el
+    // suyo, o el más grande con su prefijo ("The Lost Art Promotion 2022 L" no
+    // está; "The Lost Art Promotion (series)", sí).
+    cartas.push({
+      ...carta,
+      card_sets: impresiones.map((x) => {
+        if (setsYgoPorNombre.has(x.set_name)) return x;
+        const otro = mayorPorPrefijo.get(x.set_code.split('-')[0].toUpperCase());
+        return otro ? { ...x, set_name: otro.set_name } : x;
+      }),
+    });
+  }
+} catch (e) {
+  console.warn(`No se pudieron buscar en Yugipedia las cartas que le faltan a YGOPRODeck: ${e.message}`);
+}
+// Los productos de Cardmarket con otro nombre pasan al de su carta de YGOPRODeck.
+for (const [deCm, deYgo] of otroNombre) {
+  for (const id of expansionesDe.get(deCm) ?? []) {
+    const e = expansiones.get(id);
+    e.set(deYgo, [...(e.get(deYgo) ?? []), ...(e.get(deCm) ?? [])]);
+    e.delete(deCm);
+    if (!expansionesDe.has(deYgo)) expansionesDe.set(deYgo, new Set());
+    expansionesDe.get(deYgo).add(id);
+  }
+  expansionesDe.delete(deCm);
+}
+
 /** YGOPRODeck: set → nombre → versiones. */
 const setsCartas = new Map();
 for (const c of cartas) {
@@ -723,12 +868,21 @@ if (process.env.INFORME) await writeFile(process.env.INFORME, JSON.stringify(inf
  * 81480460), y las copias guardadas con ese número salían en inglés. Va después
  * de actualizar-nombres.mjs (ver el workflow).
  */
+if (cartasExtra.length) await writeFile(join(CARPETA, 'cartas-extra.json'), JSON.stringify({ v: 1, actualizado: hoy, cartas: cartasExtra }));
+
 let nombresAlias = 0;
 try {
   const archivo = join(CARPETA, 'nombres-es.json');
   const datos = JSON.parse(await readFile(archivo, 'utf8'));
   if (datos?.v === 1) {
     const porId = new Map(datos.nombres);
+    // Las cartas que YGOPRODeck no tiene, también buscables en español.
+    for (const c of cartasExtra) {
+      if (c.name_es && !porId.has(c.id)) {
+        porId.set(c.id, c.name_es);
+        nombresAlias++;
+      }
+    }
     for (const c of cartas) {
       const ids = [c.id, ...(c.card_images ?? []).map((i) => i.id)];
       const nombre = ids.map((i) => porId.get(i)).find(Boolean);
@@ -745,5 +899,5 @@ try {
   // Sin archivo de nombres no hay nada que completar.
 }
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia; ${otroNombre.size} nombres de Cardmarket casados con su carta.`,
 );

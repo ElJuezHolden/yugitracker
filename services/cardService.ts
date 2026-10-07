@@ -83,6 +83,49 @@ export async function loadSpanishNames(): Promise<Map<number, string>> {
   return new Map((await cargarNombresEs()).map((n) => [n.id, n.nombre]));
 }
 
+/*
+ * Cartas que YGOPRODeck no tiene: las no jugables (p. ej. "Yu-Gi-Oh! ZEXAL",
+ * LART-EN054 de las Lost Art), fichas, cartas de premio… Las saca de Yugipedia
+ * el proceso diario (scripts/actualizar-precios.mjs) y se publican con los
+ * precios. Su número empieza en 2.000.000.000.
+ */
+export const EXTRA_ID_MIN = 2_000_000_000;
+let cartasExtra: Promise<ApiCard[]> | null = null;
+
+function cargarCartasExtra(): Promise<ApiCard[]> {
+  if (!cartasExtra) {
+    cartasExtra = fetch(`${import.meta.env.BASE_URL}precios/cartas-extra.json`, { cache: 'no-cache' })
+      .then((r) => (r.ok ? (r.json() as Promise<{ v: number; cartas: ApiCard[] }>) : null))
+      .then((j) => (j?.v === 1 ? j.cartas : []))
+      .catch(() => []);
+    // Si no se pudo (p. ej. en local), se reintenta la próxima vez.
+    cartasExtra.then((lista) => {
+      if (lista.length === 0) cartasExtra = null;
+    });
+  }
+  return cartasExtra;
+}
+
+/** Las cartas de la lista extra cuyo nombre (inglés o español) contiene todas las palabras. */
+async function buscarExtra(tokens: string[]): Promise<ApiCard[]> {
+  const lista = await cargarCartasExtra();
+  return lista.filter((c) => {
+    const nombres = `${normalizeStr(c.name)} ${normalizeStr(c.name_es ?? '')}`;
+    return tokens.every((t) => nombres.includes(t));
+  });
+}
+
+/** Cartas por número, de YGOPRODeck y de la lista extra. */
+async function porIds(ids: number[], signal?: AbortSignal): Promise<ApiCard[]> {
+  const normales = ids.filter((id) => id < EXTRA_ID_MIN);
+  const extra = ids.filter((id) => id >= EXTRA_ID_MIN);
+  const [deApi, deExtra] = await Promise.all([
+    normales.length ? request(`id=${normales.join(',')}&misc=yes`, signal) : Promise.resolve([] as ApiCard[]),
+    extra.length ? cargarCartasExtra().then((l) => l.filter((c) => extra.includes(c.id))) : Promise.resolve([] as ApiCard[]),
+  ]);
+  return [...deApi, ...deExtra];
+}
+
 /** Cartas cuyo nombre en español contiene todas las palabras buscadas. */
 async function buscarEnEspanol(tokens: string[], signal?: AbortSignal): Promise<ApiCard[]> {
   const lista = await cargarNombresEs();
@@ -103,7 +146,7 @@ async function buscarEnEspanol(tokens: string[], signal?: AbortSignal): Promise<
     )
     .slice(0, MAX_RESULTADOS_ES);
   if (encontradas.length === 0) return [];
-  const cartas = await request(`id=${encontradas.map((n) => n.id).join(',')}&misc=yes`, signal);
+  const cartas = await porIds(encontradas.map((n) => n.id), signal);
   const nombre = new Map(encontradas.map((n) => [n.id, n.nombre]));
   const orden = new Map(encontradas.map((n, i) => [n.id, i]));
   return cartas.map((c) => ({ ...c, name_es: nombre.get(c.id) })).sort((a, b) => orden.get(a.id)! - orden.get(b.id)!);
@@ -134,7 +177,7 @@ export const searchCards = async (query: string, signal?: AbortSignal): Promise<
   const mainTerm = [...tokens].sort((a, b) => b.length - a.length)[0];
   if (!mainTerm) return [];
 
-  const [enIngles, enEspanol] = await Promise.all([
+  const [enIngles, enEspanol, extra] = await Promise.all([
     request(`fname=${encodeURIComponent(mainTerm)}&misc=yes`, signal).then((data) =>
       data.filter((card) => {
         const name = normalizeStr(card.name);
@@ -145,11 +188,13 @@ export const searchCards = async (query: string, signal?: AbortSignal): Promise<
       if (e instanceof DOMException && e.name === 'AbortError') throw e;
       return [] as ApiCard[];
     }),
+    buscarExtra(tokens),
   ]);
 
   // Sin repetir: si una carta sale por los dos nombres, se queda con el español.
   const espanolPorId = new Map(enEspanol.map((c) => [c.id, c]));
-  return [...enEspanol, ...enIngles.filter((c) => !espanolPorId.has(c.id))];
+  const vistas = new Set([...espanolPorId.keys(), ...enIngles.map((c) => c.id)]);
+  return [...enEspanol, ...enIngles.filter((c) => !espanolPorId.has(c.id)), ...extra.filter((c) => !vistas.has(c.id))];
 };
 
 /*
@@ -262,6 +307,10 @@ export const getCardDetails = async (
 
   const exact = await request(`name=${encodeURIComponent(cleanName)}&misc=yes`, signal);
   if (exact.length > 0) return exact[0] ?? null;
+
+  // Las que YGOPRODeck no tiene (no jugables, fichas…), de la lista extra.
+  const extra = (await cargarCartasExtra()).find((c) => normalizeStr(c.name) === normalizeStr(cleanName));
+  if (extra) return extra;
 
   const fuzzy = await request(`fname=${encodeURIComponent(cleanName)}&misc=yes`, signal);
   return fuzzy[0] ?? null;

@@ -479,7 +479,10 @@ const esperar = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * Pide a la API los precios de estas cartas, en lotes, y los guarda.
  * Las cartas que la API ya no reconozca simplemente no aparecen en el resultado.
  */
-export async function fetchPrices(ids: number[], signal?: AbortSignal): Promise<CardPrices[]> {
+export async function fetchPrices(todas: number[], signal?: AbortSignal): Promise<CardPrices[]> {
+  // Las cartas que YGOPRODeck no tiene (número de 2.000.000.000 en adelante, ver
+  // cardService) solo tienen precio de Cardmarket.
+  const ids = todas.filter((id) => id < 2_000_000_000);
   const resultado: CardPrices[] = [];
   for (let i = 0; i < ids.length; i += BATCH) {
     if (signal?.aborted) break;
