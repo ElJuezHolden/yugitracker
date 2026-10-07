@@ -913,7 +913,17 @@ for (let i = 0; i < TROZOS; i++) {
     // Primera vez.
   }
   // El formato 1 guardaba dólares de TCGplayer: no se mezcla con euros de Cardmarket.
-  historiales.push(trozo?.v === VERSION_HISTORIAL ? trozo : { v: VERSION_HISTORIAL, actualizado: hoy, cartas: {} });
+  /*
+   * Y lo apuntado antes del 7-oct-2026 se descarta una vez (`limpio`): ese día
+   * cambió cómo se casa cada versión con su producto de Cardmarket, y muchos
+   * puntos eran de otro producto (Zombyra the Dark LART-EN059 pasaba de 0,20 € de
+   * Beginner's Edition a 2,34 € de Lost Art Promos: una "subida" del 1070 %).
+   */
+  historiales.push(
+    trozo?.v === VERSION_HISTORIAL && trozo.limpio === 1
+      ? { ...trozo, productos: trozo.productos ?? {} }
+      : { v: VERSION_HISTORIAL, limpio: 1, actualizado: hoy, cartas: {}, productos: {} },
+  );
 }
 // El historial apuntado con una rareza falsa pasa a la buena (BLMM-EN038|New → |Ultra Rare).
 for (const [id, cambiosClave] of renombrar) {
@@ -928,8 +938,15 @@ for (const [id, cambiosClave] of renombrar) {
 const cambiaDeVerdad = (antes, ahora) => Math.abs(ahora - antes) >= Math.max(0.02, antes * 0.02);
 let cambios = 0;
 for (const [id, precios] of deHoy) {
-  const historial = (historiales[id % TROZOS].cartas[id] ??= {});
+  const trozo = historiales[id % TROZOS];
+  const historial = (trozo.cartas[id] ??= {});
+  // De qué producto de Cardmarket es cada historial: si la versión pasa a otro
+  // producto, lo apuntado era de otra carta y se empieza de nuevo.
+  const productosHistorial = (trozo.productos[id] ??= {});
   for (const [clave, eur] of Object.entries(precios)) {
+    const producto = productoDe.get(id)?.[clave];
+    if (producto != null && productosHistorial[clave] != null && productosHistorial[clave] !== producto) historial[clave] = [];
+    if (producto != null) productosHistorial[clave] = producto;
     const puntos = (historial[clave] ??= []);
     const ultimo = puntos[puntos.length - 1];
     if (ultimo && ultimo[0] === hoy) ultimo[1] = eur;
