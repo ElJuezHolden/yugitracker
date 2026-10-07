@@ -8,6 +8,7 @@ import { MessageSquareText, FolderOpen, CheckCircle2, Circle } from 'lucide-reac
 import CardFoilOverlay from './CardFoilOverlay';
 import CardWear from './CardWear';
 import EditionHologram from './EditionHologram';
+import VeloWanted from './VeloWanted';
 import { LanguageFlag, nombreIdioma } from './LanguageFlag';
 import { useCardName } from './useCardName';
 import { usePrices } from '../context/PricesContext';
@@ -293,10 +294,11 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                    <img 
                         src={card.img}
                         onError={onCardImageError} 
-                        className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out ${card.isWanted ? 'grayscale brightness-75' : ''}`}
+                        className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out`}
                         loading="lazy"
                         alt={nombre}
                    />
+                {card.isWanted && <VeloWanted />}
                    
                    {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
                    {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
@@ -340,10 +342,11 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                  <img 
                     src={card.img}
                         onError={onCardImageError} 
-                    className={`w-full h-full object-cover transition-transform duration-500 ${card.isWanted ? 'grayscale brightness-75' : ''}`}
+                    className={`w-full h-full object-cover transition-transform duration-500`}
                     loading="lazy"
                     alt={nombre}
                 />
+                {card.isWanted && <VeloWanted />}
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
                    {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
@@ -426,11 +429,12 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                     <img 
                         src={card.img}
                         onError={onCardImageError} 
-                        className={`absolute inset-0 w-full h-full object-cover ${isSelectionMode ? 'grayscale-[0.5]' : ''} ${card.isWanted ? 'grayscale brightness-75' : ''}`}
+                        className={`absolute inset-0 w-full h-full object-cover ${isSelectionMode ? 'grayscale-[0.5]' : ''}`}
                         alt="" 
                         loading="lazy"
                         decoding="async"
                     />
+                {card.isWanted && <VeloWanted />}
                     {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
                    {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
                 {showConditionFlags && !card.isWanted && <CardWear condition={card.condition} seed={card.uid} />}
@@ -561,11 +565,12 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 <img 
                     src={card.img}
                         onError={onCardImageError} 
-                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out ${card.isWanted ? 'grayscale brightness-75' : ''}`} 
+                    className={`absolute inset-0 w-full h-full object-cover transition-transform duration-500 ease-out`} 
                     loading="lazy" 
                     decoding="async"
                     alt={nombre} 
                 />
+                {card.isWanted && <VeloWanted />}
 
                 {showFoils && !isSelectionMode && !card.isWanted && <CardFoilOverlay rarity={card.rarity} img={card.img} cardType={card.type} nameColor={card.nameColor} />}
                    {showFoils && !card.isWanted && <EditionHologram img={card.img} is1st={card.is1st} isLimited={card.isLimited} />}
