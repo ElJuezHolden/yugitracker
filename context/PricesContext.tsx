@@ -58,8 +58,6 @@ interface PricesContextValue {
   /** Valor de mercado de una copia, en euros, o `null` si no hay precio. */
   valueOf: (card: Card) => number | null;
   summarize: (cards: Card[]) => ValueSummary;
-  /** Lo que costaría conseguir las buscadas (WANTED) de estas cartas. */
-  summarizeWanted: (cards: Card[]) => ValueSummary;
   refresh: () => void;
   /** Cifra de Cardmarket con la que se valora todo (por defecto, la de referencia). */
   metric: PriceMetric;
@@ -224,39 +222,11 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return min;
   }, [prices]);
 
-  /*
-   * Lo que falta: las buscadas, a precio de mercado de su versión (sin descuento
-   * por estado: se compraría en buen estado). Si no tiene versión elegida (las
-   * buscadas de antes no la guardaban), la más barata de esa carta.
-   */
-  const summarizeWanted = useCallback(
-    (cards: Card[]): ValueSummary => {
-      const resumen: ValueSummary = { eur: 0, priced: 0, unpriced: 0 };
-      for (const c of cards) {
-        if (!c.isWanted) continue;
-        let v = priceOf(c)?.mercado ?? null;
-        if (v == null && (!c.setCode || c.setCode === '---')) {
-          const cifras = Object.values(mercado.porCarta.get(c.apiId) ?? {})
-            .map((s) => statValue(s, metric) ?? statValue(s, 'referencia'))
-            .filter((x): x is number => x != null);
-          v = cifras.length ? Math.min(...cifras) : null;
-        }
-        if (v == null) resumen.unpriced++;
-        else {
-          resumen.eur += v;
-          resumen.priced++;
-        }
-      }
-      return resumen;
-    },
-    [priceOf, mercado, metric],
-  );
-
   const refresh = useCallback(() => setForzar((n) => n + 1), []);
 
   const value = useMemo<PricesContextValue>(
-    () => ({ rate, loading, error, oldestFetch, marketDate: mercado.fecha, priceOf, valueOf, summarize, summarizeWanted, refresh, metric, setMetric }),
-    [rate, loading, error, oldestFetch, mercado.fecha, priceOf, valueOf, summarize, summarizeWanted, refresh, metric, setMetric],
+    () => ({ rate, loading, error, oldestFetch, marketDate: mercado.fecha, priceOf, valueOf, summarize, refresh, metric, setMetric }),
+    [rate, loading, error, oldestFetch, mercado.fecha, priceOf, valueOf, summarize, refresh, metric, setMetric],
   );
 
   return <PricesContext.Provider value={value}>{children}</PricesContext.Provider>;
