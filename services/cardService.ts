@@ -395,7 +395,13 @@ export async function getYugipediaPrintingsBatch(nombres: string[]): Promise<Map
 export const getCardDetails = async (
   name: string,
   signal?: AbortSignal,
+  /** Si es de la lista extra, por su número: varias se llaman igual que una de YGOPRODeck (las fichas Kuriboh de LC03). */
+  id?: number,
 ): Promise<ApiCard | null> => {
+  if (id != null && id >= EXTRA_ID_MIN) {
+    const porNumero = (await cargarCartasExtra()).find((c) => c.id === id);
+    if (porNumero) return porNumero;
+  }
   const cleanName = name.trim();
   if (!cleanName) return null;
 

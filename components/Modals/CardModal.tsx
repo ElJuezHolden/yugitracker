@@ -141,7 +141,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         });
         setSelectedImg(existingCard.img);
         
-        const details = await getCardDetails(existingCard.name);
+        const details = await getCardDetails(existingCard.name, undefined, existingCard.apiId);
         if (details) {
             data = { ...details, card_sets: conVariantesEspeciales(details.card_sets ?? []) };
              // Match set
@@ -198,7 +198,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
           if (initialApiCard.misc_info && initialApiCard.misc_info.length > 0 && initialApiCard.card_images.length > 1) {
               data = initialApiCard;
           } else {
-              const fullDetails = await getCardDetails(initialApiCard.name);
+              const fullDetails = await getCardDetails(initialApiCard.name, undefined, initialApiCard.id);
               data = fullDetails ? { ...fullDetails, name_es: initialApiCard.name_es } : initialApiCard;
           }
 
