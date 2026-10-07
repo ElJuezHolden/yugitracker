@@ -234,6 +234,7 @@ function App() {
 
   // --- Filtering & Sorting Pipeline ---
   const isHome = activeFolderId === null;
+  const carpetaActiva = state.db.folders.find((f) => f.id === activeFolderId);
 
   // 1. BASE DATA: Initial List based on Location (Home/Folder) + Search Query
   // This list is used to generate "Available Filters" (Sets/Rarities) so they match the current search context.
@@ -727,6 +728,9 @@ function App() {
                             isSelectionMode={isSelectionMode}
                             selectedIds={selectedCardIds}
                             onToggleSelect={handleToggleSelectCard}
+                            titulo={activeFolderId === ID_ALL ? 'Toda la colección' : carpetaActiva?.name}
+                            portada={carpetaActiva?.img}
+                            teclado={!isCardModalOpen && !isSearchModalOpen && !isFolderModalOpen && !isThemeModalOpen && !isBackupModalOpen && !isPriceMovesOpen}
                         />
                     )}
                 </motion.div>

@@ -1,0 +1,420 @@
+/* =========================================================================
+   ÁLBUM DE FUNDAS (ver AlbumView.tsx)
+   Todas las medidas llegan en píxeles desde el componente; aquí solo van los
+   materiales: cuero de la tapa, hojas de plástico negro, anillas de metal.
+   ========================================================================= */
+
+.album-escenario {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px 4px;
+}
+
+/* Cuero de la tapa: grano fino, un poco de luz arriba a la izquierda y canto oscuro. */
+.album-cuero {
+  background-color: #1d1b21;
+  background-image:
+    radial-gradient(120% 90% at 22% 12%, rgba(255, 255, 255, 0.075), transparent 55%),
+    radial-gradient(90% 80% at 85% 105%, rgba(0, 0, 0, 0.5), transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.album-carpeta {
+  position: relative;
+  box-shadow:
+    0 50px 80px -30px rgba(0, 0, 0, 0.9),
+    0 20px 34px -20px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.55),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+/* Pespunte alrededor de la tapa. */
+.album-costura {
+  position: absolute;
+  pointer-events: none;
+  border: 1.5px dashed rgba(255, 255, 255, 0.11);
+  border-radius: 6px;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.7));
+}
+
+/* El lomo: dos pliegues del cuero a los lados de las anillas. */
+.album-lomo {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.55),
+    rgba(255, 255, 255, 0.045) 18%,
+    rgba(0, 0, 0, 0.25) 38%,
+    rgba(0, 0, 0, 0.4) 50%,
+    rgba(0, 0, 0, 0.25) 62%,
+    rgba(255, 255, 255, 0.045) 82%,
+    rgba(0, 0, 0, 0.55)
+  );
+}
+
+.album-hojas {
+  position: absolute;
+  perspective: 2400px;
+}
+
+/* Placa del mecanismo de anillas. */
+.album-mecanismo {
+  position: absolute;
+  z-index: 2;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    #3a3a40,
+    #9b9ba4 18%,
+    #e6e6ea 34%,
+    #8c8c95 52%,
+    #5a5a62 72%,
+    #b8b8c0 88%,
+    #3a3a40
+  );
+  box-shadow:
+    0 6px 14px -4px rgba(0, 0, 0, 0.8),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.album-aro {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    to bottom,
+    #fbfbfd 0%,
+    #c9c9d1 22%,
+    #7d7d87 50%,
+    #45454d 66%,
+    #a3a3ad 86%,
+    #e4e4ea 100%
+  );
+  box-shadow:
+    0 3px 5px rgba(0, 0, 0, 0.65),
+    0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+/* Ranura donde se apoya una hoja, con los cantos de las de debajo. */
+.album-ranura {
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  border-radius: 3px;
+}
+
+/* --- Hoja de fundas ------------------------------------------------------ */
+
+.album-hoja {
+  position: relative;
+  border-radius: 3px;
+  background:
+    radial-gradient(140% 100% at 30% 0%, rgba(255, 255, 255, 0.035), transparent 60%),
+    linear-gradient(180deg, #131317, #0a0a0c);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.55);
+}
+
+/* Reflejo del plástico en toda la hoja, por encima de las cartas. */
+.album-hoja::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    112deg,
+    rgba(255, 255, 255, 0.055) 0%,
+    rgba(255, 255, 255, 0) 26%,
+    rgba(255, 255, 255, 0) 60%,
+    rgba(255, 255, 255, 0.035) 76%,
+    rgba(255, 255, 255, 0) 92%
+  );
+}
+
+/* La hoja se curva al entrar en las anillas: sombra en ese lado. */
+.album-hoja__curva {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7%;
+  z-index: 71;
+  pointer-events: none;
+}
+.album-hoja__curva--dcha {
+  left: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.15) 45%, transparent);
+}
+.album-hoja__curva--izq {
+  right: 0;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.15) 45%, transparent);
+}
+
+.album-agujero {
+  position: absolute;
+  z-index: 72;
+  border-radius: 50%;
+  background: #040405;
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.95),
+    0 1px 0 rgba(255, 255, 255, 0.07);
+}
+
+.album-hoja__numero {
+  position: absolute;
+  z-index: 72;
+  color: rgba(255, 255, 255, 0.3);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  line-height: 1;
+}
+
+/* Bolsillo: plástico soldado, con la boca arriba. */
+.album-bolsillo {
+  position: relative;
+  isolation: isolate;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.018);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05),
+    inset 0 0 10px rgba(0, 0, 0, 0.55);
+}
+
+.album-bolsillo__funda {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(158deg, rgba(255, 255, 255, 0.075) 0%, rgba(255, 255, 255, 0) 32%),
+    linear-gradient(to top, rgba(255, 255, 255, 0.035), transparent 14%);
+}
+
+.album-bolsillo__boca {
+  position: absolute;
+  left: 2%;
+  right: 2%;
+  top: 2.6%;
+  height: 1px;
+  z-index: 61;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.16) 20%, rgba(255, 255, 255, 0.16) 80%, transparent);
+}
+
+.album-bolsillo__vacio {
+  position: absolute;
+  border-radius: 2.8% / 1.9%;
+  border: 1px dashed rgba(255, 255, 255, 0.07);
+}
+
+/* --- La carta dentro de la funda ---------------------------------------- */
+
+/* Esquinas de carta real siempre, sin fondo que asome. */
+.carta-funda {
+  border-radius: 2.8% / 1.9%;
+}
+.carta-funda .card-container {
+  background: transparent !important;
+  border-radius: 2.8% / 1.9%;
+}
+.carta-funda .card-tilt {
+  border-radius: 2.8% / 1.9%;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+/* Dentro de la funda la carta se inclina, pero no sale de ella. */
+.carta-funda .card-container:hover .card-tilt {
+  scale: none;
+  box-shadow: 0 8px 16px -8px rgba(0, 0, 0, 0.9);
+}
+
+/* --- Hoja pasando -------------------------------------------------------- */
+
+.album-lamina {
+  position: absolute;
+  top: 0;
+  z-index: 10;
+  pointer-events: none;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.album-lamina__cara {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.album-lamina__cara--dorso {
+  transform: rotateY(180deg);
+}
+
+.album-lamina__sombra {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  border-radius: inherit;
+}
+/* Más oscura hacia el canto libre, que es el que más se aleja de la luz. */
+.album-lamina__sombra--frente {
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.8));
+}
+.album-lamina__sombra--dorso {
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.8));
+}
+
+.album-lamina__brillo {
+  position: absolute;
+  inset: 0;
+  z-index: 81;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(100deg, transparent 25%, rgba(255, 255, 255, 0.4) 48%, transparent 70%);
+  mix-blend-mode: screen;
+}
+
+.album-sombra-proyectada {
+  position: absolute;
+  top: 0;
+  z-index: 5;
+  pointer-events: none;
+  border-radius: 3px;
+}
+
+/* --- Tapa ---------------------------------------------------------------- */
+
+.album-tapa {
+  z-index: 30;
+}
+.album-tapa__frente {
+  border-radius: 0 10px 10px 0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.55),
+    0 10px 30px -10px rgba(0, 0, 0, 0.8);
+}
+
+.album-tapa__ventana {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.9),
+    0 0 0 3px rgba(0, 0, 0, 0.45),
+    0 0 0 4px rgba(255, 255, 255, 0.08);
+}
+
+/* Letras estampadas en el cuero: hundidas, con luz en el canto de abajo. */
+.album-tapa__titulo {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.15;
+  color: #c9b27a;
+  text-shadow:
+    0 -1px 0 rgba(0, 0, 0, 0.7),
+    0 1px 0 rgba(255, 255, 255, 0.15);
+  overflow-wrap: anywhere;
+}
+
+.album-tapa__subtitulo {
+  color: rgba(201, 178, 122, 0.6);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+
+/* --- Controles ----------------------------------------------------------- */
+
+.album-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 6px 16px 14px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(10, 10, 12, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.8);
+}
+
+.album-separador {
+  width: 1px;
+  height: 22px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.album-segmento {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.album-segmento button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.55);
+  transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+.album-segmento button:hover:not(:disabled):not(.activo) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.07);
+}
+.album-segmento button.activo {
+  color: #000;
+  background: var(--color-primary, #f5c518);
+  box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.6);
+}
+.album-segmento button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.album-flecha {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  color: #fff;
+  transition: background-color 0.2s, opacity 0.2s;
+}
+.album-flecha:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+.album-flecha:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
+}
+
+.album-deslizador {
+  width: 112px;
+  height: 14px;
+  margin-top: 1px;
+  accent-color: var(--color-primary, #f5c518);
+  cursor: pointer;
+}

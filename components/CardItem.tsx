@@ -319,13 +319,13 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
     return (
         <motion.div 
             ref={cardRef}
-            layout
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className={`group relative w-full h-full overflow-hidden cursor-pointer shadow-sm transition-all duration-300 ${
+            // Sin aparición propia: la hoja del álbum ya entra girando, y una carta que
+            // se fundiera al pasar de la hoja que gira a la apoyada parpadearía.
+            initial={false}
+            className={`carta-funda group relative w-full h-full cursor-pointer transition-all duration-300 ${
                 isSelectionMode 
                     ? (isSelected ? 'ring-2 ring-primary scale-95' : 'opacity-75 hover:opacity-100')
-                    : 'hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]'
+                    : ''
             }`}
             onClick={handleClick}
             style={{ containerType: 'inline-size' }} // Safer than 'size' to avoid height collapse
@@ -375,8 +375,8 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
 
             {/* Minimal Info on Hover */}
             {!isSelectionMode && (
-                <div className="absolute inset-0 flex items-end justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
-                     <div className="w-full bg-black/80 backdrop-blur-md p-[2cqw] text-center border-t border-white/10">
+                <div className="absolute inset-0 flex items-end justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-[45]" style={{ padding: '0 5% 5%' }}>
+                     <div className="w-full bg-black/80 backdrop-blur-md p-[2cqw] text-center rounded-[3cqw] border border-white/10 shadow-lg">
                          <div className="text-white truncate px-1" style={{ fontSize: '9cqw', fontWeight: 700 }}>{nombre}</div>
                          {!card.isWanted && <div className="text-primary font-mono" style={{ fontSize: '8cqw' }} title={tituloValor}>{valor != null ? `≈ ${formatMoney(valor)}` : '—'}</div>}
                      </div>
@@ -546,7 +546,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
         onDrop={handleDrop}
         onClick={handleClick}
         style={{ containerType: 'inline-size' }}
-        className={`group relative bg-bg-surface rounded-lg overflow-hidden hover:overflow-visible hover:z-[80] cursor-pointer shadow-lg flex flex-col transition-all duration-300 border ${
+        className={`ficha-carta group relative bg-bg-surface rounded-lg overflow-hidden hover:overflow-visible hover:z-[80] cursor-pointer shadow-lg flex flex-col transition-all duration-300 border ${
             isSelectionMode 
                 ? (isSelected ? 'border-primary ring-2 ring-primary scale-95' : 'border-border-base opacity-75 hover:opacity-100')
                 : 'border-border-base hover:shadow-[0_0_20px_rgba(var(--rgb-primary),0.15)] hover:border-primary/40'
