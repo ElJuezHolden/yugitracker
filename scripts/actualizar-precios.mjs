@@ -440,7 +440,48 @@ function distanciaFechas(exp, cartasSet, fecha) {
  * sin ninguna expansión de su época se queda sin pareja: mejor sin precio que
  * con el de otra carta.
  */
+/*
+ * Expansión de un prefijo entero (todas las Lost Art juntas, LART): para los
+ * sets diminutos. YGOPRODeck tiene cada oleada de las Lost Art como un set de una
+ * carta, y con una sola carta ni la fecha basta: Zombyra the Dark LART-EN059
+ * ("The Lost Art Promotion 2023 F", 1-jun-2023) se iba a Beginner's Edition 2
+ * del OCG, cuyo producto se dio de alta en mayo, más cerca que el de Lost Art
+ * Promos (enero). Juntas, las ~60 Lost Art casan sin duda con Lost Art Promos.
+ */
+const expansionDePrefijo = new Map();
+function expansionDelGrupo(prefijo) {
+  if (expansionDePrefijo.has(prefijo)) return expansionDePrefijo.get(prefijo);
+  const union = new Map();
+  let numSets = 0;
+  // Solo los sets diminutos del prefijo: un Sneak Peek o una Special Edition
+  // comparten prefijo con su booster y no deben acabar en la expansión de este.
+  for (const [nombre, cartasSet] of setsCartas) {
+    if (cartasSet.size >= DIMINUTO) continue;
+    if (setsYgo.find((x) => x.set_name === nombre)?.set_code?.toUpperCase() !== prefijo) continue;
+    numSets++;
+    for (const [n, v] of cartasSet) union.set(n, v);
+  }
+  let exp = null;
+  if (numSets >= 3 && union.size >= DIMINUTO) {
+    const comunes = new Map();
+    for (const n of union.keys()) for (const id of expansionesDe.get(n) ?? []) comunes.set(id, (comunes.get(id) ?? 0) + 1);
+    const mejor = [...comunes]
+      .map(([id, inter]) => ({ id, cobertura: inter / union.size, parecido: inter / (union.size + expansiones.get(id).size - inter) }))
+      .filter((x) => x.cobertura >= 0.6)
+      .sort((a, b) => b.cobertura - a.cobertura || b.parecido - a.parecido)[0];
+    exp = mejor?.id ?? null;
+  }
+  expansionDePrefijo.set(prefijo, exp);
+  return exp;
+}
+
 function expansionDe(nombreSet, cartasSet) {
+  // Set diminuto de un prefijo con varios sets: la expansión del prefijo, si tiene sus cartas.
+  if (cartasSet.size < DIMINUTO) {
+    const prefijo = String(setsYgo.find((x) => x.set_name === nombreSet)?.set_code || '').toUpperCase();
+    const delGrupo = prefijo ? expansionDelGrupo(prefijo) : null;
+    if (delGrupo != null && [...cartasSet.keys()].every((n) => expansiones.get(delGrupo).has(n))) return delGrupo;
+  }
   const comunes = new Map();
   for (const n of cartasSet.keys()) for (const id of expansionesDe.get(n) ?? []) comunes.set(id, (comunes.get(id) ?? 0) + 1);
   const candidatas = [...comunes]
