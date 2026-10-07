@@ -423,6 +423,30 @@ try {
     await esperar(1000);
   }
   const porNombre = new Map(cartas.map((c) => [norm(c.name), c]));
+  /*
+   * YGOPRODeck no tiene "Invasion of Chaos (25th Anniversary Edition)": sin fecha,
+   * se casaba con la expansión original de Cardmarket y la reedición salía con el
+   * precio de la original. La fecha de salida, de su página en Yugipedia.
+   */
+  const sinFecha = titulos.map((t) => t.replace(/^Set Card Lists:/, '').replace(/ \(TCG-EN\)$/, '')).filter((n) => !setsYgo.some((x) => x.set_name === n && x.tcg_date));
+  if (sinFecha.length) {
+    const url = new URL('https://yugipedia.com/api.php');
+    for (const [k, v] of Object.entries({ action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', titles: sinFecha.join('|') }))
+      url.searchParams.set(k, v);
+    const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
+    if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
+    for (const pg of (await res.json()).query?.pages ?? []) {
+      const texto = pg.revisions?.[0]?.content ?? '';
+      const fecha = /\|\s*(?:eu|na|en)_release_date\s*=\s*([^\n|<]+)/.exec(texto)?.[1]?.trim();
+      const t = fecha ? Date.parse(fecha) : NaN;
+      if (!Number.isFinite(t)) continue;
+      const ya = setsYgo.find((x) => x.set_name === pg.title);
+      const tcg_date = new Date(t).toISOString().slice(0, 10);
+      if (ya) ya.tcg_date = tcg_date;
+      else setsYgo.push({ set_name: pg.title, set_code: pg.title.slice(0, 3).toUpperCase(), tcg_date });
+    }
+    await esperar(1000);
+  }
   for (let i = 0; i < titulos.length; i += 50) {
     const url = new URL('https://yugipedia.com/api.php');
     for (const [k, v] of Object.entries({ action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', titles: titulos.slice(i, i + 50).join('|') }))
@@ -661,6 +685,25 @@ const sinProducto = new Set();
  */
 const precioEstable = (x) => x.precio.cifras[4] ?? x.precio.cifras[1] ?? x.precio.cifras[3] ?? x.precio.ref;
 
+/*
+ * Productos comprobados a mano en Cardmarket (versión y cifras de cada una, con
+ * capturas): cuando en una expansión hay varios productos de la misma carta y
+ * no se puede deducir cuál es cuál. Mandan sobre cualquier reparto.
+ */
+const PRODUCTO_CONFIRMADO = new Map([
+  // Griffoh, Chaos Origins: V.1 Ultra (desde 6,98 €), V.2 Starlight (desde 35 €), V.3 la promo (desde 12 €).
+  ['CORI-EN004|Ultra Rare', 894691],
+  ['CORI-EN004|Starlight Rare', 894692],
+  ['CORI-ENSP1|Secret Rare', 894704],
+  // Mimighoul Charm, Rage of the Abyss: "V.2 - Ultra Rare" (número S01) es la promo.
+  ['ROTA-ENSP1|Ultra Rare', 791270],
+  ['ROTA-EN096|Quarter Century Secret Rare', 791268],
+  ['ROTA-EN096|Secret Rare', 790127],
+  // Galaxy Serpent, Judgment of the Light: V.1 Super Rare (número 000); la otra, la del Sneak Peek.
+  ['JOTL-EN000|Super Rare', 263568],
+  ['JOTL-ENSP1|Ultra Rare', 263674],
+]);
+
 /** Reparto del día anterior: id → (clave → idProduct), para no cambiarlo sin motivo. */
 const repartoAnterior = new Map();
 for (let i = 0; i < TROZOS; i++) {
@@ -700,7 +743,24 @@ function asignarEnOrden(impresiones, productosCarta, clave) {
     // LOB-000): el de ayer si sigue ahí, para no saltar de uno a otro; si no, el más barato.
     const ayer = repartoAnterior.get(impresiones[0].id) ?? {};
     const idAyer = impresiones.map((imp) => ayer[`${imp.code}|${imp.rarity}`]).find(Boolean);
-    porRareza.set(rarezas[0], productosCarta.find((x) => x.idProduct === idAyer) ?? productosCarta[0]);
+    const elegido = productosCarta.find((x) => x.idProduct === idAyer) ?? productosCarta[0];
+    /*
+     * Pero nunca el que ya tiene otra versión de la carta con OTRA rareza: un
+     * producto es una sola rareza. La JOTL-ENSP1 Ultra Rare de Galaxy Serpent
+     * (Sneak Peek) se llevaba el mismo que la JOTL-EN000 Super Rare. Con la misma
+     * rareza sí puede repetirse (Cardmarket junta Magic Ruler y Spell Ruler). Cuál
+     * de los otros productos es el suyo no se sabe: sin precio, salvo que esté en
+     * PRODUCTO_CONFIRMADO.
+     */
+    const otraRareza = Object.entries(productoDe.get(impresiones[0].id) ?? {}).some(
+      ([k, idProduct]) => idProduct === elegido.idProduct && k.slice(k.indexOf('|') + 1) !== rarezas[0],
+    );
+    if (!otraRareza) porRareza.set(rarezas[0], elegido);
+  }
+  // Los comprobados a mano mandan sobre todo lo demás.
+  for (const imp of impresiones) {
+    const fijo = productosCarta.find((x) => x.idProduct === PRODUCTO_CONFIRMADO.get(`${imp.code}|${imp.rarity}`));
+    if (fijo) porRareza.set(imp.rarity, fijo);
   }
   if (impresiones.some((imp) => !porRareza.has(imp.rarity))) sinProducto.add(clave);
   for (const imp of impresiones) {
@@ -885,19 +945,11 @@ try {
  * PRODUCTO_CONFIRMADO, comprobadas en Cardmarket (versión y cifras de cada una);
  * las demás siguen sin precio, mejor que con el de otra versión.
  */
-const PRODUCTO_CONFIRMADO = new Map([
-  // Griffoh, Chaos Origins: V.1 Ultra (desde 6,98 €), V.2 Starlight (desde 35 €), V.3 la promo (desde 12 €).
-  ['CORI-EN004|Ultra Rare', 894691],
-  ['CORI-EN004|Starlight Rare', 894692],
-  ['CORI-ENSP1|Secret Rare', 894704],
-  // Mimighoul Charm, Rage of the Abyss: "V.2 - Ultra Rare" (número S01) es la promo.
-  ['ROTA-ENSP1|Ultra Rare', 791270],
-  ['ROTA-EN096|Quarter Century Secret Rare', 791268],
-  ['ROTA-EN096|Secret Rare', 790127],
-]);
+// PRODUCTO_CONFIRMADO: ver arriba, junto al reparto.
 let promosAnadidas = 0;
 try {
-  const pendientes = conVariantes.filter((v) => sinProducto.has(`${v.exp}|${v.n}`));
+  // Todas, aunque la tabla de comprobados ya haya puesto precio a las de la carta principal (Griffoh).
+  const pendientes = conVariantes;
   const nombreDe = new Map(cartas.map((c) => [norm(c.name), c.name]));
   for (let i = 0; i < pendientes.length; i += 50) {
     const lote = pendientes.slice(i, i + 50);
