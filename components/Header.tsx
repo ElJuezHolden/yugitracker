@@ -415,6 +415,7 @@ export const Header: React.FC<Props> = ({
                         >
                             <option value="manual" className="bg-bg-panel text-main">✋ Manual</option>
                             <option value="type" className="bg-bg-panel text-main">⚔️ Tipo</option>
+                            <option value="level" className="bg-bg-panel text-main">⭐ Tipo y nivel</option>
                             <option value="rarity" className="bg-bg-panel text-main">💎 Rareza</option>
                             <option value="name" className="bg-bg-panel text-main">Aa Nombre</option>
                             <option value="price" className="bg-bg-panel text-main">💰 Precio</option>

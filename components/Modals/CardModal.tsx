@@ -318,6 +318,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         rarity: !selectedSet ? 'Common' : finalRarity,
         rarityCode: !selectedSet ? 'C' : selectedSet.set_rarity_code,
         nameColor: formData.nameColor || undefined,
+        level: /link/i.test(apiData.type) ? apiData.linkval : apiData.level,
         cardType,
         monsterType,
         property

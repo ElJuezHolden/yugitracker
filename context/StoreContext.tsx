@@ -58,6 +58,8 @@ type Action =
   | { type: 'REORDER_FOLDERS'; payload: Folder[] }
   | { type: 'ADD_CARD'; payload: Card }
   | { type: 'UPDATE_CARD'; payload: Card }
+  /** Rellena el nivel de las copias que no lo tienen: número de carta → nivel. */
+  | { type: 'SET_CARD_LEVELS'; payload: Record<number, number> }
   | { type: 'DELETE_CARD'; payload: string }
   | { type: 'DELETE_CARDS'; payload: string[] }
   | { type: 'RESTORE_CARD'; payload: { card: Card; index: number } }
@@ -312,6 +314,15 @@ const reducer = (state: AppState, action: Action): AppState => {
       return {
         ...state,
         db: { ...state.db, cards: state.db.cards.map(c => c.uid === action.payload.uid ? action.payload : c) }
+      };
+    case 'SET_CARD_LEVELS':
+      // Solo el nivel, sobre el estado de ese momento: no pisa otros cambios hechos mientras se pedía.
+      return {
+        ...state,
+        db: {
+          ...state.db,
+          cards: state.db.cards.map(c => (c.level == null && action.payload[c.apiId] != null ? { ...c, level: action.payload[c.apiId] } : c)),
+        },
       };
     case 'DELETE_CARD':
       return { ...state, db: { ...state.db, cards: state.db.cards.filter(c => c.uid !== action.payload) } };

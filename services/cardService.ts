@@ -119,6 +119,8 @@ async function buscarExtra(tokens: string[]): Promise<ApiCard[]> {
 }
 
 /** Cartas por número, de YGOPRODeck y de la lista extra. */
+export const getCardsByIds = (ids: number[], signal?: AbortSignal) => porIds(ids, signal);
+
 async function porIds(ids: number[], signal?: AbortSignal): Promise<ApiCard[]> {
   const normales = ids.filter((id) => id < EXTRA_ID_MIN);
   const extra = ids.filter((id) => id >= EXTRA_ID_MIN);

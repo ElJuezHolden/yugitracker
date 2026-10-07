@@ -40,6 +40,8 @@ export interface Card {
   rarityCode: string;
   /** Color del brillo del nombre si no es el de su rareza (ver components/nameColors.ts). */
   nameColor?: string;
+  /** Monstruos: nivel, rango (Xyz) o número de enlace (Link). Para ordenar por tipo y nivel. */
+  level?: number;
   
   // New Filter Fields
   cardType?: MainCardType;
@@ -118,7 +120,7 @@ export type ViewMode = 'grid' | 'list' | 'album' | 'display';
 export type AlbumColumns = 2 | 3 | 4;
 
 export type FolderSort = 'manual' | 'name' | 'value';
-export type CardSort = 'manual' | 'type' | 'rarity' | 'name' | 'price' | 'set';
+export type CardSort = 'manual' | 'type' | 'level' | 'rarity' | 'name' | 'price' | 'set';
 /** Cartas buscadas (WANTED): verlas todas, ocultarlas o ver solo esas. */
 export type WantedMode = 'todas' | 'ocultar' | 'solo';
 export type SortDirection = 'asc' | 'desc';

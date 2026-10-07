@@ -14,6 +14,7 @@ import { useBackup } from './context/BackupContext';
 import { FoilFilters } from './components/FoilFilters';
 import { CollectionValue } from './components/CollectionValue';
 import { useRarityCheck } from './components/useRarityCheck';
+import { useCardLevels } from './components/useCardLevels';
 import { useShuffleAnimation } from './components/useShuffleAnimation';
 import { DisplayTable } from './components/DisplayTable';
 import { usePrices } from './context/PricesContext';
@@ -39,6 +40,8 @@ function App() {
   const nombresEs = useSpanishNames();
   // Corrige las rarezas guardadas que no existen (YGOPRODeck tiene algunas de más).
   useRarityCheck();
+  // Completa el nivel de los monstruos guardados antes de que se apuntara.
+  useCardLevels();
   const modoNombres = useNameMode();
   const { activeFolderId, view, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, wantedMode } = state.ui;
 
@@ -450,6 +453,17 @@ function App() {
                     const setDiff = compareSetNumber(a.setCode, b.setCode) * dir;
                     if (setDiff !== 0) return setDiff;
                     return compareNames(displayName(a, nombresEs, modoNombres), displayName(b, nombresEs, modoNombres)) * dir;
+                }
+                if (sortCards === 'level') {
+                    // Por tipo de carta y, en los monstruos, por nivel (rango en las Xyz,
+                    // enlace en las Link); dentro de cada nivel, por nombre.
+                    const typeDiff = (getTypeWeight(a.type) - getTypeWeight(b.type)) * dir;
+                    if (typeDiff !== 0) return typeDiff;
+                    const levelDiff = ((a.level ?? 0) - (b.level ?? 0)) * dir;
+                    if (levelDiff !== 0) return levelDiff;
+                    const nameDiff = compareNames(displayName(a, nombresEs, modoNombres), displayName(b, nombresEs, modoNombres));
+                    if (nameDiff !== 0) return nameDiff;
+                    return compareAttributes(a, b);
                 }
                 if (sortCards === 'type') {
                      const wA = getTypeWeight(a.type);
