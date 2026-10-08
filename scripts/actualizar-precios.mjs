@@ -908,7 +908,13 @@ for (const [nombreSet, cartasSet] of ordenSets) {
         .filter(([k]) => !codigosAqui.has(k.slice(0, k.indexOf('|'))) && !rarezasAqui.has(k.slice(k.indexOf('|') + 1)))
         .map(([, idProduct]) => idProduct),
     );
-    if (deOtraRareza.size) productosCarta = productosCarta.filter((x) => !deOtraRareza.has(x.idProduct));
+    // Y solo para las promos con código especial (ENSP1 del Sneak Peek o del
+    // Premiere!, ENDE1 de las Duelist Edition, ENPP1…). Con las de número normal
+    // quitaba el bueno: la LART-EN074 de Monster Reborn perdía el suyo porque lo
+    // tenía la LART-EN001 "Common" (rareza falsa de YGOPRODeck) y se llevaba el
+    // de la EN001, de 6 € en vez de 2 €.
+    const promoEspecial = impresiones.every((i) => /-EN[A-Z]/.test(i.code));
+    if (promoEspecial && deOtraRareza.size) productosCarta = productosCarta.filter((x) => !deOtraRareza.has(x.idProduct));
     // Más productos que rarezas (la carta salió varias veces en la expansión,
     // como las Lost Art de varias oleadas): los dados de alta más cerca de la
     // salida de este set.
