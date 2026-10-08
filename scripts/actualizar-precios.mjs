@@ -893,6 +893,22 @@ for (const [nombreSet, cartasSet] of ordenSets) {
     let productosCarta = (expansiones.get(exp).get(n) ?? [])
       .map((p) => ({ precio: precioProducto.get(p.idProduct), idProduct: p.idProduct, t: fechaProducto(p) }))
       .filter((x) => x.precio != null);
+    /*
+     * Un producto es una sola rareza: el que ya tiene otra versión de la carta
+     * con OTRA rareza no es de esta. La RIRA-ENSP1 Ultra Rare (Sneak Peek) de
+     * Tlakalel, que salió dos semanas antes que el set, se llevaba por la fecha
+     * el de la RIRA-EN032 Rare, y el suyo (dado de alta con la preview) sobraba.
+     */
+    // Solo de OTRA impresión (otro código): con el mismo código es la misma carta
+    // repetida por YGOPRODeck con una rareza falsa (las Lost Art, también "Common").
+    const rarezasAqui = new Set(impresiones.map((i) => i.rarity));
+    const codigosAqui = new Set(impresiones.map((i) => i.code));
+    const deOtraRareza = new Set(
+      Object.entries(productoDe.get(impresiones[0].id) ?? {})
+        .filter(([k]) => !codigosAqui.has(k.slice(0, k.indexOf('|'))) && !rarezasAqui.has(k.slice(k.indexOf('|') + 1)))
+        .map(([, idProduct]) => idProduct),
+    );
+    if (deOtraRareza.size) productosCarta = productosCarta.filter((x) => !deOtraRareza.has(x.idProduct));
     // Más productos que rarezas (la carta salió varias veces en la expansión,
     // como las Lost Art de varias oleadas): los dados de alta más cerca de la
     // salida de este set.
