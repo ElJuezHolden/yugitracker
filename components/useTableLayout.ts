@@ -44,20 +44,34 @@ export function useTableLayout(el: HTMLElement | null, n: number, activa: boolea
   const [mesa, setMesa] = useState<Mesa | null>(null);
   useEffect(() => {
     if (!activa || !el) return;
+    let marco = 0;
     const medir = () => {
+      marco = 0;
       const r = el.getBoundingClientRect();
       // El alto desde donde empieza la mesa (sin contar lo desplazado) hasta el borde de la ventana.
       const arriba = Math.max(0, r.top + window.scrollY);
       const alto = Math.max(240, window.innerHeight - arriba - MARGEN_ABAJO);
-      setMesa(calcularMesa(n, el.clientWidth, alto));
+      const nueva = calcularMesa(n, el.clientWidth, alto);
+      setMesa((m) => (m && nueva && m.columnas === nueva.columnas && m.ancho === nueva.ancho ? m : nueva));
+    };
+    const pedir = () => {
+      if (!marco) marco = requestAnimationFrame(medir);
     };
     medir();
-    const ro = new ResizeObserver(medir);
+    /*
+     * También cuando cambia lo de encima: abrir y cerrar el panel de filtros (o
+     * cualquier cosa que empuje la mesa) movía su borde de arriba sin cambiar su
+     * ancho, y la mesa se quedaba calculada para el hueco de antes, más pequeña.
+     * Se vigila la página entera, una medida por fotograma como mucho.
+     */
+    const ro = new ResizeObserver(pedir);
     ro.observe(el);
-    window.addEventListener('resize', medir);
+    ro.observe(document.body);
+    window.addEventListener('resize', pedir);
     return () => {
+      if (marco) cancelAnimationFrame(marco);
       ro.disconnect();
-      window.removeEventListener('resize', medir);
+      window.removeEventListener('resize', pedir);
     };
   }, [el, n, activa]);
   return activa ? mesa : null;
