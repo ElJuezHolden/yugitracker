@@ -10,10 +10,10 @@ import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 
 /*
  * Hojas de cartas buscadas para imprimir: cada buscada a tamaño real (59 × 86
- * mm, 9 por A4), con su imagen (la elegida, si se cambió el arte), un sello
- * "WANTED" (como en la web) y dónde va en el álbum de verdad: carpeta, página y posición en la
- * hoja de fundas. Se recortan y se meten en los bolsillos vacíos; al conseguir
- * la carta, se cambia por ella.
+ * mm, 9 por A4), con su imagen (la elegida, si se cambió el arte) y, si se
+ * quiere, un sello "WANTED" como en la web. Se recortan y se meten en los
+ * bolsillos vacíos; al conseguir la carta, se cambia por ella. Dónde va cada una
+ * (carpeta, página y posición en la hoja de fundas) lo dice la lista inicial.
  *
  * La posición es la del álbum de la web: el orden de cada carpeta (el suyo, sin
  * filtros) con las buscadas en su sitio, y los bolsillos por hoja elegidos aquí.
@@ -36,12 +36,11 @@ const escapar = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<'
 function generarHtml(
   entradas: Entrada[],
   nombre: (c: Card) => string,
-  opciones: { gris: boolean; lista: boolean; sello: boolean; etiqueta: boolean; cols: number },
+  opciones: { gris: boolean; lista: boolean; sello: boolean; cols: number },
 ) {
   const porHoja = 9;
   const hojas: Entrada[][] = [];
   for (let i = 0; i < entradas.length; i += porHoja) hojas.push(entradas.slice(i, i + porHoja));
-  const posicion = (e: Entrada) => `Pág. ${e.pagina} · fila ${e.fila}, col. ${e.columna}`;
 
   const lista = opciones.lista
     ? `<section class="lista">
@@ -67,13 +66,6 @@ function generarHtml(
           (e) => `<div class="carta${opciones.gris ? ' gris' : ''}">
             <img src="${escapar(e.card.img)}" alt="">
             ${opciones.sello ? '<div class="sello">WANTED</div>' : ''}
-            ${
-              opciones.etiqueta
-                ? `<div class="etiqueta"><b>${escapar(posicion(e))}</b><br>${escapar(e.carpeta)}<br><span class="nombre">${escapar(nombre(e.card))}</span>${
-                    e.card.setCode && e.card.setCode !== '---' ? `<br><span class="version">${escapar(e.card.setCode)} · ${escapar(e.card.rarity)}</span>` : ''
-                  }</div>`
-                : ''
-            }
           </div>`,
         )
         .join('')}</section>`,
@@ -100,14 +92,11 @@ function generarHtml(
   .casilla::before { content: ''; display: inline-block; width: 3.5mm; height: 3.5mm; border: .3mm solid #333; border-radius: .6mm; }
   .hoja { display: grid; grid-template-columns: repeat(3, 59mm); grid-auto-rows: 86mm; gap: 3mm; justify-content: center; padding-top: 4mm; break-after: page; }
   .hoja:last-child { break-after: auto; }
-  .carta { position: relative; width: 59mm; height: 86mm; border-radius: 2.6mm; overflow: hidden; border: .25mm dashed #777; break-inside: avoid; }
+  /* Rectangulares, sin esquinas redondeadas: se cortan con guillotina. El borde discontinuo es la guía. */
+  .carta { position: relative; width: 59mm; height: 86mm; overflow: hidden; border: .25mm dashed #777; break-inside: avoid; }
   .carta img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .gris img { filter: grayscale(1) brightness(1.08) contrast(.92); }
   .sello { position: absolute; top: 30mm; left: 50%; transform: translateX(-50%) rotate(-12deg); padding: .6mm 2.4mm; border: .8mm solid #c40000; color: #c40000; background: rgba(255,255,255,.8); font-weight: 900; font-size: 6.5mm; letter-spacing: .8mm; }
-  .etiqueta { position: absolute; left: 0; right: 0; bottom: 0; padding: 1.2mm 1.8mm; background: rgba(255,255,255,.93); border-top: .25mm solid #999; font-size: 2.5mm; line-height: 1.3; }
-  .etiqueta b { font-size: 3.2mm; }
-  .nombre { font-weight: 600; }
-  .version { color: #444; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 </style></head>
 <body>
@@ -138,7 +127,6 @@ export function HojasBuscadasModal({ onClose }: Props) {
   const [gris, setGris] = useState(false);
   const [lista, setLista] = useState(true);
   const [sello, setSello] = useState(true);
-  const [etiqueta, setEtiqueta] = useState(true);
 
   const total = carpetas.filter((f) => elegidas.has(f.id)).reduce((n, f) => n + buscadasDe(f.id), 0);
 
@@ -169,7 +157,7 @@ export function HojasBuscadasModal({ onClose }: Props) {
     const ventana = window.open('', '_blank');
     if (!ventana) return toast('El navegador bloqueó la ventana: permite las ventanas emergentes de esta página', 'err');
     ventana.document.open();
-    ventana.document.write(generarHtml(entradas, nombre, { gris, lista, sello, etiqueta, cols }));
+    ventana.document.write(generarHtml(entradas, nombre, { gris, lista, sello, cols }));
     ventana.document.close();
     onClose();
   };
@@ -191,7 +179,7 @@ export function HojasBuscadasModal({ onClose }: Props) {
           <div>
             <h3 id="titulo-hojas-buscadas" className="font-bold text-lg text-main">Hojas de cartas buscadas</h3>
             <p className="text-xs text-muted">
-              Para imprimir, recortar y meter en los bolsillos vacíos del álbum: cada carta a tamaño real, con su página y su posición.
+              Para imprimir, recortar y meter en los bolsillos vacíos del álbum: cada carta a tamaño real. La lista inicial dice la página y la posición de cada una.
             </p>
           </div>
           <button onClick={onClose} aria-label="Cerrar" className="p-1 hover:bg-main/10 rounded text-main/70 hover:text-main shrink-0">
@@ -257,10 +245,6 @@ export function HojasBuscadasModal({ onClose }: Props) {
             <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
               <input type="checkbox" className="accent-primary" checked={sello} onChange={(e) => setSello(e.target.checked)} />
               Sello «WANTED» sobre cada carta
-            </label>
-            <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
-              <input type="checkbox" className="accent-primary" checked={etiqueta} onChange={(e) => setEtiqueta(e.target.checked)} />
-              Etiqueta con página y posición en el álbum
             </label>
             <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
               <input type="checkbox" className="accent-primary" checked={lista} onChange={(e) => setLista(e.target.checked)} />
