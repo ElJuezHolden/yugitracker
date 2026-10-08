@@ -481,6 +481,95 @@ try {
   console.warn(`No se pudieron leer las reediciones del 25 aniversario: ${e.message}`);
 }
 
+/*
+ * Colecciones que YGOPRODeck no tiene en absoluto (p. ej. Speed Duel GX:
+ * Midterm Destruction, SGX4). Sin ellas, la expansión de Cardmarket no se casaba
+ * con nada y ninguna carta de la colección tenía precio, ni siquiera como
+ * sobrante. Se piden a Yugipedia todas las colecciones con fecha de salida en inglés (de
+ * "All sets": las barajas no están en "TCG sets") con su fecha de
+ * salida; de las que YGOPRODeck no conoce (por prefijo: ninguna carta suya lo
+ * lleva; por nombre no sirve, cada uno las llama a su manera) se leen la lista
+ * de cartas y la fecha, y se añaden como cualquier otra. Se casan al final y
+ * nunca con una expansión que ya tenga otra colección (ver el emparejado).
+ */
+const setsDeYugipedia = new Set();
+let impresionesDeColecciones = 0;
+try {
+  const prefijosYgo = new Set();
+  for (const c of cartas) for (const x of c.card_sets ?? []) prefijosYgo.add(String(x.set_code).split('-')[0].toUpperCase());
+  const nombresYgo = new Set(setsYgo.map((x) => x.set_name));
+  /** nombre → fecha de salida en inglés (ms) */
+  const colecciones = new Map();
+  for (let offset = 0; offset != null && offset < 10000; ) {
+    const consulta = `[[Category:All sets]][[English release date::+]]|?English release date|limit=500|offset=${offset}`;
+    const res = await fetch(`https://yugipedia.com/api.php?action=ask&format=json&query=${encodeURIComponent(consulta)}`, { headers: { 'User-Agent': AGENTE } });
+    if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
+    const json = await res.json();
+    for (const [titulo, { printouts }] of Object.entries(json.query?.results ?? {})) {
+      const ts = Number(printouts['English release date']?.[0]?.timestamp);
+      if (Number.isFinite(ts) && !nombresYgo.has(titulo)) colecciones.set(titulo, ts * 1000);
+    }
+    offset = json['query-continue-offset'] ?? null;
+    await esperar(1000);
+  }
+  // El prefijo, de la página de cada colección.
+  const faltan = [];
+  const nombres = [...colecciones.keys()];
+  for (let i = 0; i < nombres.length; i += 50) {
+    const url = new URL('https://yugipedia.com/api.php');
+    for (const [k, v] of Object.entries({ action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', titles: nombres.slice(i, i + 50).join('|') }))
+      url.searchParams.set(k, v);
+    const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
+    if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
+    for (const pg of (await res.json()).query?.pages ?? []) {
+      const prefijo = /\|\s*prefix\s*=\s*([A-Z0-9]+)\s*\n/.exec(pg.revisions?.[0]?.content ?? '')?.[1];
+      if (prefijo && !prefijosYgo.has(prefijo) && colecciones.has(pg.title)) faltan.push({ nombre: pg.title, prefijo, fecha: colecciones.get(pg.title) });
+    }
+    await esperar(1000);
+  }
+  // Su lista de cartas en inglés: "(TCG-EN)" o, las que solo salieron en Norteamérica (SGX4), "(TCG-NA)".
+  const porNombre = new Map(cartas.map((c) => [norm(c.name), c]));
+  for (let i = 0; i < faltan.length; i += 25) {
+    const lote = faltan.slice(i, i + 25);
+    const url = new URL('https://yugipedia.com/api.php');
+    for (const [k, v] of Object.entries({ action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', titles: lote.flatMap((x) => [`Set Card Lists:${x.nombre} (TCG-EN)`, `Set Card Lists:${x.nombre} (TCG-NA)`]).join('|') }))
+      url.searchParams.set(k, v);
+    const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
+    if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
+    for (const pg of (await res.json()).query?.pages ?? []) {
+      const texto = pg.revisions?.[0]?.content;
+      const col = lote.find((x) => pg.title === `Set Card Lists:${x.nombre} (TCG-EN)` || pg.title === `Set Card Lists:${x.nombre} (TCG-NA)`);
+      // Si están las dos, vale la EN (la NA lleva los mismos códigos).
+      if (!texto || !col || (pg.title.endsWith('(TCG-NA)') && setsDeYugipedia.has(col.nombre))) continue;
+      let anadidas = 0;
+      for (const bloque of texto.split('{{Set list').slice(1)) {
+        const porDefecto = /\|\s*rarities\s*=\s*([^|\n]+)/.exec(bloque)?.[1]?.trim() ?? 'Common';
+        for (const linea of bloque.split('\n')) {
+          const m = /^([A-Z0-9]+-[A-Z]*[0-9A-Z]+)\s*;\s*([^;/]+?)\s*(?:;\s*([^;/]*))?(?:;|\/\/|$)/.exec(linea.trim());
+          if (!m || !m[1].startsWith(`${col.prefijo}-`)) continue;
+          const carta = porNombre.get(norm(m[2].replace(/ \(card\)$/, '')));
+          if (!carta) continue;
+          for (const abreviada of (m[3]?.trim() || porDefecto).split(',').map((r) => r.trim()).filter(Boolean)) {
+            const base = rarezaCompleta(abreviada);
+            const rarity = formaBuena.get(plana(base)) ?? base;
+            if ((carta.card_sets ??= []).some((x) => x.set_code === m[1] && x.set_rarity === rarity)) continue;
+            carta.card_sets.push({ set_name: col.nombre, set_code: m[1], set_rarity: rarity, set_rarity_code: '', set_price: '0' });
+            anadidas++;
+          }
+        }
+      }
+      if (anadidas) {
+        setsYgo.push({ set_name: col.nombre, set_code: col.prefijo, tcg_date: new Date(col.fecha).toISOString().slice(0, 10) });
+        setsDeYugipedia.add(col.nombre);
+        impresionesDeColecciones += anadidas;
+      }
+    }
+    await esperar(1000);
+  }
+} catch (e) {
+  console.warn(`No se pudieron leer las colecciones que le faltan a YGOPRODeck: ${e.message}`);
+}
+
 /** YGOPRODeck: set → nombre → versiones. */
 const setsCartas = new Map();
 for (const c of cartas) {
@@ -783,8 +872,12 @@ const informe = [];
 // De mayor a menor: los sets pequeños van al final y mandan sobre los que los
 // agrupan (YGOPRODeck tiene "The Lost Art Promotion (series)" con todas las Lost
 // Art y, además, un set con la fecha exacta de cada oleada).
-for (const [nombreSet, cartasSet] of [...setsCartas].sort((a, b) => b[1].size - a[1].size)) {
-  const exp = expansionDe(nombreSet, cartasSet);
+// Las colecciones sacadas de Yugipedia, al final: solo se casan con una expansión
+// que no tenga ya otra colección (si no, se llevarían los productos de esa).
+const ordenSets = [...setsCartas].sort((a, b) => Number(setsDeYugipedia.has(a[0])) - Number(setsDeYugipedia.has(b[0])) || b[1].size - a[1].size);
+for (const [nombreSet, cartasSet] of ordenSets) {
+  let exp = expansionDe(nombreSet, cartasSet);
+  if (exp != null && setsDeYugipedia.has(nombreSet) && emparejados.some(([, e]) => e === exp)) exp = null;
   const fecha = lanzamiento.get(nombreSet);
   if (process.env.INFORME) {
     const antes = expansionDeAntes(nombreSet, cartasSet);
@@ -1393,5 +1486,5 @@ try {
   // Sin archivo de nombres no hay nada que completar.
 }
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas, ${promosAnadidas} promos de lanzamiento (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${otroNombre.size} nombres de Cardmarket casados con su carta.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas, ${promosAnadidas} promos de lanzamiento (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${impresionesDeColecciones} impresiones de ${setsDeYugipedia.size} colecciones que YGOPRODeck no tiene; ${otroNombre.size} nombres de Cardmarket casados con su carta.`,
 );
