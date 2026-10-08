@@ -36,7 +36,7 @@ const escapar = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<'
 function generarHtml(
   entradas: Entrada[],
   nombre: (c: Card) => string,
-  opciones: { gris: boolean; lista: boolean; sello: boolean; cols: number },
+  opciones: { gris: boolean; lista: boolean; sello: boolean; juntas: boolean; cols: number },
 ) {
   const porHoja = 9;
   const hojas: Entrada[][] = [];
@@ -61,7 +61,7 @@ function generarHtml(
 
   const cartas = hojas
     .map(
-      (hoja) => `<section class="hoja">${hoja
+      (hoja) => `<section class="hoja${opciones.juntas ? ' juntas' : ''}">${hoja
         .map(
           (e) => `<div class="carta${opciones.gris ? ' gris' : ''}">
             <img src="${escapar(e.card.img)}" alt="">
@@ -94,6 +94,9 @@ function generarHtml(
   .hoja:last-child { break-after: auto; }
   /* Rectangulares, sin esquinas redondeadas: se cortan con guillotina. El borde discontinuo es la guía. */
   .carta { position: relative; width: 59mm; height: 86mm; overflow: hidden; border: .25mm dashed #777; break-inside: avoid; }
+  /* Juntas: sin separación, una sola línea de corte compartida entre cartas vecinas. */
+  .hoja.juntas { gap: 0; width: fit-content; margin: 0 auto; border-top: .25mm dashed #777; border-left: .25mm dashed #777; }
+  .juntas .carta { border: 0; border-right: .25mm dashed #777; border-bottom: .25mm dashed #777; }
   .carta img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .gris img { filter: grayscale(1) brightness(1.08) contrast(.92); }
   .sello { position: absolute; top: 30mm; left: 50%; transform: translateX(-50%) rotate(-12deg); padding: .6mm 2.4mm; border: .8mm solid #c40000; color: #c40000; background: rgba(255,255,255,.8); font-weight: 900; font-size: 6.5mm; letter-spacing: .8mm; }
@@ -127,6 +130,7 @@ export function HojasBuscadasModal({ onClose }: Props) {
   const [gris, setGris] = useState(false);
   const [lista, setLista] = useState(true);
   const [sello, setSello] = useState(true);
+  const [juntas, setJuntas] = useState(false);
 
   const total = carpetas.filter((f) => elegidas.has(f.id)).reduce((n, f) => n + buscadasDe(f.id), 0);
 
@@ -157,7 +161,7 @@ export function HojasBuscadasModal({ onClose }: Props) {
     const ventana = window.open('', '_blank');
     if (!ventana) return toast('El navegador bloqueó la ventana: permite las ventanas emergentes de esta página', 'err');
     ventana.document.open();
-    ventana.document.write(generarHtml(entradas, nombre, { gris, lista, sello, cols }));
+    ventana.document.write(generarHtml(entradas, nombre, { gris, lista, sello, juntas, cols }));
     ventana.document.close();
     onClose();
   };
@@ -245,6 +249,10 @@ export function HojasBuscadasModal({ onClose }: Props) {
             <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
               <input type="checkbox" className="accent-primary" checked={sello} onChange={(e) => setSello(e.target.checked)} />
               Sello «WANTED» sobre cada carta
+            </label>
+            <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
+              <input type="checkbox" className="accent-primary" checked={juntas} onChange={(e) => setJuntas(e.target.checked)} />
+              Cartas juntas, sin separación (un solo corte de guillotina entre cartas)
             </label>
             <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
               <input type="checkbox" className="accent-primary" checked={lista} onChange={(e) => setLista(e.target.checked)} />
