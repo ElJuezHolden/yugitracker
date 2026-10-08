@@ -61,6 +61,7 @@ type Action =
   | { type: 'UPDATE_CARD'; payload: Card }
   /** Rellena el nivel de las copias que no lo tienen: número de carta → nivel. */
   | { type: 'SET_CARD_LEVELS'; payload: Record<number, number> }
+  | { type: 'SET_CARDS_PRINTED'; payload: { uids: string[]; fecha: string | undefined } }
   | { type: 'DELETE_CARD'; payload: string }
   | { type: 'DELETE_CARDS'; payload: string[] }
   | { type: 'RESTORE_CARD'; payload: { card: Card; index: number } }
@@ -332,6 +333,18 @@ const reducer = (state: AppState, action: Action): AppState => {
           cards: state.db.cards.map(c => (c.level == null && action.payload[c.apiId] != null ? { ...c, level: action.payload[c.apiId] } : c)),
         },
       };
+    case 'SET_CARDS_PRINTED': {
+        // Sin fecha se quita la marca (undefined no se guarda).
+        const uids = new Set(action.payload.uids);
+        const { fecha } = action.payload;
+        return {
+          ...state,
+          db: {
+            ...state.db,
+            cards: state.db.cards.map(c => (uids.has(c.uid) ? { ...c, impresa: fecha } : c)),
+          },
+        };
+    }
     case 'DELETE_CARD':
       return { ...state, db: { ...state.db, cards: state.db.cards.filter(c => c.uid !== action.payload) } };
     case 'DELETE_CARDS': {

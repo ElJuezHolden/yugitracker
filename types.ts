@@ -46,6 +46,8 @@ export interface Card {
   is1st: boolean;
   isLimited?: boolean; // New property
   isWanted?: boolean; // New property for Wanted cards
+  /** Buscada ya impresa en las hojas para el álbum: fecha (AAAA-MM-DD). */
+  impresa?: string;
   setCode: string;
   rarity: string;
   rarityCode: string;

@@ -17,6 +17,9 @@ import { displayName, useNameMode, useSpanishNames } from '../useCardName';
  *
  * La posición es la del álbum de la web: el orden de cada carpeta (el suyo, sin
  * filtros) con las buscadas en su sitio, y los bolsillos por hoja elegidos aquí.
+ *
+ * Tras generarlas se pregunta si se imprimieron: las que sí quedan marcadas
+ * (Card.impresa) y la próxima vez se pueden imprimir solo las nuevas.
  */
 
 interface Props {
@@ -30,6 +33,12 @@ interface Entrada {
   columna: number;
   card: Card;
 }
+
+const hoy = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+const fechaCorta = (f: string) => new Date(`${f}T00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
 
 const escapar = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -166,15 +175,23 @@ function generarHtml(
 }
 
 export function HojasBuscadasModal({ onClose }: Props) {
-  const { state, toast } = useStore();
+  const { state, dispatch, toast } = useStore();
   const { valueOf } = usePrices();
   const nombresEs = useSpanishNames();
   const modoNombres = useNameMode();
   const nombre = (c: Card) => displayName(c, nombresEs, modoNombres);
 
   const carpetas = state.db.folders.filter((f) => f.id !== ID_ALL);
-  const buscadasDe = (id: string) => state.db.cards.filter((c) => c.folderId === id && c.isWanted).length;
-  const [elegidas, setElegidas] = useState<Set<string>>(() => new Set(carpetas.filter((f) => buscadasDe(f.id) > 0).map((f) => f.id)));
+  const buscadas = (id: string) => state.db.cards.filter((c) => c.folderId === id && c.isWanted);
+  const hayImpresas = state.db.cards.some((c) => c.isWanted && c.impresa);
+  // Si ya se imprimió alguna, lo normal es imprimir solo las nuevas.
+  const [soloNuevas, setSoloNuevas] = useState(hayImpresas);
+  const aImprimir = (c: Card) => !(soloNuevas && c.impresa);
+  const buscadasDe = (id: string) => buscadas(id).filter(aImprimir).length;
+  const conAlgo = (nuevas: boolean) => new Set(carpetas.filter((f) => buscadas(f.id).some((c) => !(nuevas && c.impresa))).map((f) => f.id));
+  const [elegidas, setElegidas] = useState<Set<string>>(() => conAlgo(hayImpresas));
+  /** Cartas de las hojas recién generadas, a falta de saber si se imprimieron. */
+  const [pendientes, setPendientes] = useState<string[] | null>(null);
   const [cols, setCols] = useState<AlbumColumns>(state.ui.albumColumns);
   const [gris, setGris] = useState(false);
   const [lista, setLista] = useState(true);
@@ -202,7 +219,7 @@ export function HojasBuscadasModal({ onClose }: Props) {
       const comparar = compararCartas(f.cardSort ?? 'type', f.cardSortDir ?? 'asc', nombre, valueOf);
       if (comparar) todas = [...todas].sort(comparar);
       todas.forEach((card, i) => {
-        if (!card.isWanted) return;
+        if (!card.isWanted || !aImprimir(card)) return;
         const bolsillo = i % porPagina;
         entradas.push({ carpeta: f.name, pagina: Math.floor(i / porPagina) + 1, fila: Math.floor(bolsillo / cols) + 1, columna: (bolsillo % cols) + 1, card });
       });
@@ -213,7 +230,19 @@ export function HojasBuscadasModal({ onClose }: Props) {
     ventana.document.open();
     ventana.document.write(generarHtml(entradas, nombre, { gris, lista, sello, juntas, carpetas: conCarpetas, cols }));
     ventana.document.close();
+    setPendientes(entradas.map((e) => e.card.uid));
+  };
+
+  const marcarImpresas = () => {
+    if (!pendientes) return;
+    dispatch({ type: 'SET_CARDS_PRINTED', payload: { uids: pendientes, fecha: hoy() } });
+    toast(`${pendientes.length} ${pendientes.length === 1 ? 'carta marcada como impresa' : 'cartas marcadas como impresas'}`);
     onClose();
+  };
+
+  const desmarcar = (id: string) => {
+    const uids = buscadas(id).filter((c) => c.impresa).map((c) => c.uid);
+    dispatch({ type: 'SET_CARDS_PRINTED', payload: { uids, fecha: undefined } });
   };
 
   return (
@@ -246,7 +275,7 @@ export function HojasBuscadasModal({ onClose }: Props) {
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-muted">Carpetas</span>
               <div className="flex gap-3 text-xs">
-                <button type="button" className="text-primary hover:underline" onClick={() => setElegidas(new Set(carpetas.filter((f) => buscadasDe(f.id) > 0).map((f) => f.id)))}>
+                <button type="button" className="text-primary hover:underline" onClick={() => setElegidas(conAlgo(soloNuevas))}>
                   Todas
                 </button>
                 <button type="button" className="text-muted hover:text-main" onClick={() => setElegidas(new Set())}>
@@ -254,20 +283,54 @@ export function HojasBuscadasModal({ onClose }: Props) {
                 </button>
               </div>
             </div>
+            <label className="flex items-center gap-3 text-sm text-main cursor-pointer mb-2">
+              <input
+                type="checkbox"
+                className="accent-primary"
+                checked={soloNuevas}
+                onChange={(e) => {
+                  setSoloNuevas(e.target.checked);
+                  setElegidas(conAlgo(e.target.checked));
+                }}
+              />
+              Solo las que aún no he impreso
+            </label>
             <div className="flex flex-col gap-1">
               {carpetas.map((f) => {
                 const n = buscadasDe(f.id);
+                const todas = buscadas(f.id);
+                const impresas = todas.filter((c) => c.impresa);
+                const ultima = impresas.reduce((u, c) => (c.impresa! > u ? c.impresa! : u), '');
                 return (
                   <label
                     key={f.id}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg border transition-colors ${
-                      n === 0 ? 'opacity-40 cursor-not-allowed border-transparent' : elegidas.has(f.id) ? 'border-primary/50 bg-primary/10 cursor-pointer' : 'border-border-base hover:bg-main/5 cursor-pointer'
+                      n === 0 ? `${impresas.length > 0 ? 'opacity-70' : 'opacity-40'} cursor-not-allowed border-transparent` : elegidas.has(f.id) ? 'border-primary/50 bg-primary/10 cursor-pointer' : 'border-border-base hover:bg-main/5 cursor-pointer'
                     }`}
                   >
                     <input type="checkbox" className="accent-primary" checked={elegidas.has(f.id)} disabled={n === 0} onChange={() => alternar(f.id)} />
-                    <span className="flex-1 truncate text-sm text-main">{f.name}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block truncate text-sm text-main">{f.name}</span>
+                      {impresas.length > 0 && (
+                        <span className="flex flex-wrap items-center gap-x-2 text-[11px] text-muted">
+                          <span>
+                            {impresas.length === todas.length ? 'Todas impresas' : `${impresas.length} de ${todas.length} impresas`} · {fechaCorta(ultima)}
+                          </span>
+                          <button
+                            type="button"
+                            className="text-primary hover:underline shrink-0"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              desmarcar(f.id);
+                            }}
+                          >
+                            Desmarcar
+                          </button>
+                        </span>
+                      )}
+                    </span>
                     <span className="text-xs text-muted whitespace-nowrap">
-                      {n} {n === 1 ? 'buscada' : 'buscadas'}
+                      {n} {soloNuevas && impresas.length > 0 ? (n === 1 ? 'nueva' : 'nuevas') : n === 1 ? 'buscada' : 'buscadas'}
                     </span>
                   </label>
                 );
@@ -319,6 +382,19 @@ export function HojasBuscadasModal({ onClose }: Props) {
           </div>
         </div>
 
+        {pendientes ? (
+          <div className="p-4 border-t border-border-base bg-bg-panel rounded-b-2xl flex flex-wrap items-center gap-3 shrink-0">
+            <span className="text-sm text-main flex-1 min-w-[12rem]">¿Las has impreso? Márcalas y la próxima vez podrás imprimir solo las nuevas.</span>
+            <div className="ml-auto flex gap-2">
+              <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-main bg-main/5 hover:bg-main/10">
+                Todavía no
+              </button>
+              <button type="button" onClick={marcarImpresas} className="px-4 py-2 rounded-lg text-sm font-bold bg-primary text-black hover:brightness-110">
+                Sí, marcar {pendientes.length} como impresas
+              </button>
+            </div>
+          </div>
+        ) : (
         <div className="p-4 border-t border-border-base bg-bg-panel rounded-b-2xl flex items-center gap-3 shrink-0">
           <span className="text-xs text-muted">
             {total} {total === 1 ? 'carta' : 'cartas'} · {Math.ceil(total / 9)} {Math.ceil(total / 9) === 1 ? 'hoja' : 'hojas'} A4
@@ -337,6 +413,7 @@ export function HojasBuscadasModal({ onClose }: Props) {
             </button>
           </div>
         </div>
+        )}
       </motion.div>
     </div>
   );

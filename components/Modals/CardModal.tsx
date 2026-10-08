@@ -313,6 +313,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
         is1st: formData.isWanted ? false : formData.is1st,
         isLimited: formData.isWanted ? false : formData.isLimited,
         isWanted: formData.isWanted,
+        // Al conseguirla deja de estar impresa: si vuelve a buscarse, se imprime otra vez.
+        impresa: formData.isWanted ? existingCard?.impresa : undefined,
         // Las buscadas guardan también su versión: así se sabe cuál falta y cuánto vale.
         setCode: !selectedSet ? '---' : selectedSet.set_code,
         rarity: !selectedSet ? 'Common' : finalRarity,
