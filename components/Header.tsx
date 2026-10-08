@@ -3,7 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { NAME_MODES, setNameMode, useNameMode } from './useCardName';
 import { ID_ALL, CARD_BACK_IMG } from '../utils';
 import { useBackup } from '../context/BackupContext';
-import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp, Languages } from 'lucide-react';
+import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp, Languages, Printer } from 'lucide-react';
 import { TagsPanel } from './TagsPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FolderSort, CardSort } from '../types';
@@ -13,6 +13,8 @@ interface Props {
   onOpenSearchModal: () => void;
   onOpenBackupModal: () => void;
   onOpenPriceMoves: () => void;
+  /** Hojas de cartas buscadas para imprimir y meter en el álbum. */
+  onOpenHojasBuscadas: () => void;
   onOpenThemeModal: () => void;
   isSelectionMode: boolean;
   onToggleSelectionMode: () => void;
@@ -27,6 +29,7 @@ export const Header: React.FC<Props> = ({
     onOpenSearchModal, 
     onOpenBackupModal,
     onOpenPriceMoves,
+    onOpenHojasBuscadas,
     onOpenThemeModal, 
     isSelectionMode, 
     onToggleSelectionMode,
@@ -306,6 +309,16 @@ export const Header: React.FC<Props> = ({
                 aria-label="Subidas y bajadas de precio"
             >
                 <TrendingUp size={16} />
+            </button>
+
+            {/* Hojas de cartas buscadas para imprimir */}
+            <button
+                onClick={onOpenHojasBuscadas}
+                className="p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
+                title="Hojas de cartas buscadas para imprimir"
+                aria-label="Hojas de cartas buscadas para imprimir"
+            >
+                <Printer size={16} />
             </button>
 
             {/*

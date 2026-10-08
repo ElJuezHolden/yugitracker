@@ -8,6 +8,7 @@ import { FolderModal } from './components/Modals/FolderModal';
 import { SearchModal } from './components/Modals/SearchModal';
 import { CardModal } from './components/Modals/CardModal';
 import { PersonalizadoModal } from './components/Modals/PersonalizadoModal';
+import { HojasBuscadasModal } from './components/Modals/HojasBuscadasModal';
 import { ThemeModal } from './components/Modals/ThemeModal';
 import { BackupModal } from './components/Modals/BackupModal';
 import { PriceMovesModal } from './components/Modals/PriceMovesModal';
@@ -21,9 +22,10 @@ import { useShuffleAnimation } from './components/useShuffleAnimation';
 import { DisplayTable } from './components/DisplayTable';
 import { usePrices } from './context/PricesContext';
 import { displayName, useNameMode, useSpanishNames } from './components/useCardName';
+import { compararCartas } from './components/ordenCartas';
 import { CardFilter } from './components/CardFilter';
 import { ToastContainer } from './components/Toast';
-import { ID_ALL, getTypeWeight, getRarityWeight, normalizeStr, analyzeCardType, compareNames, compareSetNumber } from './utils';
+import { ID_ALL, getRarityWeight, normalizeStr, analyzeCardType, compareNames } from './utils';
 import type { Card, ApiCard, Folder, MainCardType, MonsterType, CardProperty } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Trash, X } from 'lucide-react';
@@ -58,6 +60,7 @@ function App() {
   const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isPriceMovesOpen, setIsPriceMovesOpen] = useState(false);
+  const [hojasBuscadas, setHojasBuscadas] = useState(false);
   
   // Selection Mode State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -320,20 +323,6 @@ function App() {
 
   // 3. FINAL DATA: Apply Advanced Filters & Sorting
   const finalData = useMemo(() => {
-    // Helper Identity sort
-    const compareAttributes = (a: Card, b: Card) => {
-        const setDiff = compareNames(a.setCode || '', b.setCode || '');
-        if (setDiff !== 0) return setDiff;
-        const imgDiff = a.img.localeCompare(b.img);
-        if (imgDiff !== 0) return imgDiff;
-        const rarityDiff = (a.rarityCode || '').localeCompare(b.rarityCode || '');
-        if (rarityDiff !== 0) return rarityDiff;
-        const condDiff = a.condition.localeCompare(b.condition);
-        if (condDiff !== 0) return condDiff;
-        const langDiff = a.lang.localeCompare(b.lang);
-        if (langDiff !== 0) return langDiff;
-        return 0;
-    };
 
     if (isHome) {
         // --- FOLDERS PROCESSING ---
@@ -425,71 +414,9 @@ function App() {
             list = list.filter(c => filters.langs.includes(c.lang));
         }
 
-        // D. SORTING
-        if (sortCards !== 'manual') {
-            const dir = sortCardsDir === 'asc' ? 1 : -1;
-            list.sort((a, b) => {
-                if (sortCards === 'name') {
-                    const nameDiff = compareNames(displayName(a, nombresEs, modoNombres), displayName(b, nombresEs, modoNombres)) * dir;
-                    if (nameDiff !== 0) return nameDiff;
-                    const attrDiff = compareAttributes(a, b);
-                    if (attrDiff !== 0) return attrDiff;
-                    return 0;
-                }
-                if (sortCards === 'price') {
-                    // Por valor de mercado. Sin precio cuenta como -1 para que quede al final.
-                    const priceDiff = ((valueOf(b) ?? -1) - (valueOf(a) ?? -1)) * dir;
-                    if (priceDiff !== 0) return priceDiff;
-                    const tA = getTypeWeight(a.type);
-                    const tB = getTypeWeight(b.type);
-                    const typeDiff = (tA - tB) * dir;
-                    if (typeDiff !== 0) return typeDiff;
-                    const nameDiff = compareNames(displayName(a, nombresEs, modoNombres), displayName(b, nombresEs, modoNombres)) * dir;
-                    if (nameDiff !== 0) return nameDiff;
-                    return compareAttributes(a, b);
-                }
-                if (sortCards === 'rarity') {
-                    const wA = getRarityWeight(a.rarity);
-                    const wB = getRarityWeight(b.rarity);
-                    const rarityDiff = (wB - wA) * dir;
-                    if (rarityDiff !== 0) return rarityDiff;
-                    const nameDiff = compareNames(displayName(a, nombresEs, modoNombres), displayName(b, nombresEs, modoNombres)) * dir;
-                    if (nameDiff !== 0) return nameDiff;
-                    const attrDiff = compareAttributes(a, b);
-                    if (attrDiff !== 0) return attrDiff;
-                    return 0;
-                }
-                if (sortCards === 'set') {
-                    // Por número dentro del set: LART-SP001 antes que LART-EN029 (el idioma no cuenta).
-                    const setDiff = compareSetNumber(a.setCode, b.setCode) * dir;
-                    if (setDiff !== 0) return setDiff;
-                    return compareNames(displayName(a, nombresEs, modoNombres), displayName(b, nombresEs, modoNombres)) * dir;
-                }
-                if (sortCards === 'level') {
-                    // Por tipo de carta y, en los monstruos, por nivel (rango en las Xyz,
-                    // enlace en las Link); dentro de cada nivel, por nombre.
-                    const typeDiff = (getTypeWeight(a.type) - getTypeWeight(b.type)) * dir;
-                    if (typeDiff !== 0) return typeDiff;
-                    const levelDiff = ((a.level ?? 0) - (b.level ?? 0)) * dir;
-                    if (levelDiff !== 0) return levelDiff;
-                    const nameDiff = compareNames(displayName(a, nombresEs, modoNombres), displayName(b, nombresEs, modoNombres));
-                    if (nameDiff !== 0) return nameDiff;
-                    return compareAttributes(a, b);
-                }
-                if (sortCards === 'type') {
-                     const wA = getTypeWeight(a.type);
-                     const wB = getTypeWeight(b.type);
-                     const typeDiff = (wA - wB) * dir;
-                     if (typeDiff !== 0) return typeDiff;
-                     const nameDiff = compareNames(displayName(a, nombresEs, modoNombres), displayName(b, nombresEs, modoNombres)) * dir;
-                     if (nameDiff !== 0) return nameDiff;
-                     const attrDiff = compareAttributes(a, b);
-                     if (attrDiff !== 0) return attrDiff;
-                     return 0;
-                }
-                return 0;
-            });
-        }
+        // D. SORTING (el mismo orden que el álbum: ver ordenCartas)
+        const comparar = compararCartas(sortCards, sortCardsDir, (c) => displayName(c, nombresEs, modoNombres), valueOf);
+        if (comparar) list.sort(comparar);
         return list;
     }
   }, [baseData, isHome, sortFolders, sortFoldersDir, sortCards, sortCardsDir, filters, state.db.cards, wantedMode, valueOf, nombresEs, modoNombres]);
@@ -532,6 +459,7 @@ function App() {
         onOpenSearchModal={() => setIsSearchModalOpen(true)}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         onOpenPriceMoves={() => setIsPriceMovesOpen(true)}
+        onOpenHojasBuscadas={() => setHojasBuscadas(true)}
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
         isSelectionMode={isSelectionMode}
         onToggleSelectionMode={() => setIsSelectionMode(prev => !prev)}
@@ -742,7 +670,7 @@ function App() {
                             portada={carpetaActiva?.img}
                             estilo={carpetaActiva?.album}
                             onEstilo={carpetaActiva ? (album) => dispatch({ type: 'SET_FOLDER_ALBUM', payload: { id: carpetaActiva.id, album } }) : undefined}
-                            teclado={personalizado === undefined && !isCardModalOpen && !isSearchModalOpen && !isFolderModalOpen && !isThemeModalOpen && !isBackupModalOpen && !isPriceMovesOpen}
+                            teclado={personalizado === undefined && !hojasBuscadas && !isCardModalOpen && !isSearchModalOpen && !isFolderModalOpen && !isThemeModalOpen && !isBackupModalOpen && !isPriceMovesOpen}
                         />
                     )}
                 </motion.div>
@@ -855,6 +783,7 @@ function App() {
                 }}
             />
         )}
+        {hojasBuscadas && <HojasBuscadasModal onClose={() => setHojasBuscadas(false)} />}
         {personalizado !== undefined && (
             <PersonalizadoModal existente={personalizado} onClose={() => setPersonalizado(undefined)} />
         )}
