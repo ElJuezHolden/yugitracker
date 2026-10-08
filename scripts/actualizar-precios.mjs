@@ -1196,8 +1196,10 @@ try {
     const enlaces = [...resto.join('|').matchAll(/\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/g)].map((m) => m[1].trim());
     const [code, abreviada] = enlaces;
     const rarity = abreviada ? ABREVIADAS[plana(abreviada)] : undefined;
-    if (!code || !rarity || !/^[A-Z0-9]+-(EN)?\d+$/.test(code)) continue;
-    // Las "Official Proxy" son copias de sustitución, no cartas que se vendan.
+    // Códigos en inglés: "LC03-EN006", los antiguos sin región ("LOB-000") y los de
+    // ficha con letras ("SR01-ENTKN", "SDCH-ENT01", "SOVR-ENTK1"), que se perdían.
+    if (!code || !rarity || !/^[A-Z0-9]+-(EN[A-Z0-9]+|\d+)$/.test(code)) continue;
+    // Las "Official Proxy son copias de sustitución, no cartas que se vendan.
     if (enlaces.includes('Official Proxy')) continue;
     // Tras código y rareza: la edición (si la pone), la colección y, si tiene nombre, la ficha.
     const iSet = /Edition$/.test(enlaces[2] ?? '') ? 3 : 2;
@@ -1224,14 +1226,41 @@ try {
     }
     await esperar(1000);
   }
+  /** Expansión de Cardmarket de una colección de la galería: por su nombre o, si Yugipedia la llama distinto, por el prefijo del código. */
+  const expansionDeFicha = (l) => {
+    const porNombre = emparejados.find(([nombre]) => nombre === l.set)?.[1];
+    if (porNombre != null) return porNombre;
+    const prefijo = l.code.split('-')[0];
+    const delPrefijo = new Set(setsYgo.filter((x) => String(x.set_code).toUpperCase() === prefijo).map((x) => emparejados.find(([nombre]) => nombre === x.set_name)?.[1]).filter((x) => x != null));
+    return delPrefijo.size === 1 ? [...delPrefijo][0] : undefined;
+  };
   for (const l of lineas) {
     // Por código y arte: algún código está repetido con dos dibujos (TKN4-EN020).
     const id = ID_FICHA + numeroDe(`${l.code}|${l.archivo}`);
     if (cartasExtra.some((c) => c.id === id)) continue;
     const imagen = imagenDe.get(l.archivo);
+    /*
+     * Precio: el producto de Cardmarket con su nombre en la expansión de su
+     * colección, solo si es el único (y la única impresión así en la galería).
+     * Si hay varios iguales (las dos Kuriboh de LC03 se llaman igual en los
+     * archivos de Cardmarket), solo los de PRODUCTO_FICHA, comprobados a mano.
+     * Las que solo dicen "Token": Cardmarket les pone nombre ("Shadow Token" la
+     * de SR01); si en la expansión hay un solo producto de ficha y es la única
+     * ficha de esa colección en la galería, es ella, y se queda con ese nombre.
+     */
+    const exp = expansionDeFicha(l);
+    const fijado = PRODUCTO_FICHA.get(l.code);
+    let candidatos = exp != null ? (expansiones.get(exp)?.get(norm(l.nombre)) ?? []) : [];
+    let iguales = lineas.filter((x) => x.set === l.set && x.nombre === l.nombre).length;
+    if (l.nombre === 'Token' && exp != null && candidatos.length === 0) {
+      candidatos = [...expansiones.get(exp).values()].flat().filter((x) => /\btoken\b/i.test(x.name));
+      iguales = lineas.filter((x) => x.set === l.set).length;
+    }
+    const producto = fijado != null ? candidatos.find((x) => x.idProduct === fijado) : candidatos.length === 1 && iguales === 1 ? candidatos[0] : undefined;
+    const nombreCardmarket = l.nombre === 'Token' && producto && /\btoken\b/i.test(producto.name) ? producto.name.trim() : null;
     cartasExtra.push({
       id,
-      name: l.nombre,
+      name: nombreCardmarket ?? l.nombre,
       name_es: l.base ? fichasEs.get(norm(l.base.name)) : l.nombre === 'Token' ? 'Ficha' : fichasEs.get(norm(l.nombre)),
       type: 'Token',
       frameType: 'token',
@@ -1241,17 +1270,6 @@ try {
       card_images: imagen ? [{ id, image_url: imagen, image_url_small: imagen, image_url_cropped: imagen }] : [],
     });
     fichasGaleria++;
-    /*
-     * Precio: el producto de Cardmarket con su nombre en la expansión de su
-     * colección, solo si es el único (y la única impresión así en la galería).
-     * Si hay varios iguales (las dos Kuriboh de LC03 se llaman igual en los
-     * archivos de Cardmarket), solo los de PRODUCTO_FICHA, comprobados a mano.
-     */
-    const exp = emparejados.find(([nombre]) => nombre === l.set)?.[1];
-    const candidatos = exp != null ? (expansiones.get(exp)?.get(norm(l.nombre)) ?? []) : [];
-    const fijado = PRODUCTO_FICHA.get(l.code);
-    const iguales = lineas.filter((x) => x.set === l.set && x.nombre === l.nombre).length;
-    const producto = fijado != null ? candidatos.find((x) => x.idProduct === fijado) : candidatos.length === 1 && iguales === 1 ? candidatos[0] : undefined;
     const precio = producto && precioProducto.get(producto.idProduct);
     if (precio) {
       const clave = `${l.code}|${l.rarity}`;
