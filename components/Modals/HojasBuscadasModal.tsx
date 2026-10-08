@@ -33,7 +33,11 @@ interface Entrada {
 
 const escapar = (t: string) => t.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
-function generarHtml(entradas: Entrada[], nombre: (c: Card) => string, opciones: { gris: boolean; lista: boolean; cols: number }) {
+function generarHtml(
+  entradas: Entrada[],
+  nombre: (c: Card) => string,
+  opciones: { gris: boolean; lista: boolean; sello: boolean; etiqueta: boolean; cols: number },
+) {
   const porHoja = 9;
   const hojas: Entrada[][] = [];
   for (let i = 0; i < entradas.length; i += porHoja) hojas.push(entradas.slice(i, i + porHoja));
@@ -62,10 +66,14 @@ function generarHtml(entradas: Entrada[], nombre: (c: Card) => string, opciones:
         .map(
           (e) => `<div class="carta${opciones.gris ? ' gris' : ''}">
             <img src="${escapar(e.card.img)}" alt="">
-            <div class="sello">BUSCADA</div>
-            <div class="etiqueta"><b>${escapar(posicion(e))}</b><br>${escapar(e.carpeta)}<br><span class="nombre">${escapar(nombre(e.card))}</span>${
-              e.card.setCode && e.card.setCode !== '---' ? `<br><span class="version">${escapar(e.card.setCode)} · ${escapar(e.card.rarity)}</span>` : ''
-            }</div>
+            ${opciones.sello ? '<div class="sello">BUSCADA</div>' : ''}
+            ${
+              opciones.etiqueta
+                ? `<div class="etiqueta"><b>${escapar(posicion(e))}</b><br>${escapar(e.carpeta)}<br><span class="nombre">${escapar(nombre(e.card))}</span>${
+                    e.card.setCode && e.card.setCode !== '---' ? `<br><span class="version">${escapar(e.card.setCode)} · ${escapar(e.card.rarity)}</span>` : ''
+                  }</div>`
+                : ''
+            }
           </div>`,
         )
         .join('')}</section>`,
@@ -129,6 +137,8 @@ export function HojasBuscadasModal({ onClose }: Props) {
   const [cols, setCols] = useState<AlbumColumns>(state.ui.albumColumns);
   const [gris, setGris] = useState(false);
   const [lista, setLista] = useState(true);
+  const [sello, setSello] = useState(true);
+  const [etiqueta, setEtiqueta] = useState(true);
 
   const total = carpetas.filter((f) => elegidas.has(f.id)).reduce((n, f) => n + buscadasDe(f.id), 0);
 
@@ -159,7 +169,7 @@ export function HojasBuscadasModal({ onClose }: Props) {
     const ventana = window.open('', '_blank');
     if (!ventana) return toast('El navegador bloqueó la ventana: permite las ventanas emergentes de esta página', 'err');
     ventana.document.open();
-    ventana.document.write(generarHtml(entradas, nombre, { gris, lista, cols }));
+    ventana.document.write(generarHtml(entradas, nombre, { gris, lista, sello, etiqueta, cols }));
     ventana.document.close();
     onClose();
   };
@@ -244,6 +254,14 @@ export function HojasBuscadasModal({ onClose }: Props) {
           </div>
 
           <div className="space-y-2">
+            <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
+              <input type="checkbox" className="accent-primary" checked={sello} onChange={(e) => setSello(e.target.checked)} />
+              Sello «BUSCADA» sobre cada carta
+            </label>
+            <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
+              <input type="checkbox" className="accent-primary" checked={etiqueta} onChange={(e) => setEtiqueta(e.target.checked)} />
+              Etiqueta con página y posición en el álbum
+            </label>
             <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
               <input type="checkbox" className="accent-primary" checked={lista} onChange={(e) => setLista(e.target.checked)} />
               Incluir una lista para ir marcando las que consigues
