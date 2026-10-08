@@ -11,7 +11,7 @@ import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 /*
  * Hojas de cartas buscadas para imprimir: cada buscada a tamaño real (59 × 86
  * mm, 9 por A4), con su imagen (la elegida, si se cambió el arte), un sello
- * "BUSCADA" y dónde va en el álbum de verdad: carpeta, página y posición en la
+ * "WANTED" (como en la web) y dónde va en el álbum de verdad: carpeta, página y posición en la
  * hoja de fundas. Se recortan y se meten en los bolsillos vacíos; al conseguir
  * la carta, se cambia por ella.
  *
@@ -66,7 +66,7 @@ function generarHtml(
         .map(
           (e) => `<div class="carta${opciones.gris ? ' gris' : ''}">
             <img src="${escapar(e.card.img)}" alt="">
-            ${opciones.sello ? '<div class="sello">BUSCADA</div>' : ''}
+            ${opciones.sello ? '<div class="sello">WANTED</div>' : ''}
             ${
               opciones.etiqueta
                 ? `<div class="etiqueta"><b>${escapar(posicion(e))}</b><br>${escapar(e.carpeta)}<br><span class="nombre">${escapar(nombre(e.card))}</span>${
@@ -256,7 +256,7 @@ export function HojasBuscadasModal({ onClose }: Props) {
           <div className="space-y-2">
             <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
               <input type="checkbox" className="accent-primary" checked={sello} onChange={(e) => setSello(e.target.checked)} />
-              Sello «BUSCADA» sobre cada carta
+              Sello «WANTED» sobre cada carta
             </label>
             <label className="flex items-center gap-3 text-sm text-main cursor-pointer">
               <input type="checkbox" className="accent-primary" checked={etiqueta} onChange={(e) => setEtiqueta(e.target.checked)} />
