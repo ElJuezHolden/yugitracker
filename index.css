@@ -121,3 +121,41 @@ main.barajando .card-container {
 .tira-movil::-webkit-scrollbar {
   display: none;
 }
+
+/*
+ * Aviso que parpadea unas veces y se queda quieto. Una animación infinita, por
+ * pequeña que sea, hace que el navegador recomponga la página entera en cada
+ * fotograma y gasta CPU sin parar (ver CardFoilOverlay.tsx).
+ */
+.aviso-breve {
+  animation: aviso-breve 2s cubic-bezier(0.4, 0, 0.6, 1) 4;
+}
+@keyframes aviso-breve {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/*
+ * Cartas de la cuadrícula y de la lista: las que están fuera de la pantalla no
+ * se pintan ni se componen (`content-visibility`). Con 800 cartas, el scroll pasa
+ * de ~50 a ~130 fotogramas por segundo. Mientras no se ven ocupan el alto que
+ * tenían (`auto`) o, si aún no se han visto, el medido en la primera ficha
+ * (--alto-ficha, ver useAltoFicha).
+ *
+ * `content-visibility` recorta lo que sobresale, y al pasar el ratón la carta
+ * se levanta y sale de su hueco (o asoma la ampliación en la lista): con el
+ * ratón encima se pinta entera, como siempre.
+ */
+.ficha-carta {
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--alto-ficha, 320px);
+}
+.fila-carta {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 140px;
+}
+.ficha-carta:hover,
+.fila-carta:hover {
+  content-visibility: visible;
+}

@@ -19,6 +19,7 @@ import { useRarityCheck } from './components/useRarityCheck';
 import { useCardLevels } from './components/useCardLevels';
 import { useProvisionalIds } from './components/useProvisionalIds';
 import { useShuffleAnimation } from './components/useShuffleAnimation';
+import { useAltoFicha } from './components/useAltoFicha';
 import { DisplayTable } from './components/DisplayTable';
 import { usePrices } from './context/PricesContext';
 import { displayName, useNameMode, useSpanishNames } from './components/useCardName';
@@ -450,6 +451,9 @@ function App() {
 
   // Al cambiar el orden de la carpeta, las cartas se barajan.
   useShuffleAnimation(`${sortCards}|${sortCardsDir}`, activeFolderId, !isHome && view !== 'list');
+  // La rejilla se cambia por otra al entrar en una carpeta (AnimatePresence): con estado, se sigue a la nueva.
+  const [rejilla, setRejilla] = useState<HTMLDivElement | null>(null);
+  useAltoFicha(rejilla, !isHome && view === 'grid');
 
 
   return (
@@ -533,6 +537,7 @@ function App() {
                 </motion.div>
             ) : view === 'grid' ? (
                 <motion.div
+                    ref={setRejilla}
                     key={`grid-${activeFolderId ?? 'home'}`} 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -550,7 +555,7 @@ function App() {
                                 viewMode="grid"
                                 isSelectionMode={isSelectionMode}
                                 isSelected={selectedFolderIds.has(folder.id)}
-                                onToggleSelect={() => handleToggleSelectFolder(folder.id)}
+                                onToggleSelect={handleToggleSelectFolder}
                             />
                         ))
                     ) : (
@@ -562,7 +567,7 @@ function App() {
                                 viewMode="grid"
                                 isSelectionMode={isSelectionMode}
                                 isSelected={selectedCardIds.has(card.uid)}
-                                onToggleSelect={() => handleToggleSelectCard(card.uid)}
+                                onToggleSelect={handleToggleSelectCard}
                             />
                         ))
                     )}
@@ -585,7 +590,7 @@ function App() {
                                 viewMode="list"
                                 isSelectionMode={isSelectionMode}
                                 isSelected={selectedFolderIds.has(folder.id)}
-                                onToggleSelect={() => handleToggleSelectFolder(folder.id)}
+                                onToggleSelect={handleToggleSelectFolder}
                             />
                         ))
                     ) : (
@@ -597,7 +602,7 @@ function App() {
                                 viewMode="list"
                                 isSelectionMode={isSelectionMode}
                                 isSelected={selectedCardIds.has(card.uid)}
-                                onToggleSelect={() => handleToggleSelectCard(card.uid)}
+                                onToggleSelect={handleToggleSelectCard}
                             />
                         ))
                     )}
@@ -615,7 +620,7 @@ function App() {
                                 viewMode="grid" // Keep standard grid for folders even in display mode
                                 isSelectionMode={isSelectionMode}
                                 isSelected={selectedFolderIds.has(folder.id)}
-                                onToggleSelect={() => handleToggleSelectFolder(folder.id)}
+                                onToggleSelect={handleToggleSelectFolder}
                             />
                         ))
                     ) : (
@@ -627,7 +632,7 @@ function App() {
                                 viewMode="display" // Use new display mode
                                 isSelectionMode={isSelectionMode}
                                 isSelected={selectedCardIds.has(card.uid)}
-                                onToggleSelect={() => handleToggleSelectCard(card.uid)}
+                                onToggleSelect={handleToggleSelectCard}
                             />
                         ))
                     )}
@@ -655,7 +660,7 @@ function App() {
                                     viewMode="grid"
                                     isSelectionMode={isSelectionMode}
                                     isSelected={selectedFolderIds.has(folder.id)}
-                                    onToggleSelect={() => handleToggleSelectFolder(folder.id)}
+                                    onToggleSelect={handleToggleSelectFolder}
                                 />
                             ))}
                         </div>

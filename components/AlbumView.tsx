@@ -203,7 +203,7 @@ function Hoja({ cartas, cols, md, lado, numero, acciones }: HojaProps) {
                     viewMode="album"
                     isSelectionMode={acciones.isSelectionMode}
                     isSelected={acciones.selectedIds.has(card.uid)}
-                    onToggleSelect={() => acciones.onToggleSelect(card.uid)}
+                    onToggleSelect={acciones.onToggleSelect}
                   />
                 </div>
               ) : (

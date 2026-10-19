@@ -22,7 +22,8 @@ interface Props {
   viewMode: ViewMode;
   isSelectionMode?: boolean;
   isSelected?: boolean;
-  onToggleSelect?: () => void;
+  /** Recibe el uid: así App pasa siempre la misma función y el memo de la ficha sirve. */
+  onToggleSelect?: (uid: string) => void;
 }
 
 /** Abreviaturas de rareza, como las que usan las tiendas (Cardmarket, TCGplayer). */
@@ -249,7 +250,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
   
   const handleClick = () => {
       if (isSelectionMode && onToggleSelect) {
-          onToggleSelect();
+          onToggleSelect(card.uid);
       } else {
           onPress(card);
       }
@@ -437,7 +438,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                 onDrop={handleDrop}
                 onClick={handleClick}
                 // LIST VIEW CONTAINER
-                className={`group relative grid grid-cols-[64px_minmax(0,1fr)_auto_auto] md:grid-cols-[100px_2fr_3fr_1fr] gap-3 md:gap-6 p-3 md:p-4 bg-bg-surface rounded-xl cursor-pointer transition-all duration-300 items-center min-h-[104px] md:h-[140px] border ${
+                className={`fila-carta group relative grid grid-cols-[64px_minmax(0,1fr)_auto_auto] md:grid-cols-[100px_2fr_3fr_1fr] gap-3 md:gap-6 p-3 md:p-4 bg-bg-surface rounded-xl cursor-pointer transition-all duration-300 items-center min-h-[104px] md:h-[140px] border ${
                     isSelectionMode 
                         ? (isSelected ? 'border-primary ring-1 ring-primary' : 'border-border-base opacity-80 hover:opacity-100 shadow-sm')
                         : 'border-border-base shadow-sm hover:border-primary/40 hover:bg-main/5 hover:shadow-[0_0_15px_rgba(var(--rgb-primary),0.1)] hover:z-10'

@@ -341,7 +341,7 @@ export const Header: React.FC<Props> = ({
                     <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400 ring-2 ring-bg-surface" />
                 )}
                 {(backup.fileState === 'needs-permission' || backup.fileState === 'error') && (
-                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-bg-surface animate-pulse" />
+                    <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-bg-surface aviso-breve" />
                 )}
             </button>
 

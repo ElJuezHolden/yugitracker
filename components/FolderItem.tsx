@@ -12,7 +12,7 @@ interface Props {
   viewMode: ViewMode;
   isSelectionMode?: boolean;
   isSelected?: boolean;
-  onToggleSelect?: () => void;
+  onToggleSelect?: (id: string) => void;
 }
 
 export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMode, isSelectionMode, isSelected, onToggleSelect }) => {
@@ -36,7 +36,7 @@ export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMod
 
   const handleClick = () => {
       if (isSelectionMode) {
-          if (!isSystem && onToggleSelect) onToggleSelect();
+          if (!isSystem && onToggleSelect) onToggleSelect(folder.id);
       } else {
           dispatch({ type: 'SET_ACTIVE_FOLDER', payload: folder.id });
       }

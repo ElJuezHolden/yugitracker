@@ -226,35 +226,77 @@ function tintaDelNombre(cardType: string | undefined): 'oscura' | 'clara' {
 }
 
 /**
- * Retraso del destello en reposo, entre 0 y 9 s, sacado de la imagen para que
- * sea siempre el mismo en cada carta. Si todas destellaran a la vez la rejilla
- * entera parpadearía.
+ * Retraso del destello de cada carta dentro de la ola, sacado de la imagen para
+ * que sea siempre el mismo: si todas destellaran a la vez la rejilla entera
+ * parpadearía.
  */
 function retrasoDestello(semilla: string): number {
   let h = 0;
   for (let i = 0; i < semilla.length; i++) h = (h * 31 + semilla.charCodeAt(i)) | 0;
-  return (Math.abs(h) % 900) / 100;
+  return (Math.abs(h) % 1000) / 1000;
 }
 
 /*
- * El destello en reposo solo corre en las cartas que están en pantalla. Con
- * cientos de cartas, animarlas todas fuera de la vista sería gastar por nada.
- * Un único observador para todas, en vez de uno por carta.
+ * DESTELLO EN REPOSO. Cada pocos segundos una franja suave cruza las cartas foil
+ * que se ven, una tras otra en una ola corta; entre ola y ola no se mueve nada.
+ *
+ * Antes era una animación CSS infinita en cada carta, casi siempre quieta. Pero
+ * mientras haya UNA animación en marcha, el navegador recompone la página entera
+ * en cada fotograma, 60 veces por segundo, y con cientos de cartas con capas de
+ * mezcla eso es caro: con 800 cartas, un 73 % de CPU en reposo frente a un 14 %
+ * sin destello (medido con Edge). Con las olas, la página queda quieta la mayor
+ * parte del tiempo, y del todo si la ventana no es la que se está usando.
+ *
+ * Solo destellan las cartas en pantalla: un único observador para todas.
  */
+const CADA_MS = 10_000;
+/** Lo que tarda la franja en cruzar una carta (como antes: un 20 % de un ciclo de 9 s). */
+const CRUCE_MS = 1_800;
+/** Ventana en la que empiezan las de una ola, cada una con su retraso fijo. */
+const OLA_MS = 1_500;
+const FRANJA: Keyframe[] = [
+  { transform: 'translateX(-55%)', opacity: 0 },
+  { opacity: 1, offset: 0.15 },
+  { transform: 'translateX(55%)', opacity: 1, offset: 0.8 },
+  { transform: 'translateX(55%)', opacity: 0 },
+];
+
+const visibles = new Set<HTMLElement>();
+let reloj: number | undefined;
+
+function ola() {
+  reloj = undefined;
+  if (visibles.size === 0) return;
+  reloj = window.setTimeout(ola, CADA_MS);
+  // Ni con la pestaña oculta ni con la ventana en segundo plano (trabajando en otra cosa).
+  if (document.hidden || !document.hasFocus() || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  for (const foil of visibles) {
+    // Con el puntero encima manda la mano, no el destello.
+    if (foil.parentElement?.closest('.card-container')?.matches(':hover')) continue;
+    const franja = foil.querySelector<HTMLElement>(':scope > .foil-destello');
+    if (!franja?.animate) continue;
+    franja.animate(FRANJA, { duration: CRUCE_MS, delay: Number(foil.dataset.retraso ?? 0) * OLA_MS, easing: 'ease-in-out', pseudoElement: '::before' });
+  }
+}
+
 let observador: IntersectionObserver | null = null;
 function observarVisibilidad(el: HTMLElement) {
-  if (typeof IntersectionObserver === 'undefined') {
-    el.dataset.visible = 'true';
-    return () => {};
-  }
+  if (typeof IntersectionObserver === 'undefined') return () => {};
   observador ??= new IntersectionObserver(
     (entradas) => {
-      for (const e of entradas) (e.target as HTMLElement).dataset.visible = String(e.isIntersecting);
+      for (const e of entradas) {
+        if (e.isIntersecting) visibles.add(e.target as HTMLElement);
+        else visibles.delete(e.target as HTMLElement);
+      }
+      if (visibles.size > 0 && reloj === undefined) reloj = window.setTimeout(ola, CADA_MS / 3);
     },
     { rootMargin: '100px' },
   );
   observador.observe(el);
-  return () => observador?.unobserve(el);
+  return () => {
+    observador?.unobserve(el);
+    visibles.delete(el);
+  };
 }
 
 interface Props {
@@ -329,11 +371,16 @@ export default function CardFoilOverlay({ rarity, img, cardType, nameColor }: Pr
   const tinta = tintaDelNombre(cardType);
   const estilo = {
     '--carta-img': img ? `url("${img}")` : 'none',
-    '--retraso-destello': `${retrasoDestello(img || rarity)}s`,
   } as CSSProperties;
 
   return (
-    <div ref={ref} className={`foil${/pendulum/i.test(cardType ?? '') ? ' foil--pendulo' : ''}`} aria-hidden="true" style={estilo}>
+    <div
+      ref={ref}
+      className={`foil${/pendulum/i.test(cardType ?? '') ? ' foil--pendulo' : ''}`}
+      aria-hidden="true"
+      style={estilo}
+      data-retraso={retrasoDestello(img || rarity)}
+    >
       {spec.card && <div className={`foil-zona foil-zona--carta foil-carta--${spec.card}`} />}
       {spec.cubierta && <div className={`foil-cubierta foil-cubierta--${spec.cubierta}`} />}
       {spec.cubierta === 'qcsr' && <div className="foil-purpurina" />}
