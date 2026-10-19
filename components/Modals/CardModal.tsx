@@ -495,7 +495,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/90 p-2 sm:p-4 overflow-y-auto">
       <motion.div 
         initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}

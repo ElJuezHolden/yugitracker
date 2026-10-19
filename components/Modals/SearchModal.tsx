@@ -172,7 +172,7 @@ export const SearchModal: React.FC<Props> = ({ isOpen, onClose, onSelect, onPers
 
   return (
     <div
-      className="fixed inset-0 z-[115] flex items-start pt-10 sm:pt-20 justify-center bg-black/80 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[115] flex items-start pt-10 sm:pt-20 justify-center bg-black/80 p-4"
       onClick={onClose}
     >
       <motion.div

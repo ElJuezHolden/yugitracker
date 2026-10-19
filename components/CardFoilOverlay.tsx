@@ -268,8 +268,11 @@ function ola() {
   reloj = undefined;
   if (visibles.size === 0) return;
   reloj = window.setTimeout(ola, CADA_MS);
-  // Ni con la pestaña oculta ni con la ventana en segundo plano (trabajando en otra cosa).
-  if (document.hidden || !document.hasFocus() || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  // Ni con la pestaña oculta, ni con la ventana en segundo plano (trabajando en
+  // otra cosa), ni con un diálogo encima (el buscador, la ficha…): las cartas de
+  // detrás no se ven, y cada fotograma obligaba a recomponer el fondo del diálogo.
+  if (document.hidden || !document.hasFocus() || document.querySelector('.fixed.inset-0[class*="bg-black/"]')) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   for (const foil of visibles) {
     // Con el puntero encima manda la mano, no el destello.
     if (foil.parentElement?.closest('.card-container')?.matches(':hover')) continue;

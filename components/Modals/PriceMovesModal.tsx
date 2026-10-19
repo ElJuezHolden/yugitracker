@@ -127,7 +127,7 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-[115] flex items-start sm:items-center justify-center bg-black/80 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-[115] flex items-start sm:items-center justify-center bg-black/80 p-2 sm:p-4 overflow-y-auto"
       onClick={onClose}
     >
       <motion.div

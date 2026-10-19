@@ -110,7 +110,7 @@ export function PersonalizadoModal({ onClose, existente }: Props) {
   const etiqueta = 'text-xs font-medium text-muted block mb-1';
 
   return (
-    <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] bg-black/70 flex items-center justify-center p-3 sm:p-6" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, scale: 0.97, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
