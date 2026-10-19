@@ -5,6 +5,7 @@ import { useStore } from '../../context/StoreContext';
 import { usePrices } from '../../context/PricesContext';
 import type { AlbumColumns, Card } from '../../types';
 import { ID_ALL } from '../../utils';
+import { codigoDeCopia } from '../../services/codigosEs';
 import { compararCartas } from '../ordenCartas';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 
@@ -60,7 +61,7 @@ function generarHtml(
           <tbody>${entradas
             .map(
               (e) => `<tr><td class="casilla"></td><td>${escapar(e.carpeta)}</td><td>${e.pagina}</td><td>fila ${e.fila}, col. ${e.columna}</td><td>${escapar(nombre(e.card))}</td><td>${escapar(
-                e.card.setCode && e.card.setCode !== '---' ? `${e.card.setCode} · ${e.card.rarity}` : '',
+                e.card.setCode && e.card.setCode !== '---' ? `${codigoDeCopia(e.card.setCode, e.card.lang)} · ${e.card.rarity}` : '',
               )}</td></tr>`,
             )
             .join('')}</tbody>

@@ -5,6 +5,7 @@ import type { Card } from '../../types';
 import { useStore } from '../../context/StoreContext';
 import { findPrinting, loadCachedPrices, loadHistories, resolvePrintingKey, type CardPrices, type PricePoint } from '../../services/prices';
 import { formatMoney, getRarityColor } from '../../utils';
+import { codigoDeCopia } from '../../services/codigosEs';
 import { useCardName } from '../useCardName';
 
 interface Props {
@@ -264,7 +265,7 @@ function Fila({ m, onOpen }: { m: Movimiento; onOpen: () => void }) {
           {m.copias > 1 && <span className="text-muted font-semibold"> ×{m.copias}</span>}
         </div>
         <div className="text-[11px] truncate">
-          <span className="text-muted font-mono">{m.card.setCode}</span>{' '}
+          <span className="text-muted font-mono">{codigoDeCopia(m.card.setCode, m.card.lang)}</span>{' '}
           <span style={{ color: getRarityColor(m.card.rarity) }}>{m.card.rarity}</span>
         </div>
         <div className="text-[10px] text-sub">desde el {fechaCorta.format(t0)}</div>

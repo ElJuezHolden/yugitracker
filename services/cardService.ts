@@ -1,5 +1,6 @@
 import type { ApiCard } from '../types';
 import { normalizeStr } from '../utils';
+import { codigosIngleses } from './codigosEs';
 
 // API pública de YGOPRODeck (v7). No necesita clave.
 const BASE_URL = 'https://db.ygoprodeck.com/api/v7/cardinfo.php';
@@ -230,7 +231,7 @@ const CODIGO = /^[A-Z0-9]{2,5}-[A-Z]{0,2}\d{2,3}[A-Z]?$/i;
 async function buscarPorCodigo(codigo: string, signal?: AbortSignal): Promise<ApiCard[]> {
   const c = codigo.toUpperCase();
   // La española lleva el mismo número que la inglesa, que es la que tienen las fuentes.
-  const codigos = [...new Set([c, c.replace(/-SP(\d)/, '-EN$1')])];
+  const codigos = [...new Set([c, ...codigosIngleses(c)])];
   const [ids, deExtra] = await Promise.all([
     Promise.all(
       codigos.map(async (k) => {

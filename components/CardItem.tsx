@@ -14,6 +14,7 @@ import { LanguageFlag, nombreIdioma } from './LanguageFlag';
 import { useCardName } from './useCardName';
 import { usePrices } from '../context/PricesContext';
 import { useCardPointer } from './useCardPointer';
+import { codigoDeCopia } from '../services/codigosEs';
 
 interface Props {
   card: Card;
@@ -180,7 +181,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
     ? card.personalizado ? 'Sin precio: ponlo en su ficha' : 'Sin precio de mercado para esta versión'
     : fuenteValor === 'manual'
     ? 'Precio puesto a mano (artículo personalizado)'
-    : `Precio de ${fuenteValor === 'tcgplayer' ? 'TCGplayer (no está en Cardmarket)' : 'Cardmarket'} de esta versión (${card.setCode} · ${card.rarity})` +
+    : `Precio de ${fuenteValor === 'tcgplayer' ? 'TCGplayer (no está en Cardmarket)' : 'Cardmarket'} de esta versión (${codigoDeCopia(card.setCode, card.lang)} · ${card.rarity})` +
       (precioCopia.factor < 1
         ? `: ${formatMoney(precioCopia.mercado)} en NM, al ${Math.round(precioCopia.factor * 100)} % por estar en ${card.condition} (estimación)`
         : '');
@@ -506,7 +507,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-sub mt-1">
                             <span style={{ color: rarityColor }} className="font-bold text-sm md:text-base drop-shadow-sm">{card.rarity}</span>
                             <span className="text-muted">•</span>
-                            <span className="font-mono text-main font-medium">{card.personalizado ? 'Personalizado' : card.setCode}</span>
+                            <span className="font-mono text-main font-medium">{card.personalizado ? 'Personalizado' : codigoDeCopia(card.setCode, card.lang)}</span>
                         </div>
                     )}
                 </div>
@@ -685,7 +686,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                                     <span style={{ color: rarityColor }} className="font-bold drop-shadow-sm hidden @max-[130px]:inline shrink-0" title={card.rarity}>{abreviarRareza(card.rarity, card.rarityCode)}</span>
                                 </>
                             )}
-                            <span className="text-muted whitespace-nowrap @max-[210px]:text-[10px] @max-[150px]:text-[9px]">{card.setCode !== '---' ? card.setCode : ''}</span>
+                            <span className="text-muted whitespace-nowrap @max-[210px]:text-[10px] @max-[150px]:text-[9px]">{card.setCode !== '---' ? codigoDeCopia(card.setCode, card.lang) : ''}</span>
                         </div>
                         <div className="flex items-center justify-between text-xs gap-2 @max-[210px]:flex-col @max-[210px]:items-stretch @max-[210px]:gap-0.5">
                             <span className="text-muted flex items-center gap-1 min-w-0">

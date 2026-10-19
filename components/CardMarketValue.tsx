@@ -14,6 +14,7 @@ import {
   type PricePoint,
 } from '../services/prices';
 import { formatMoney, getRarityColor } from '../utils';
+import { codigoDeCopia } from '../services/codigosEs';
 
 interface Props {
   cardId: number;
@@ -26,6 +27,8 @@ interface Props {
   paid?: number;
   /** Estado de la copia (MT, NM, EX…), para estimar lo que vale. Sin él, como NM. */
   condition?: string;
+  /** Idioma de la copia: en español se enseña el código que lleva impreso (BIJ-S015 en vez de SDJ-015). */
+  lang?: string;
 }
 
 const RANGOS = [
@@ -50,7 +53,7 @@ const esMisma = (a: CardSet | null, code: string, rarity: string) => !!a && a.se
  * apunta cada día (ver services/prices.ts). Si una versión no está en
  * Cardmarket se usa TCGplayer y se marca con un asterisco.
  */
-export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, condition }: Props) {
+export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, condition, lang }: Props) {
   const { rate, metric, setMetric } = usePrices();
   const [historial, setHistorial] = useState<PricePoint[]>([]);
   const [rango, setRango] = useState<Rango>('30D');
@@ -137,7 +140,7 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
               {actual.rarity}
             </span>
             <span className="text-[11px] font-bold text-main bg-bg-surface border border-border-base rounded-md px-2 py-0.5 font-mono">
-              {actual.code}
+              {codigoDeCopia(actual.code, lang)}
             </span>
           </div>
         )}
@@ -283,7 +286,7 @@ export function CardMarketValue({ cardId, sets, selected, onSelect, paid = 0, co
               >
                 <div className="flex-1 min-w-0">
                   <div className="text-xs text-main truncate">
-                    <span className="font-bold font-mono">{v.code}</span>{' '}
+                    <span className="font-bold font-mono">{codigoDeCopia(v.code, lang)}</span>{' '}
                     <span style={{ color: getRarityColor(v.rarity) }}>{v.rarity}</span>
                     {esActual && <span className="ml-1.5 text-[9px] font-bold uppercase text-primary">elegida</span>}
                     {etiqueta && (

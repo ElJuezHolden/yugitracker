@@ -14,6 +14,7 @@ import { useCardPointer } from '../useCardPointer';
 import { displayName, useNameMode, useSpanishNames } from '../useCardName';
 import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
 import { leftoverFor, resolvePrintingKey, versionPrice } from '../../services/prices';
+import { codigoDeCopia, codigoEspanol } from '../../services/codigosEs';
 import { RAREZA_ESPECIAL, claveVersion, conVariantesEspeciales, cruzarVersiones, sameRarity } from '../../services/versiones';
 import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search, Palette } from 'lucide-react';
 
@@ -450,7 +451,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
     const qIngles = q.replace(/-(?:sp|s|fr|f|de|g|it|i|pt|p)(?=\d)/g, '-en');
     return todasVersiones.filter(s => {
       if (s === selectedSet) return true;
-      const texto = normalizeStr(`${s.set_code} ${s.set_name} ${s.set_rarity}`);
+      // Y por el código propio de la española en los sets antiguos (BIJ-S015 = SDJ-015).
+      const texto = normalizeStr(`${s.set_code} ${codigoEspanol(s.set_code) ?? ''} ${s.set_name} ${s.set_rarity}`);
       return texto.includes(q) || texto.includes(qIngles) || texto.includes(qIngles.replace('-en', '-'));
     });
   }, [todasVersiones, filtroVersion, selectedSet]);
@@ -733,7 +735,12 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                             {set.origen === 'yugipedia' ? 'wiki' : set.origen === 'cardmarket' ? 'variante' : 'manual'}
                                                         </span>
                                                     )}
-                                                    <div className="font-bold text-xs text-main">{set.set_code}</div>
+                                                    <div className="font-bold text-xs text-main">{codigoDeCopia(set.set_code, formData.lang)}</div>
+                                                    {codigoEspanol(set.set_code) && (
+                                                        <div className="text-[9px] text-muted font-mono" title="El mismo producto en Cardmarket: comparten precio">
+                                                            {formData.lang === 'ES' ? set.set_code : `ES: ${codigoEspanol(set.set_code)}`}
+                                                        </div>
+                                                    )}
                                                     <div className="text-[10px]" style={{ color: getRarityColor(set.set_rarity) }}>
                                                         {set.set_rarity}
                                                     </div>
@@ -1039,6 +1046,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                 selected={selectedSet}
                                 paid={formData.isWanted ? 0 : parseFloat(formData.paid) || 0}
                                 condition={formData.isWanted ? undefined : formData.condition}
+                                lang={formData.lang}
                                 onSelect={(set) => { setSelectedSet(set); setManualRarity(''); }}
                             />
                         </div>
