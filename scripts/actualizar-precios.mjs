@@ -815,13 +815,34 @@ for (let i = 0; i < TROZOS; i++) {
  * Ultra, al revés), así que aquí manda el orden de alta.
  */
 const ORDEN_RA = ['Super Rare', 'Ultra Rare', 'Secret Rare', 'Platinum Secret Rare', 'Quarter Century Secret Rare', "Collector's Rare", 'Ultimate Rare'];
-const posicionRA = (r) => ORDEN_RA.indexOf(r === 'Starlight Rare' ? 'Quarter Century Secret Rare' : r);
+/*
+ * Con arte alternativo (Rescue Cat y Droll & Lock Bird en RA02: 14 productos),
+ * Cardmarket da de alta las dos de cada rareza seguidas, la normal y luego la
+ * alternativa, y pasa a la siguiente rareza: la alternativa va justo detrás
+ * (confirmado por el usuario con las imágenes de Droll & Lock Bird). Solo en
+ * RA02: en RA01 y RA03 hay cartas con una sola alternativa (8 productos) o con
+ * precios que no siguen el patrón, y sin comprobarlas se quedan sin precio.
+ */
+const ALTERNATIVA = / \(Alternate Art(?:work)?\)$/;
+const posicionRA = (r) => {
+  const alternativa = ALTERNATIVA.test(r);
+  const base = r.replace(ALTERNATIVA, '');
+  const i = ORDEN_RA.indexOf(base === 'Starlight Rare' ? 'Quarter Century Secret Rare' : base);
+  return i < 0 ? -1 : i * 2 + (alternativa ? 1 : 0);
+};
 
 /** Si es una carta de RA01 a RA05 con un producto por rareza: rareza → producto según el orden de alta. Si no, null. */
 function repartoRA(impresiones, productosCarta, rarezas) {
   if (!impresiones.every((imp) => /^RA0[1-5]-/.test(imp.code))) return null;
   if (productosCarta.length !== rarezas.length || rarezas.some((r) => posicionRA(r) < 0)) return null;
   if (new Set(rarezas.map(posicionRA)).size !== rarezas.length) return null;
+  const alternativas = rarezas.filter((r) => ALTERNATIVA.test(r));
+  if (alternativas.length) {
+    if (!impresiones.every((imp) => /^RA02-/.test(imp.code))) return null;
+    // Parejas completas: cada rareza con su alternativa.
+    if (alternativas.length * 2 !== rarezas.length) return null;
+    if (!alternativas.every((a) => rarezas.includes(a.replace(ALTERNATIVA, '')))) return null;
+  }
   const porAlta = [...productosCarta].sort((a, b) => a.t - b.t || a.idProduct - b.idProduct);
   const enOrden = [...rarezas].sort((a, b) => posicionRA(a) - posicionRA(b));
   return new Map(enOrden.map((r, i) => [r, porAlta[i]]));
@@ -1039,12 +1060,16 @@ try {
       for (const bloque of texto.split('{{Set list').slice(1)) {
         const porDefecto = /\|\s*rarities\s*=\s*([^|\n]+)/.exec(bloque)?.[1]?.trim() ?? 'Common';
         for (const linea of bloque.split('\n')) {
-          const m = /^([A-Z0-9]+-[A-Z]*\d+[A-Z]?)\s*;\s*([^;]*);\s*([^;/]*)/.exec(linea.trim());
+          // La rareza puede faltar (van las del set): "RA02-EN006; Droll & Lock Bird // description::(alternate art)".
+          // En el nombre puede haber "/" (D/D/D…); lo que separa es "//".
+          const m = /^([A-Z0-9]+-[A-Z]*\d+[A-Z]?)\s*;\s*((?:[^;/]|\/(?!\/))*)(?:;\s*([^;/]*))?/.exec(linea.trim());
           if (!m) continue;
           const descripcion = /description::\(([^)]+)\)/.exec(linea)?.[1]?.trim() ?? '';
-          const rarezas = (m[3].trim() || porDefecto).split(',').map((r) => r.trim()).filter(Boolean);
+          const rarezas = ((m[3] ?? '').trim() || porDefecto).split(',').map((r) => r.trim()).filter(Boolean);
+          // Sin columna de rareza (no es lo mismo que vacía, ";;", que ya se leía: MAMO).
+          const sinRareza = m[3] === undefined;
           const lista = porCodigo.get(m[1]) ?? [];
-          for (const rareza of rarezas) lista.push({ rareza, descripcion });
+          for (const rareza of rarezas) lista.push({ rareza, descripcion, sinRareza });
           porCodigo.set(m[1], lista);
         }
       }
@@ -1057,11 +1082,16 @@ try {
     const lista = listas.get(nombreSet);
     if (!lista) continue;
     const nuevas = [];
+    // Las líneas sin rareza (las del set) solo cuentan en RA: en el resto de sets
+    // no se leían, y lo que añadirían no está comprobado.
+    const esRA = impresiones.every((imp) => /^RA0[1-5]-/.test(imp.code));
+    let conLineasSinRareza = false;
     for (const imp of impresiones) {
-      const entradas = (lista.get(imp.code) ?? []).filter((e) => plana(rarezaCompleta(e.rareza)) === plana(imp.rarity));
+      const entradas = (lista.get(imp.code) ?? []).filter((e) => (esRA || !e.sinRareza) && plana(rarezaCompleta(e.rareza)) === plana(imp.rarity));
       // La misma rareza dos veces: la normal (sin descripción) y la variante.
       const variantes = entradas.filter((e) => e.descripcion);
       if (entradas.length < 2 || variantes.length === entradas.length) continue;
+      if (entradas.some((e) => e.sinRareza)) conLineasSinRareza = true;
       for (const v of variantes) {
         const rarity = `${imp.rarity} (${titulo(v.descripcion)})`;
         if (![...impresiones, ...nuevas].some((x) => x.code === imp.code && x.rarity === rarity)) nuevas.push({ ...imp, rarity });
@@ -1070,6 +1100,9 @@ try {
     if (nuevas.length === 0) continue;
     const todas = [...impresiones, ...nuevas];
     if (new Set(todas.map((i) => i.rarity)).size !== productosCarta.length) continue;
+    // Lo que sale de las líneas sin rareza (nuevo), solo con el orden de alta
+    // comprobado; si no, mejor sin precio que cruzado. Lo demás, como siempre.
+    if (esRA && conLineasSinRareza && !repartoRA(todas, productosCarta, [...new Set(todas.map((i) => i.rarity))])) continue;
     sinProducto.delete(`${exp}|${n}`);
     asignarEnOrden(todas, productosCarta, `${exp}|${n}`);
     variantesAnadidas += nuevas.length;
