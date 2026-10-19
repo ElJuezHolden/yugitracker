@@ -804,6 +804,29 @@ for (let i = 0; i < TROZOS; i++) {
   }
 }
 
+/*
+ * Quarter Century Bonanza y sus sucesoras (RA01 a RA05): Cardmarket da de alta
+ * las versiones de cada carta siempre en el mismo orden. Confirmado por el
+ * usuario en Cardmarket (Lord of the Heavenly Prison, RA03-EN029): V.1 Super,
+ * V.2 Ultra, V.3 Secret, V.4 Platinum Secret, V.5 Quarter Century Secret (en
+ * RA05, la Starlight), V.6 Collector's y V.7 Ultimate, igual en las cinco. Los
+ * precios lo respaldan: la V.5 es la más cara en casi todas las cartas. Por
+ * precio se cruzaban (esa Secret iba a la V.6, la Collector's; la Super y la
+ * Ultra, al revés), así que aquí manda el orden de alta.
+ */
+const ORDEN_RA = ['Super Rare', 'Ultra Rare', 'Secret Rare', 'Platinum Secret Rare', 'Quarter Century Secret Rare', "Collector's Rare", 'Ultimate Rare'];
+const posicionRA = (r) => ORDEN_RA.indexOf(r === 'Starlight Rare' ? 'Quarter Century Secret Rare' : r);
+
+/** Si es una carta de RA01 a RA05 con un producto por rareza: rareza → producto según el orden de alta. Si no, null. */
+function repartoRA(impresiones, productosCarta, rarezas) {
+  if (!impresiones.every((imp) => /^RA0[1-5]-/.test(imp.code))) return null;
+  if (productosCarta.length !== rarezas.length || rarezas.some((r) => posicionRA(r) < 0)) return null;
+  if (new Set(rarezas.map(posicionRA)).size !== rarezas.length) return null;
+  const porAlta = [...productosCarta].sort((a, b) => a.t - b.t || a.idProduct - b.idProduct);
+  const enOrden = [...rarezas].sort((a, b) => posicionRA(a) - posicionRA(b));
+  return new Map(enOrden.map((r, i) => [r, porAlta[i]]));
+}
+
 /**
  * Empareja rarezas y productos en orden: la rareza más alta, el producto más
  * caro (por precio estable). Si ayer se repartieron de otra forma y los precios
@@ -813,8 +836,10 @@ for (let i = 0; i < TROZOS; i++) {
 function asignarEnOrden(impresiones, productosCarta, clave) {
   productosCarta = [...productosCarta].sort((a, b) => precioEstable(a) - precioEstable(b));
   const rarezas = [...new Set(impresiones.map((i) => i.rarity))].sort((a, b) => rango(a) - rango(b));
-  const porRareza = new Map();
-  if (productosCarta.length && productosCarta.length === rarezas.length) {
+  let porRareza = new Map();
+  const deRA = repartoRA(impresiones, productosCarta, rarezas);
+  if (deRA) porRareza = deRA;
+  else if (productosCarta.length && productosCarta.length === rarezas.length) {
     rarezas.forEach((r, i) => porRareza.set(r, productosCarta[i]));
     if (rarezas.length > 1) {
       const ayer = repartoAnterior.get(impresiones[0].id) ?? {};
