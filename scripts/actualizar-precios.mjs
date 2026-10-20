@@ -816,19 +816,16 @@ for (let i = 0; i < TROZOS; i++) {
  */
 const ORDEN_RA = ['Super Rare', 'Ultra Rare', 'Secret Rare', 'Platinum Secret Rare', 'Quarter Century Secret Rare', "Collector's Rare", 'Ultimate Rare'];
 /*
- * Con dos artes (14 productos), Cardmarket da de alta las dos de cada rareza
- * seguidas y pasa a la siguiente rareza. Cuál va primero no es fijo, así que
- * solo se reparten las comprobadas por el usuario con las imágenes de
- * Cardmarket; las demás (Danger! Bigfoot!, One for One, las de una sola
- * alternativa…) se quedan sin precio:
- *   - RA02 (Droll & Lock Bird, Rescue Cat): la normal y detrás la alternativa.
- *   - Polymerization, RA03-EN051: primero la de arte clásico (la "alternate
- *     password" de Yugipedia) y detrás la de arte de Elemental HERO.
+ * Cartas con dos artes. Cardmarket da de alta las dos de cada rareza seguidas
+ * y pasa a la siguiente rareza; cuál va primero depende de la colección
+ * (comprobado por el usuario con las imágenes de Cardmarket):
+ *   - RA02 (Droll & Lock Bird): la normal y detrás la alternativa.
+ *   - RA03 (Polymerization, One for One): primero la alternativa (en
+ *     Polymerization, la de arte clásico, "alternate password" en Yugipedia).
+ * En RA01, RA04 y RA05 no hay un patrón claro: sin precio.
  */
 const ALTERNATIVA = / \((?:Alternate Art(?:work)?|Alternate Password)\)$/;
-const VARIANTE_PRIMERO = new Set(['RA03-EN051']);
-const ordenRA = (codigo) =>
-  /^RA02-/.test(codigo) ? 'normal primero' : VARIANTE_PRIMERO.has(codigo) ? 'variante primero' : null;
+const ordenRA = (codigo) => (/^RA02-/.test(codigo) ? 'normal primero' : /^RA03-/.test(codigo) ? 'variante primero' : null);
 const posicionRA = (r, orden = 'normal primero') => {
   const alternativa = ALTERNATIVA.test(r);
   const base = r.replace(ALTERNATIVA, '');
@@ -836,26 +833,51 @@ const posicionRA = (r, orden = 'normal primero') => {
   const segunda = orden === 'variante primero' ? !alternativa : alternativa;
   return i < 0 ? -1 : i * 2 + (segunda ? 1 : 0);
 };
+/**
+ * Código → rareza de la versión que va en una línea de Yugipedia con UNA sola
+ * rareza, cuando la carta tiene la otra línea con todas (RA03-EN014 Ghost
+ * Reaper & Winter Cherries: el arte alternativo en las 7, el normal solo en
+ * Quarter Century). La rellena el repaso de variantes de arte.
+ */
+const rarezaSuelta = new Map();
+const DIA_RA_MS = 24 * 60 * 60 * 1000;
 
-/** Si es una carta de RA01 a RA05 con un producto por rareza: rareza → producto según el orden de alta. Si no, null. */
+/** Si es una carta de RA01 a RA05 y cuadra con un orden de alta comprobado: rareza → producto. Si no, null. */
 function repartoRA(impresiones, productosCarta, rarezas) {
   if (!impresiones.every((imp) => /^RA0[1-5]-/.test(imp.code))) return null;
   if (productosCarta.length !== rarezas.length || rarezas.some((r) => posicionRA(r) < 0)) return null;
-  if (new Set(rarezas.map(posicionRA)).size !== rarezas.length) return null;
-  const alternativas = rarezas.filter((r) => ALTERNATIVA.test(r));
-  let orden;
-  if (alternativas.length) {
-    const codigos = new Set(impresiones.map((imp) => imp.code));
-    if (codigos.size !== 1) return null;
-    orden = ordenRA([...codigos][0]);
-    if (!orden) return null;
-    // Parejas completas: cada rareza con su alternativa.
-    if (alternativas.length * 2 !== rarezas.length) return null;
-    if (!alternativas.every((a) => rarezas.includes(a.replace(ALTERNATIVA, '')))) return null;
-  }
+  if (new Set(rarezas.map((r) => posicionRA(r))).size !== rarezas.length) return null;
   const porAlta = [...productosCarta].sort((a, b) => a.t - b.t || a.idProduct - b.idProduct);
-  const enOrden = [...rarezas].sort((a, b) => posicionRA(a, orden) - posicionRA(b, orden));
-  return new Map(enOrden.map((r, i) => [r, porAlta[i]]));
+  const enOrden = (orden) => new Map([...rarezas].sort((a, b) => posicionRA(a, orden) - posicionRA(b, orden)).map((r, i) => [r, porAlta[i]]));
+  const alternativas = rarezas.filter((r) => ALTERNATIVA.test(r));
+  if (alternativas.length === 0) return enOrden();
+  const codigos = new Set(impresiones.map((imp) => imp.code));
+  if (codigos.size !== 1) return null;
+  const codigo = [...codigos][0];
+  const orden = ordenRA(codigo);
+  if (!orden) return null;
+  if (!alternativas.every((a) => rarezas.includes(a.replace(ALTERNATIVA, '')))) return null;
+  // Las dos artes en todas las rarezas (14 productos): por parejas.
+  if (alternativas.length * 2 === rarezas.length) return enOrden(orden);
+  // Una sola rareza con las dos artes (8 productos).
+  if (alternativas.length === 1 && rarezas.length === ORDEN_RA.length + 1) {
+    const [penultimo, ultimo] = porAlta.slice(-2);
+    if (ultimo.t - penultimo.t > DIA_RA_MS) {
+      /*
+       * Dada de alta días después (Ghost Reaper, Ghost Sister, Shizuku: el 8 de
+       * noviembre, las otras el 4): es la de la línea con una sola rareza; las
+       * siete primeras, las de la línea con todas, en el orden de siempre.
+       */
+      const suelta = rarezaSuelta.get(codigo);
+      if (!suelta || !rarezas.includes(suelta)) return null;
+      const resto = rarezas.filter((r) => r !== suelta).sort((a, b) => posicionRA(a) - posicionRA(b));
+      if (porAlta.slice(0, -1).some((x) => x.t - porAlta[0].t > DIA_RA_MS)) return null;
+      return new Map([...resto.map((r, i) => [r, porAlta[i]]), [suelta, ultimo]]);
+    }
+    // Todas el mismo día (House Dragonmaid, Liebe…): la pareja en su sitio, en el orden de la colección.
+    if (porAlta.at(-1).t - porAlta[0].t < DIA_RA_MS) return enOrden(orden);
+  }
+  return null;
 }
 
 /**
@@ -1080,7 +1102,7 @@ try {
           const sinRareza = m[3] === undefined;
           const lista = porCodigo.get(m[1]) ?? [];
           const nombre = m[2].trim();
-          for (const rareza of rarezas) lista.push({ rareza, descripcion, sinRareza, nombre });
+          for (const rareza of rarezas) lista.push({ rareza, descripcion, sinRareza, nombre, rarezasLinea: rarezas.length });
           porCodigo.set(m[1], lista);
         }
       }
@@ -1113,6 +1135,13 @@ try {
       }
       if (entradas.length < 2 || variantes.length === entradas.length) continue;
       if (entradas.some((e) => e.sinRareza)) conLineasSinRareza = true;
+      // Una de las dos líneas con una sola rareza y la otra con varias: la suelta (ver repartoRA).
+      if (esRA && entradas.length === 2) {
+        const sueltas = entradas.filter((e) => e.rarezasLinea === 1);
+        if (sueltas.length === 1 && entradas.some((e) => e.rarezasLinea > 1)) {
+          rarezaSuelta.set(imp.code, sueltas[0].descripcion ? `${imp.rarity} (${titulo(sueltas[0].descripcion)})` : imp.rarity);
+        }
+      }
       for (const v of variantes) {
         const rarity = `${imp.rarity} (${titulo(v.descripcion)})`;
         if (![...impresiones, ...nuevas].some((x) => x.code === imp.code && x.rarity === rarity)) nuevas.push({ ...imp, rarity });
