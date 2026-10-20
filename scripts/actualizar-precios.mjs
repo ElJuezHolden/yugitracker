@@ -816,19 +816,25 @@ for (let i = 0; i < TROZOS; i++) {
  */
 const ORDEN_RA = ['Super Rare', 'Ultra Rare', 'Secret Rare', 'Platinum Secret Rare', 'Quarter Century Secret Rare', "Collector's Rare", 'Ultimate Rare'];
 /*
- * Con arte alternativo (Rescue Cat y Droll & Lock Bird en RA02: 14 productos),
- * Cardmarket da de alta las dos de cada rareza seguidas, la normal y luego la
- * alternativa, y pasa a la siguiente rareza: la alternativa va justo detrás
- * (confirmado por el usuario con las imágenes de Droll & Lock Bird). Solo en
- * RA02: en RA01 y RA03 hay cartas con una sola alternativa (8 productos) o con
- * precios que no siguen el patrón, y sin comprobarlas se quedan sin precio.
+ * Con dos artes (14 productos), Cardmarket da de alta las dos de cada rareza
+ * seguidas y pasa a la siguiente rareza. Cuál va primero no es fijo, así que
+ * solo se reparten las comprobadas por el usuario con las imágenes de
+ * Cardmarket; las demás (Danger! Bigfoot!, One for One, las de una sola
+ * alternativa…) se quedan sin precio:
+ *   - RA02 (Droll & Lock Bird, Rescue Cat): la normal y detrás la alternativa.
+ *   - Polymerization, RA03-EN051: primero la de arte clásico (la "alternate
+ *     password" de Yugipedia) y detrás la de arte de Elemental HERO.
  */
-const ALTERNATIVA = / \(Alternate Art(?:work)?\)$/;
-const posicionRA = (r) => {
+const ALTERNATIVA = / \((?:Alternate Art(?:work)?|Alternate Password)\)$/;
+const VARIANTE_PRIMERO = new Set(['RA03-EN051']);
+const ordenRA = (codigo) =>
+  /^RA02-/.test(codigo) ? 'normal primero' : VARIANTE_PRIMERO.has(codigo) ? 'variante primero' : null;
+const posicionRA = (r, orden = 'normal primero') => {
   const alternativa = ALTERNATIVA.test(r);
   const base = r.replace(ALTERNATIVA, '');
   const i = ORDEN_RA.indexOf(base === 'Starlight Rare' ? 'Quarter Century Secret Rare' : base);
-  return i < 0 ? -1 : i * 2 + (alternativa ? 1 : 0);
+  const segunda = orden === 'variante primero' ? !alternativa : alternativa;
+  return i < 0 ? -1 : i * 2 + (segunda ? 1 : 0);
 };
 
 /** Si es una carta de RA01 a RA05 con un producto por rareza: rareza → producto según el orden de alta. Si no, null. */
@@ -837,14 +843,18 @@ function repartoRA(impresiones, productosCarta, rarezas) {
   if (productosCarta.length !== rarezas.length || rarezas.some((r) => posicionRA(r) < 0)) return null;
   if (new Set(rarezas.map(posicionRA)).size !== rarezas.length) return null;
   const alternativas = rarezas.filter((r) => ALTERNATIVA.test(r));
+  let orden;
   if (alternativas.length) {
-    if (!impresiones.every((imp) => /^RA02-/.test(imp.code))) return null;
+    const codigos = new Set(impresiones.map((imp) => imp.code));
+    if (codigos.size !== 1) return null;
+    orden = ordenRA([...codigos][0]);
+    if (!orden) return null;
     // Parejas completas: cada rareza con su alternativa.
     if (alternativas.length * 2 !== rarezas.length) return null;
     if (!alternativas.every((a) => rarezas.includes(a.replace(ALTERNATIVA, '')))) return null;
   }
   const porAlta = [...productosCarta].sort((a, b) => a.t - b.t || a.idProduct - b.idProduct);
-  const enOrden = [...rarezas].sort((a, b) => posicionRA(a) - posicionRA(b));
+  const enOrden = [...rarezas].sort((a, b) => posicionRA(a, orden) - posicionRA(b, orden));
   return new Map(enOrden.map((r, i) => [r, porAlta[i]]));
 }
 
@@ -1069,7 +1079,8 @@ try {
           // Sin columna de rareza (no es lo mismo que vacía, ";;", que ya se leía: MAMO).
           const sinRareza = m[3] === undefined;
           const lista = porCodigo.get(m[1]) ?? [];
-          for (const rareza of rarezas) lista.push({ rareza, descripcion, sinRareza });
+          const nombre = m[2].trim();
+          for (const rareza of rarezas) lista.push({ rareza, descripcion, sinRareza, nombre });
           porCodigo.set(m[1], lista);
         }
       }
@@ -1089,7 +1100,17 @@ try {
     for (const imp of impresiones) {
       const entradas = (lista.get(imp.code) ?? []).filter((e) => (esRA || !e.sinRareza) && plana(rarezaCompleta(e.rareza)) === plana(imp.rarity));
       // La misma rareza dos veces: la normal (sin descripción) y la variante.
-      const variantes = entradas.filter((e) => e.descripcion);
+      let variantes = entradas.filter((e) => e.descripcion);
+      /*
+       * Todas con descripción: Polymerization en RA03 sale como "Polymerization
+       * (alternate password)" (arte clásico) y "Polymerization" con arte de
+       * Elemental HERO. La base es la que se llama como la carta, sin paréntesis.
+       * Solo en RA, donde el reparto después exige el orden comprobado.
+       */
+      if (esRA && entradas.length === 2 && variantes.length === 2) {
+        const bases = entradas.filter((e) => !/\(/.test(e.nombre));
+        if (bases.length === 1) variantes = entradas.filter((e) => e !== bases[0]);
+      }
       if (entradas.length < 2 || variantes.length === entradas.length) continue;
       if (entradas.some((e) => e.sinRareza)) conLineasSinRareza = true;
       for (const v of variantes) {
