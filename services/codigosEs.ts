@@ -11,6 +11,11 @@
  *   SDH = SRL / MRL (Spell Ruler)
  *   BIJ, BIK, BIP, BIY = SDJ, SDK, SDP, SDY (Barajas de Inicio)
  *
+ * El número es el de la edición americana (SDY-042 = BIY-S042). La inglesa
+ * europea de las Barajas de Inicio de Yugi y Kaiba numera distinto (SDY-E038 es
+ * la misma Card Destruction): esa no tiene equivalente directo. En LOB, MRD y
+ * SRL las dos numeran igual.
+ *
  * Las fuentes (YGOPRODeck, Cardmarket) solo tienen el código inglés, y es el
  * que se guarda en la copia: Cardmarket vende todos los idiomas en el mismo
  * producto, así que el precio es el mismo. El español solo se enseña y se busca.
@@ -32,9 +37,11 @@ for (const [en, es] of Object.entries(DE_INGLES)) (A_INGLES[es] ??= []).push(en)
 
 /** Código de la impresión española de un código inglés con prefijo propio ("SDJ-015" → "BIJ-S015"); si no, null. */
 export function codigoEspanol(codigo: string): string | null {
-  const m = /^([A-Z]+)-(?:EN|E)?(\d{3})$/.exec(codigo.toUpperCase());
+  const m = /^([A-Z]+)-(EN|E)?(\d{3})$/.exec(codigo.toUpperCase());
   const es = m ? DE_INGLES[m[1]!] : undefined;
-  return es ? `${es}-S${m![2]}` : null;
+  // Las Barajas de Inicio europeas en inglés (SDY-E038) numeran distinto que la española.
+  if (!es || (m![2] && /^SD[JKPY]$/.test(m![1]!))) return null;
+  return `${es}-S${m![3]}`;
 }
 
 /** El código que lleva impreso esa copia: el español si la copia es española y su set tiene prefijo propio. */
