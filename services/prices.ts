@@ -272,6 +272,8 @@ interface TrozoActual {
   cartas: Record<string, Record<string, (number | null)[]>>;
   /** id → clave de impresión → número de producto en Cardmarket (para enlazar a su página). */
   productos?: Record<string, Record<string, number>>;
+  /** id → clave de impresión → número de versión en Cardmarket (V.n), si hay varias en su expansión. */
+  versiones?: Record<string, Record<string, number>>;
   /** id → productos de Cardmarket sin versión en YGOPRODeck: [prefijo, set, idProduct, desde, tendencia, media1, media7, media30] */
   sobrantes?: Record<string, (string | number | null)[][]>;
 }
@@ -399,6 +401,8 @@ export interface MarketPrices {
   porCarta: Map<number, Record<string, PriceStats>>;
   /** id → clave de impresión → número de producto en Cardmarket */
   productos: Map<number, Record<string, number>>;
+  /** id → clave de impresión → número de versión en Cardmarket (V.n) */
+  versiones: Map<number, Record<string, number>>;
   /** id → productos de Cardmarket sin versión en YGOPRODeck */
   sobrantes: Map<number, Sobrante[]>;
   /** Día de los precios (ms), o `null` si no hay datos de Cardmarket. */
@@ -410,6 +414,7 @@ export async function loadMarketPrices(ids: number[]): Promise<MarketPrices> {
   const trozos = await Promise.all(trozosDe(ids).map((n) => pedir<TrozoActual>(`actual-${n}.json`, FORMATO_ACTUAL)));
   const porCarta = new Map<number, Record<string, PriceStats>>();
   const productos = new Map<number, Record<string, number>>();
+  const versiones = new Map<number, Record<string, number>>();
   const sobrantes = new Map<number, Sobrante[]>();
   let fecha: number | null = null;
   for (const t of trozos) {
@@ -423,6 +428,7 @@ export async function loadMarketPrices(ids: number[]): Promise<MarketPrices> {
       porCarta.set(Number(id), porVersion);
     }
     for (const [id, ids] of Object.entries(t.productos ?? {})) productos.set(Number(id), ids);
+    for (const [id, vs] of Object.entries(t.versiones ?? {})) versiones.set(Number(id), vs);
     for (const [id, lista] of Object.entries(t.sobrantes ?? {})) {
       sobrantes.set(
         Number(id),
@@ -441,7 +447,7 @@ export async function loadMarketPrices(ids: number[]): Promise<MarketPrices> {
       );
     }
   }
-  return { porCarta, productos, sobrantes, fecha };
+  return { porCarta, productos, versiones, sobrantes, fecha };
 }
 
 const diaTexto = (dia: number) => new Date(dia * DIA_MS).toISOString().slice(0, 10);

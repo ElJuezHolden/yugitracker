@@ -3,7 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { NAME_MODES, setNameMode, useNameMode } from './useCardName';
 import { ID_ALL, CARD_BACK_IMG } from '../utils';
 import { useBackup } from '../context/BackupContext';
-import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp, Languages, Printer, Gem, ListChecks } from 'lucide-react';
+import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp, Languages, Printer, Gem, ListChecks, ClipboardList, BarChart3 } from 'lucide-react';
 import { TagsPanel } from './TagsPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FolderSort, CardSort } from '../types';
@@ -17,6 +17,9 @@ interface Props {
   onOpenHojasBuscadas: () => void;
   /** Cartas que se pueden mejorar de rareza ("pimpear"). */
   onOpenPimpear: () => void;
+  onOpenEstadisticas: () => void;
+  /** Las wanted en el formato de importación de Cardmarket. */
+  onOpenWantedCardmarket: () => void;
   onOpenThemeModal: () => void;
   isSelectionMode: boolean;
   onToggleSelectionMode: () => void;
@@ -33,6 +36,8 @@ export const Header: React.FC<Props> = ({
     onOpenPriceMoves,
     onOpenHojasBuscadas,
     onOpenPimpear,
+    onOpenEstadisticas,
+    onOpenWantedCardmarket,
     onOpenThemeModal, 
     isSelectionMode, 
     onToggleSelectionMode,
@@ -332,6 +337,26 @@ export const Header: React.FC<Props> = ({
                 aria-label="Cartas para pimpear (mejorar de rareza)"
             >
                 <Gem size={16} />
+            </button>
+
+            {/* Wanted en el formato de importación de Cardmarket */}
+            <button
+                onClick={onOpenWantedCardmarket}
+                className="p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
+                title="Wanted para Cardmarket (copiar la lista)"
+                aria-label="Wanted para Cardmarket"
+            >
+                <ClipboardList size={16} />
+            </button>
+
+            {/* Estadísticas y valor en el tiempo */}
+            <button
+                onClick={onOpenEstadisticas}
+                className="p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
+                title="Estadísticas de la colección"
+                aria-label="Estadísticas de la colección"
+            >
+                <BarChart3 size={16} />
             </button>
 
             {/*

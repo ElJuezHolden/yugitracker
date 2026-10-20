@@ -44,6 +44,8 @@ export interface VersionCarta {
   eur: number | null;
   /** Producto de Cardmarket, para enlazar a su página. */
   idProduct: number | null;
+  /** Número de versión en Cardmarket (V.n), si en su expansión hay varias. */
+  version: number | null;
 }
 
 /** Resumen de valor de un grupo de cartas (una carpeta, la colección…). */
@@ -109,7 +111,7 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // No poder recordarla no impide usarla.
     }
   }, []);
-  const [mercado, setMercado] = useState<MarketPrices>(() => ({ porCarta: new Map(), productos: new Map(), sobrantes: new Map(), fecha: null }));
+  const [mercado, setMercado] = useState<MarketPrices>(() => ({ porCarta: new Map(), productos: new Map(), versiones: new Map(), sobrantes: new Map(), fecha: null }));
 
   /*
    * Las ids de la colección, como texto ordenado: así el efecto solo se dispara
@@ -245,6 +247,7 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     (apiId: number): VersionCarta[] => {
       const cm = mercado.porCarta.get(apiId) ?? {};
       const productos = mercado.productos.get(apiId) ?? {};
+      const numeros = mercado.versiones.get(apiId) ?? {};
       const claves = Object.keys(cm);
       const eurDe = (clave: string) => {
         const cifras = cm[clave];
@@ -257,14 +260,16 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const rarity = cm[clave] ? clave.slice(clave.indexOf('|') + 1) : p.rarity;
         if (porClave.has(clave)) continue;
         const eur = eurDe(clave) ?? (p.usd != null && rate ? p.usd * rate.usdToEur : null);
-        porClave.set(clave, { code: p.code, rarity, set: p.name, eur, idProduct: productos[clave] ?? null });
+        porClave.set(clave, { code: p.code, rarity, set: p.name, eur, idProduct: productos[clave] ?? null, version: numeros[clave] ?? null });
       }
       // Las que solo están en Cardmarket (variantes, las sacadas de Yugipedia). Las españolas con prefijo propio, no: son la misma versión.
       for (const clave of claves) {
         if (porClave.has(clave)) continue;
         const code = clave.slice(0, clave.indexOf('|'));
         if (/-S\d{3}$/.test(code)) continue;
-        porClave.set(clave, { code, rarity: clave.slice(clave.indexOf('|') + 1), set: '', eur: eurDe(clave), idProduct: productos[clave] ?? null });
+        // El set, el de otra versión con el mismo código (las variantes de arte comparten código).
+        const set = prices.get(apiId)?.printings.find((p) => p.code === code)?.name ?? '';
+        porClave.set(clave, { code, rarity: clave.slice(clave.indexOf('|') + 1), set, eur: eurDe(clave), idProduct: productos[clave] ?? null, version: numeros[clave] ?? null });
       }
       return [...porClave.values()];
     },

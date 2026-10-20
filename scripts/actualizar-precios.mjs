@@ -36,6 +36,7 @@
  *   actual-NN.json  { v: 3, actualizado: <día>,
  *                     cartas: { <id>: { "<set>|<rareza>": [desde, tendencia, media1, media7, media30] } },
  *                     productos: { <id>: { "<set>|<rareza>": idProduct de Cardmarket } },
+ *                     versiones: { <id>: { "<set>|<rareza>": número de versión en Cardmarket (V.n) } },
  *                     sobrantes: { <id>: [[prefijo, set, idProduct, desde, tendencia, media1, media7, media30]] } }
  *                   (euros; `null` si Cardmarket no tiene esa cifra)
  *   NN.json         { v: 2, actualizado: <día>, cartas: { <id>: { "<set>|<rareza>": [[<día>, euros], ...] } } }
@@ -1618,17 +1619,38 @@ function aclarar(puntos) {
   return [...ancla, ...semanal.values(), ...quedan.filter((p) => p[0] >= desdeDiario)];
 }
 
+/*
+ * Número de versión en Cardmarket ("V.4") de cada producto, cuando en su
+ * expansión hay más de uno con ese nombre: Cardmarket los numera por orden de
+ * alta. La web lo usa para exportar las wanted en el formato de importación de
+ * Cardmarket ("Ancient Fairy Dragon (V.4) (Ancient Prophecy)").
+ */
+const productoPorId = new Map(productos.map((p) => [p.idProduct, p]));
+function versionCm(idProduct) {
+  const p = productoPorId.get(idProduct);
+  const hermanos = p ? (expansiones.get(p.idExpansion)?.get(norm(p.name)) ?? []) : [];
+  if (hermanos.length < 2) return null;
+  const orden = [...hermanos].sort((a, b) => fechaProducto(a) - fechaProducto(b) || a.idProduct - b.idProduct);
+  return orden.findIndex((x) => x.idProduct === idProduct) + 1;
+}
+
 for (let i = 0; i < TROZOS; i++) {
   const historial = historiales[i];
   historial.actualizado = hoy;
   for (const porClave of Object.values(historial.cartas)) {
     for (const clave of Object.keys(porClave)) porClave[clave] = aclarar(porClave[clave]);
   }
-  const actual = { v: VERSION_ACTUAL, actualizado: hoy, cartas: {}, productos: {}, sobrantes: {} };
+  const actual = { v: VERSION_ACTUAL, actualizado: hoy, cartas: {}, productos: {}, versiones: {}, sobrantes: {} };
   for (const [id, cifras] of cifrasDe) {
     if (id % TROZOS !== i) continue;
     actual.cartas[id] = cifras;
     actual.productos[id] = productoDe.get(id);
+    const versiones = {};
+    for (const [clave, idProduct] of Object.entries(productoDe.get(id) ?? {})) {
+      const v = versionCm(idProduct);
+      if (v) versiones[clave] = v;
+    }
+    if (Object.keys(versiones).length) actual.versiones[id] = versiones;
   }
   for (const [id, lista] of sobrantes) if (id % TROZOS === i) actual.sobrantes[id] = lista;
   await writeFile(join(CARPETA, `${i}.json`), JSON.stringify(historial));

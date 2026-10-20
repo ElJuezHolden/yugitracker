@@ -10,6 +10,8 @@ import { CardModal } from './components/Modals/CardModal';
 import { PersonalizadoModal } from './components/Modals/PersonalizadoModal';
 import { HojasBuscadasModal } from './components/Modals/HojasBuscadasModal';
 import { PimpearModal } from './components/Modals/PimpearModal';
+import { EstadisticasModal } from './components/Modals/EstadisticasModal';
+import { WantedCardmarketModal } from './components/Modals/WantedCardmarketModal';
 import { ThemeModal } from './components/Modals/ThemeModal';
 import { BackupModal } from './components/Modals/BackupModal';
 import { PriceMovesModal } from './components/Modals/PriceMovesModal';
@@ -70,6 +72,8 @@ function App() {
   const [isPriceMovesOpen, setIsPriceMovesOpen] = useState(false);
   const [hojasBuscadas, setHojasBuscadas] = useState(false);
   const [pimpear, setPimpear] = useState(false);
+  const [estadisticas, setEstadisticas] = useState(false);
+  const [wantedCm, setWantedCm] = useState(false);
   
   // Selection Mode State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -496,6 +500,8 @@ function App() {
         onOpenPriceMoves={() => setIsPriceMovesOpen(true)}
         onOpenHojasBuscadas={() => setHojasBuscadas(true)}
         onOpenPimpear={() => setPimpear(true)}
+        onOpenEstadisticas={() => setEstadisticas(true)}
+        onOpenWantedCardmarket={() => setWantedCm(true)}
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
         isSelectionMode={isSelectionMode}
         onToggleSelectionMode={() => setIsSelectionMode(prev => !prev)}
@@ -707,7 +713,7 @@ function App() {
                             portada={carpetaActiva?.img}
                             estilo={carpetaActiva?.album}
                             onEstilo={carpetaActiva ? (album) => dispatch({ type: 'SET_FOLDER_ALBUM', payload: { id: carpetaActiva.id, album } }) : undefined}
-                            teclado={personalizado === undefined && !hojasBuscadas && !pimpear && !isCardModalOpen && !isSearchModalOpen && !isFolderModalOpen && !isThemeModalOpen && !isBackupModalOpen && !isPriceMovesOpen}
+                            teclado={personalizado === undefined && !hojasBuscadas && !pimpear && !estadisticas && !wantedCm && !isCardModalOpen && !isSearchModalOpen && !isFolderModalOpen && !isThemeModalOpen && !isBackupModalOpen && !isPriceMovesOpen}
                         />
                     )}
                 </motion.div>
@@ -852,6 +858,8 @@ function App() {
         )}
         {hojasBuscadas && <HojasBuscadasModal onClose={() => setHojasBuscadas(false)} />}
         {pimpear && <PimpearModal onClose={() => setPimpear(false)} onOpenCard={handleCardPress} />}
+        {estadisticas && <EstadisticasModal onClose={() => setEstadisticas(false)} onOpenCard={handleCardPress} />}
+        {wantedCm && <WantedCardmarketModal onClose={() => setWantedCm(false)} />}
         {personalizado !== undefined && (
             <PersonalizadoModal existente={personalizado} onClose={() => setPersonalizado(undefined)} />
         )}
