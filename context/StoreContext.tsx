@@ -62,6 +62,7 @@ type Action =
   /** Rellena el nivel de las copias que no lo tienen: número de carta → nivel. */
   | { type: 'SET_CARD_LEVELS'; payload: Record<number, number> }
   | { type: 'SET_CARDS_PRINTED'; payload: { uids: string[]; fecha: string | undefined } }
+  | { type: 'MOVE_CARDS'; payload: { uids: string[]; folderId: string } }
   | { type: 'DELETE_CARD'; payload: string }
   | { type: 'DELETE_CARDS'; payload: string[] }
   | { type: 'RESTORE_CARD'; payload: { card: Card; index: number } }
@@ -347,6 +348,11 @@ const reducer = (state: AppState, action: Action): AppState => {
     }
     case 'DELETE_CARD':
       return { ...state, db: { ...state.db, cards: state.db.cards.filter(c => c.uid !== action.payload) } };
+    case 'MOVE_CARDS': {
+        const uids = new Set(action.payload.uids);
+        const { folderId } = action.payload;
+        return { ...state, db: { ...state.db, cards: state.db.cards.map(c => (uids.has(c.uid) ? { ...c, folderId } : c)) } };
+    }
     case 'DELETE_CARDS': {
         const ids = new Set(action.payload);
         return { ...state, db: { ...state.db, cards: state.db.cards.filter(c => !ids.has(c.uid)) } };

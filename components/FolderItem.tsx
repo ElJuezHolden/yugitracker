@@ -27,6 +27,10 @@ export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMod
    * dicen en la ayuda.
    */
   const resumen = usePrices().summarize(cards);
+  // Las wanted no se tienen: se cuentan aparte.
+  const wanted = cards.filter((c) => c.isWanted).length;
+  const tenidas = cards.length - wanted;
+  const textoCuentas = `${resumen.priced} con precio${wanted > 0 ? ` · ${wanted} wanted` : ''}`;
   const textoValor = resumen.priced > 0 ? `≈ ${formatMoney(resumen.eur)}` : '—';
   const ayudaValor =
     resumen.priced > 0
@@ -158,7 +162,7 @@ export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMod
                 {folder.subtext && <div className="text-xs text-muted mt-0.5 truncate">{folder.subtext}</div>}
             </div>
             {/* ITEMS: text-muted */}
-            <div className="text-sm text-muted whitespace-nowrap">{cards.length} items</div>
+            <div className="text-sm text-muted whitespace-nowrap" title={`${tenidas} cartas, sin contar las wanted`}>{textoCuentas}</div>
             {/* PRICE: text-primary */}
             <div className="text-sm font-bold text-primary w-24 text-right whitespace-nowrap" title={ayudaValor}>{textoValor}</div>
             
@@ -217,7 +221,7 @@ export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMod
                     padding: '1.5cqw 2.5cqw'
                 }}
             >
-                📁 {cards.length}
+                <span title={`${tenidas} cartas, sin contar las wanted`}>📁 {tenidas}</span>
             </div>
         </div>
 
@@ -235,10 +239,17 @@ export const FolderItem: React.FC<Props> = React.memo(({ folder, onEdit, viewMod
              </div>
              
              {/* En fichas estrechas el importe no se parte: se oculta la etiqueta y se achica un poco. */}
-             <div className="mt-auto pt-2 flex justify-between items-end gap-2 border-t border-border-base">
-                <span className="text-xs text-muted font-medium @max-[190px]:hidden">Valor</span>
-                {/* VALUE: text-primary */}
-                <span className="text-primary font-bold text-sm whitespace-nowrap ml-auto @max-[150px]:text-xs" title={ayudaValor}>{textoValor}</span>
+             <div className="mt-auto pt-2 border-t border-border-base">
+                <div className="flex justify-between items-end gap-2">
+                   <span className="text-xs text-muted font-medium @max-[190px]:hidden">Valor</span>
+                   {/* VALUE: text-primary */}
+                   <span className="text-primary font-bold text-sm whitespace-nowrap ml-auto @max-[150px]:text-xs" title={ayudaValor}>{textoValor}</span>
+                </div>
+                {/* Cuántas tienen precio y cuántas faltan (wanted). */}
+                <div className="text-[11px] text-muted truncate mt-0.5" title={`${tenidas} cartas, sin contar las wanted`}>
+                   {resumen.priced} con precio
+                   {wanted > 0 && <span className="text-red-400"> · {wanted} wanted</span>}
+                </div>
              </div>
         </div>
 

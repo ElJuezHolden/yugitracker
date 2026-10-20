@@ -34,6 +34,7 @@ export function CollectionValue({ cards, titulo }: Props) {
   const { summarize, loading, error, rate, oldestFetch, marketDate, refresh, metric, setMetric } = usePrices();
   const metrica = PRICE_METRICS.find((m) => m.id === metric)!;
   const r = summarize(cards);
+  const wanted = cards.filter((c) => c.isWanted).length;
   if (r.priced === 0 && r.unpriced === 0) return null; // Nada que valorar (vacío o solo buscadas).
 
   const ayuda =
@@ -69,6 +70,7 @@ export function CollectionValue({ cards, titulo }: Props) {
       <span className="text-sm text-muted">
         {r.priced} con precio
         {r.unpriced > 0 && <span title="Su versión no tiene precio en la API: no se cuentan como 0."> · {r.unpriced} sin precio</span>}
+        {wanted > 0 && <span className="text-red-400" title="Cartas que te faltan: no suman valor."> · {wanted} wanted</span>}
       </span>
 
       <span className="ml-auto flex items-center gap-2 text-xs text-sub">

@@ -9,6 +9,7 @@ import { SearchModal } from './components/Modals/SearchModal';
 import { CardModal } from './components/Modals/CardModal';
 import { PersonalizadoModal } from './components/Modals/PersonalizadoModal';
 import { HojasBuscadasModal } from './components/Modals/HojasBuscadasModal';
+import { PimpearModal } from './components/Modals/PimpearModal';
 import { ThemeModal } from './components/Modals/ThemeModal';
 import { BackupModal } from './components/Modals/BackupModal';
 import { PriceMovesModal } from './components/Modals/PriceMovesModal';
@@ -29,7 +30,7 @@ import { ToastContainer } from './components/Toast';
 import { ID_ALL, getRarityWeight, normalizeStr, analyzeCardType, compareNames } from './utils';
 import type { Card, ApiCard, Folder, MainCardType, MonsterType, CardProperty } from './types';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Trash, X } from 'lucide-react';
+import { FolderInput, Trash, X } from 'lucide-react';
 
 // Helper to extract set prefix (e.g. "LOB-EN001" -> "LOB")
 const getSetPrefix = (code: string) => {
@@ -55,6 +56,12 @@ function App() {
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  /*
+   * El buscador sigue montado (oculto) mientras se mira la carta elegida: así,
+   * si no era esa, "Volver a la búsqueda" lo enseña con el texto y los
+   * resultados como estaban. Se desmonta al cerrar la búsqueda o la carta.
+   */
+  const [busquedaViva, setBusquedaViva] = useState(false);
   const [isCardModalOpen, setIsCardModalOpen] = useState(false);
   /** Artículo personalizado abierto: `null` para uno nuevo, `undefined` cerrado. */
   const [personalizado, setPersonalizado] = useState<Card | null | undefined>(undefined);
@@ -62,12 +69,14 @@ function App() {
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isPriceMovesOpen, setIsPriceMovesOpen] = useState(false);
   const [hojasBuscadas, setHojasBuscadas] = useState(false);
+  const [pimpear, setPimpear] = useState(false);
   
   // Selection Mode State
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedCardIds, setSelectedCardIds] = useState<Set<string>>(new Set());
   const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [showMover, setShowMover] = useState(false);
 
   // Filter State
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -212,6 +221,28 @@ function App() {
           setSelectedCardIds(new Set());
           setShowBulkDeleteConfirm(false);
       }
+  };
+
+  // Mover las cartas seleccionadas a otra carpeta, con deshacer (cada una vuelve a la suya).
+  const moverSeleccion = (folderId: string) => {
+      const ids = Array.from(selectedCardIds);
+      if (ids.length === 0) return;
+      const antes = new Map<string, string[]>();
+      for (const c of state.db.cards) {
+          if (!selectedCardIds.has(c.uid) || c.folderId === folderId) continue;
+          antes.set(c.folderId, [...(antes.get(c.folderId) ?? []), c.uid]);
+      }
+      const movidas = [...antes.values()].reduce((n, l) => n + l.length, 0);
+      setShowMover(false);
+      setIsSelectionMode(false);
+      setSelectedCardIds(new Set());
+      if (movidas === 0) return toast('Ya estaban en esa carpeta');
+      dispatch({ type: 'MOVE_CARDS', payload: { uids: [...antes.values()].flat(), folderId } });
+      const destino = state.db.folders.find(f => f.id === folderId)?.name ?? 'la carpeta';
+      toast(`${movidas} ${movidas === 1 ? 'carta movida' : 'cartas movidas'} a ${destino}`, 'ok', () => {
+          for (const [origen, uids] of antes) dispatch({ type: 'MOVE_CARDS', payload: { uids, folderId: origen } });
+          toast('Cartas devueltas a su carpeta');
+      });
   };
 
   const handleSelectAll = () => {
@@ -460,10 +491,11 @@ function App() {
     <div className="min-h-screen pt-[calc(var(--alto-cabecera)+10px)] pb-24 transition-colors duration-500">
       <Header 
         onOpenFolderModal={() => { setEditingFolderId(null); setIsFolderModalOpen(true); }}
-        onOpenSearchModal={() => setIsSearchModalOpen(true)}
+        onOpenSearchModal={() => { setIsSearchModalOpen(true); setBusquedaViva(true); }}
         onOpenBackupModal={() => setIsBackupModalOpen(true)}
         onOpenPriceMoves={() => setIsPriceMovesOpen(true)}
         onOpenHojasBuscadas={() => setHojasBuscadas(true)}
+        onOpenPimpear={() => setPimpear(true)}
         onOpenThemeModal={() => setIsThemeModalOpen(true)}
         isSelectionMode={isSelectionMode}
         onToggleSelectionMode={() => setIsSelectionMode(prev => !prev)}
@@ -675,7 +707,7 @@ function App() {
                             portada={carpetaActiva?.img}
                             estilo={carpetaActiva?.album}
                             onEstilo={carpetaActiva ? (album) => dispatch({ type: 'SET_FOLDER_ALBUM', payload: { id: carpetaActiva.id, album } }) : undefined}
-                            teclado={personalizado === undefined && !hojasBuscadas && !isCardModalOpen && !isSearchModalOpen && !isFolderModalOpen && !isThemeModalOpen && !isBackupModalOpen && !isPriceMovesOpen}
+                            teclado={personalizado === undefined && !hojasBuscadas && !pimpear && !isCardModalOpen && !isSearchModalOpen && !isFolderModalOpen && !isThemeModalOpen && !isBackupModalOpen && !isPriceMovesOpen}
                         />
                     )}
                 </motion.div>
@@ -693,7 +725,7 @@ function App() {
                 // Por encima de la carta levantada al pasar el ratón (z-80), que la tapaba.
                 className="fixed bottom-6 left-0 right-0 flex justify-center z-[95] pointer-events-none"
             >
-                <div className="bg-bg-panel border-none shadow-2xl rounded-2xl flex items-center gap-4 p-2 pointer-events-auto overflow-hidden ring-1 ring-white/5">
+                <div className="bg-bg-panel border-none shadow-2xl rounded-2xl flex items-center gap-4 p-2 pointer-events-auto ring-1 ring-white/5">
                     {showBulkDeleteConfirm ? (
                         <motion.div 
                             initial={{ opacity: 0, x: 20 }}
@@ -731,12 +763,41 @@ function App() {
 
                             <div className="w-[1px] h-6 bg-main/10" />
 
+                            {!isHome && (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => setShowMover(v => !v)}
+                                        disabled={currentSelectedCount === 0}
+                                        className="flex items-center gap-2 px-3 py-2 hover:bg-primary/20 hover:text-primary disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors text-main/80"
+                                        title="Mover a otra carpeta"
+                                        aria-expanded={showMover}
+                                    >
+                                        <FolderInput size={18} /> <span className="hidden sm:inline">Mover a…</span>
+                                    </button>
+                                    {showMover && (
+                                        <div className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 w-60 max-h-72 overflow-y-auto custom-scrollbar bg-bg-panel border border-border-base rounded-xl shadow-2xl p-1">
+                                            <div className="px-3 py-1.5 text-[11px] text-muted">Mover {currentSelectedCount} a…</div>
+                                            {state.db.folders.filter(f => f.id !== ID_ALL && f.id !== activeFolderId).map(f => (
+                                                <button
+                                                    key={f.id}
+                                                    onClick={() => moverSeleccion(f.id)}
+                                                    className="w-full text-left px-3 py-2 rounded-lg text-sm text-main hover:bg-primary/15 truncate"
+                                                >
+                                                    {f.name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <button 
                                 onClick={() => { 
                                     setIsSelectionMode(false); 
                                     setSelectedCardIds(new Set()); 
                                     setSelectedFolderIds(new Set());
                                     setShowBulkDeleteConfirm(false); 
+                                    setShowMover(false);
                                 }}
                                 className="p-2 hover:bg-main/10 rounded-lg text-main/60 hover:text-main transition-colors"
                                 title="Cancelar"
@@ -777,18 +838,20 @@ function App() {
                 onSave={(newId) => setLastCreatedFolderId(newId)}
             />
         )}
-        {isSearchModalOpen && (
+        {busquedaViva && (
             <SearchModal 
                 isOpen={isSearchModalOpen}
-                onClose={() => setIsSearchModalOpen(false)}
+                onClose={() => { setIsSearchModalOpen(false); setBusquedaViva(false); }}
                 onSelect={handleSelectApiCard}
                 onPersonalizado={() => {
                     setIsSearchModalOpen(false);
+                    setBusquedaViva(false);
                     setPersonalizado(null);
                 }}
             />
         )}
         {hojasBuscadas && <HojasBuscadasModal onClose={() => setHojasBuscadas(false)} />}
+        {pimpear && <PimpearModal onClose={() => setPimpear(false)} onOpenCard={handleCardPress} />}
         {personalizado !== undefined && (
             <PersonalizadoModal existente={personalizado} onClose={() => setPersonalizado(undefined)} />
         )}
@@ -797,8 +860,10 @@ function App() {
                 isOpen={isCardModalOpen}
                 onClose={() => {
                     setIsCardModalOpen(false);
+                    setBusquedaViva(false);
                     setLastCreatedFolderId(null); // Clear persistent new folder ID to respect active folder on next open
                 }}
+                onVolver={busquedaViva && !editingCard ? () => { setIsCardModalOpen(false); setIsSearchModalOpen(true); } : undefined}
                 initialApiCard={selectedApiCard}
                 existingCard={editingCard}
                 onCreateFolder={() => {

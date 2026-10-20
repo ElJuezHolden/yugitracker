@@ -16,7 +16,7 @@ import { useCardmarketPrices, usePrices } from '../../context/PricesContext';
 import { leftoverFor, resolvePrintingKey, versionPrice } from '../../services/prices';
 import { codigoDeCopia, codigoEspanol } from '../../services/codigosEs';
 import { RAREZA_ESPECIAL, claveVersion, conVariantesEspeciales, cruzarVersiones, sameRarity } from '../../services/versiones';
-import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search, Palette } from 'lucide-react';
+import { ExternalLink, Check, Loader2, Star, ShieldAlert, Target, Info, Calendar, Database, Sparkles, Search, Palette, ArrowLeft } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -25,6 +25,8 @@ interface Props {
   existingCard?: Card | null;
   onCreateFolder: () => void;
   newFolderId?: string | null;
+  /** Si se llegó desde el buscador: vuelve a él, con la búsqueda como estaba. */
+  onVolver?: () => void;
 }
 
 /** Variantes de Cardmarket ya creadas (ver variantesCardmarket): el mismo objeto en cada render. */
@@ -49,7 +51,7 @@ const MANUAL_RARITIES = [
     'Premium Gold Rare'
 ];
 
-export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, existingCard, onCreateFolder, newFolderId }) => {
+export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, existingCard, onCreateFolder, newFolderId, onVolver }) => {
   const { state, dispatch, toast } = useStore();
   const [apiData, setApiData] = useState<ApiCard | null>(null);
   const preciosCardmarket = useCardmarketPrices(apiData?.id);
@@ -1072,6 +1074,14 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                         Eliminar
                     </button>
                  )
+            ) : onVolver ? (
+                <button
+                    onClick={onVolver}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold text-main/80 hover:text-main hover:bg-main/10 transition-colors"
+                    title="Volver a los resultados de la búsqueda"
+                >
+                    <ArrowLeft size={16} /> <span className="hidden sm:inline">Volver a la búsqueda</span>
+                </button>
             ) : <div />}
             <div className="flex items-center gap-2 sm:gap-3">
                 {avisoRepetida && (

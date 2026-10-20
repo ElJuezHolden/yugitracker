@@ -34,6 +34,18 @@ export interface CopyPrice {
   fuente: 'cardmarket' | 'tcgplayer' | 'manual';
 }
 
+/** Una versión de una carta (código y rareza) con su precio de mercado. */
+export interface VersionCarta {
+  code: string;
+  rarity: string;
+  /** Nombre del set, si se sabe. */
+  set: string;
+  /** Precio de mercado en euros (Cardmarket; si no, TCGplayer pasado a euros), o `null`. */
+  eur: number | null;
+  /** Producto de Cardmarket, para enlazar a su página. */
+  idProduct: number | null;
+}
+
 /** Resumen de valor de un grupo de cartas (una carpeta, la colección…). */
 export interface ValueSummary {
   /** Suma del valor de mercado de las cartas con precio, en euros. */
@@ -58,6 +70,8 @@ interface PricesContextValue {
   /** Valor de mercado de una copia, en euros, o `null` si no hay precio. */
   valueOf: (card: Card) => number | null;
   summarize: (cards: Card[]) => ValueSummary;
+  /** Todas las versiones conocidas de una carta (YGOPRODeck y Cardmarket), con su precio. */
+  versionesDe: (apiId: number) => VersionCarta[];
   refresh: () => void;
   /** Cifra de Cardmarket con la que se valora todo (por defecto, la de referencia). */
   metric: PriceMetric;
@@ -227,11 +241,41 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return min;
   }, [prices]);
 
+  const versionesDe = useCallback(
+    (apiId: number): VersionCarta[] => {
+      const cm = mercado.porCarta.get(apiId) ?? {};
+      const productos = mercado.productos.get(apiId) ?? {};
+      const claves = Object.keys(cm);
+      const eurDe = (clave: string) => {
+        const cifras = cm[clave];
+        return cifras ? (statValue(cifras, metric) ?? statValue(cifras, 'referencia')) : null;
+      };
+      const porClave = new Map<string, VersionCarta>();
+      // Las de YGOPRODeck, con la clave con la que Cardmarket guarda su precio (que corrige rarezas como "New").
+      for (const p of prices.get(apiId)?.printings ?? []) {
+        const clave = resolvePrintingKey(claves, p.code, p.rarity);
+        const rarity = cm[clave] ? clave.slice(clave.indexOf('|') + 1) : p.rarity;
+        if (porClave.has(clave)) continue;
+        const eur = eurDe(clave) ?? (p.usd != null && rate ? p.usd * rate.usdToEur : null);
+        porClave.set(clave, { code: p.code, rarity, set: p.name, eur, idProduct: productos[clave] ?? null });
+      }
+      // Las que solo están en Cardmarket (variantes, las sacadas de Yugipedia). Las españolas con prefijo propio, no: son la misma versión.
+      for (const clave of claves) {
+        if (porClave.has(clave)) continue;
+        const code = clave.slice(0, clave.indexOf('|'));
+        if (/-S\d{3}$/.test(code)) continue;
+        porClave.set(clave, { code, rarity: clave.slice(clave.indexOf('|') + 1), set: '', eur: eurDe(clave), idProduct: productos[clave] ?? null });
+      }
+      return [...porClave.values()];
+    },
+    [prices, mercado, metric, rate],
+  );
+
   const refresh = useCallback(() => setForzar((n) => n + 1), []);
 
   const value = useMemo<PricesContextValue>(
-    () => ({ rate, loading, error, oldestFetch, marketDate: mercado.fecha, priceOf, valueOf, summarize, refresh, metric, setMetric }),
-    [rate, loading, error, oldestFetch, mercado.fecha, priceOf, valueOf, summarize, refresh, metric, setMetric],
+    () => ({ rate, loading, error, oldestFetch, marketDate: mercado.fecha, priceOf, valueOf, summarize, versionesDe, refresh, metric, setMetric }),
+    [rate, loading, error, oldestFetch, mercado.fecha, priceOf, valueOf, summarize, versionesDe, refresh, metric, setMetric],
   );
 
   return <PricesContext.Provider value={value}>{children}</PricesContext.Provider>;

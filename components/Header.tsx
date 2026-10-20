@@ -3,7 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { NAME_MODES, setNameMode, useNameMode } from './useCardName';
 import { ID_ALL, CARD_BACK_IMG } from '../utils';
 import { useBackup } from '../context/BackupContext';
-import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp, Languages, Printer } from 'lucide-react';
+import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp, Languages, Printer, Gem, ListChecks } from 'lucide-react';
 import { TagsPanel } from './TagsPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FolderSort, CardSort } from '../types';
@@ -15,6 +15,8 @@ interface Props {
   onOpenPriceMoves: () => void;
   /** Hojas de cartas buscadas para imprimir y meter en el álbum. */
   onOpenHojasBuscadas: () => void;
+  /** Cartas que se pueden mejorar de rareza ("pimpear"). */
+  onOpenPimpear: () => void;
   onOpenThemeModal: () => void;
   isSelectionMode: boolean;
   onToggleSelectionMode: () => void;
@@ -30,6 +32,7 @@ export const Header: React.FC<Props> = ({
     onOpenBackupModal,
     onOpenPriceMoves,
     onOpenHojasBuscadas,
+    onOpenPimpear,
     onOpenThemeModal, 
     isSelectionMode, 
     onToggleSelectionMode,
@@ -321,6 +324,16 @@ export const Header: React.FC<Props> = ({
                 <Printer size={16} />
             </button>
 
+            {/* Cartas que existen en una rareza más alta que la que tienes */}
+            <button
+                onClick={onOpenPimpear}
+                className="p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
+                title="Cartas para pimpear (mejorar de rareza)"
+                aria-label="Cartas para pimpear (mejorar de rareza)"
+            >
+                <Gem size={16} />
+            </button>
+
             {/*
               Copias de seguridad. Fuera del grupo de iconos que se oculta en el
               móvil: antes exportar e importar no existían en pantallas pequeñas.
@@ -432,12 +445,14 @@ export const Header: React.FC<Props> = ({
                         )}
                     </button>
 
+                    {/* Seleccionar varias cartas para moverlas a otra carpeta o eliminarlas. */}
                     <button
                         onClick={onToggleSelectionMode}
-                        className={`p-2 rounded-lg transition-colors flex items-center gap-2 ${isSelectionMode ? 'bg-red-500/20 text-red-500' : 'bg-bg-surface text-main/60 hover:text-red-500 hover:bg-red-500/10'}`}
-                        title={isSelectionMode ? "Salir de modo eliminación" : "Eliminar cartas"}
+                        className={`p-2 rounded-lg transition-colors flex items-center gap-2 ${isSelectionMode ? 'bg-primary/20 text-primary' : 'bg-bg-surface text-main/60 hover:text-main hover:bg-main/10'}`}
+                        title={isSelectionMode ? "Salir de la selección" : "Seleccionar cartas (mover a otra carpeta o eliminar)"}
+                        aria-label={isSelectionMode ? "Salir de la selección" : "Seleccionar cartas"}
                     >
-                        <Trash size={16} />
+                        <ListChecks size={16} />
                     </button>
 
                     <div className="flex items-center gap-1 bg-bg-surface rounded-lg p-0.5">
