@@ -16,9 +16,11 @@
  * la misma Card Destruction): esa no tiene equivalente directo. En LOB, MRD y
  * SRL las dos numeran igual.
  *
- * Las fuentes (YGOPRODeck, Cardmarket) solo tienen el código inglés, y es el
- * que se guarda en la copia: Cardmarket vende todos los idiomas en el mismo
- * producto, así que el precio es el mismo. El español solo se enseña y se busca.
+ * YGOPRODeck solo tiene el código inglés, y es el que se guarda en la copia. En
+ * Cardmarket depende del set: algunos los vende en el mismo producto para todos
+ * los idiomas, y otros en una expansión española aparte ("Baraja de Inicio:
+ * Yugi"). De esos, el proceso diario publica el precio con el código español
+ * (BIY-S042) y las copias en español lo usan (ver resolvePrintingKey).
  */
 
 const DE_INGLES: Record<string, string> = {

@@ -1,5 +1,6 @@
 import type { ApiCard, CardSet } from '../types';
 import { isPlaceholderRarity, sameRarity } from './versiones';
+import { codigoEspanol } from './codigosEs';
 
 /*
  * Precios de mercado de las cartas.
@@ -66,11 +67,23 @@ export const printingKey = (code: string, rarity: string) => `${code}|${rarity}`
  * antiguos); y al revés, una copia guardada con rareza falsa toma el único
  * precio de su código (BLMM-EN038 New → |Ultra Rare). Ver services/versiones.ts.
  */
-export function resolvePrintingKey(claves: Iterable<string>, code: string, rarity: string): string {
+export function resolvePrintingKey(claves: Iterable<string>, code: string, rarity: string, lang?: string): string {
+  const todas = [...claves];
+  /*
+   * Copia en español de un set con prefijo propio (SDY-042 = BIY-S042): si
+   * Cardmarket vende la española aparte ("Baraja de Inicio: Yugi"), su precio.
+   * Si no, el de la versión de siempre.
+   */
+  if (lang === 'ES') {
+    const espanol = codigoEspanol(code);
+    if (espanol) {
+      const clave = resolvePrintingKey(todas, espanol, rarity);
+      if (todas.includes(clave)) return clave;
+    }
+  }
   const exacta = printingKey(code, rarity);
   const delCodigo: string[] = [];
   const codigo = `${code}|`.toLowerCase();
-  const todas = [...claves];
   for (const k of todas) {
     if (k === exacta) return k;
     if (k.toLowerCase().startsWith(codigo)) delCodigo.push(k);
@@ -361,9 +374,11 @@ export function versionPrice(
   rate: ExchangeRate | null,
   metric: PriceMetric = 'referencia',
   sobrantes?: Sobrante[],
+  /** Idioma de la copia: en español, el precio de la edición española si va aparte. */
+  lang?: string,
 ): { eur: number; deTcgplayer: boolean } | null {
   const stats =
-    cardmarket?.[resolvePrintingKey(Object.keys(cardmarket ?? {}), set.set_code, set.set_rarity)] ??
+    cardmarket?.[resolvePrintingKey(Object.keys(cardmarket ?? {}), set.set_code, set.set_rarity, lang)] ??
     leftoverFor(sobrantes, set.set_code, set.set_rarity)?.stats;
   const cm = stats ? (statValue(stats, metric) ?? statValue(stats, 'referencia')) : null;
   if (cm != null) return { eur: cm, deTcgplayer: false };

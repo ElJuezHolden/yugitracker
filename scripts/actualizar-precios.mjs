@@ -258,6 +258,19 @@ try {
       .replace(/\{\{[^}]*\}\}/g, '')
       .trim();
   const campo = (texto, nombre) => new RegExp(`\\|\\s*${nombre}\\s*=\\s*([^\\n]*)`).exec(texto)?.[1]?.trim() ?? '';
+  /*
+   * El campo "image" trae un archivo ("image = X.png") o, en las páginas con
+   * varias, una lista ("1; X.png;" en las líneas siguientes) y "current_image"
+   * dice cuál es la actual. Card of Last Will (LC04-EN003) se quedaba sin imagen
+   * y su ficha no se podía abrir.
+   */
+  const imagenDeLaPagina = (texto) => {
+    const bloque = /\|\s*image\s*=([\s\S]*?)(?=\n\s*\||\n\}\})/.exec(texto)?.[1] ?? '';
+    const lista = [...bloque.matchAll(/^\s*([\d.]+)\s*;\s*([^;\n]+?)\s*(?:;|$)/gm)].map((m) => [m[1], m[2]]);
+    if (lista.length === 0) return bloque.trim();
+    const actual = campo(texto, 'current_image');
+    return (lista.find(([n]) => n === actual) ?? lista[lista.length - 1])[1];
+  };
   const encontradas = new Map();
   for (let i = 0; i < candidatos.length; i += 25) {
     const lote = candidatos.slice(i, i + 25);
@@ -285,7 +298,7 @@ try {
   }
   // Imágenes: la URL de cada archivo, 50 por consulta.
   const imagenDe = new Map();
-  const archivos = [...encontradas.values()].map((e) => campo(e.texto, 'image')).filter(Boolean);
+  const archivos = [...encontradas.values()].map((e) => imagenDeLaPagina(e.texto)).filter(Boolean);
   for (let i = 0; i < archivos.length; i += 50) {
     const url = new URL('https://yugipedia.com/api.php');
     for (const [k, v] of Object.entries({ action: 'query', prop: 'imageinfo', iiprop: 'url', format: 'json', formatversion: '2', titles: archivos.slice(i, i + 50).map((a) => `File:${a}`).join('|') }))
@@ -324,7 +337,7 @@ try {
     }
     // Sin edición en inglés, o una página genérica (la de "Token" lista decenas de fichas distintas).
     if (!impresiones.length || impresiones.length > 20) continue;
-    const imagen = imagenDe.get(campo(texto, 'image'));
+    const imagen = imagenDe.get(imagenDeLaPagina(texto));
     const id = ID_EXTRA + pageid;
     /*
      * Tipo como lo escribe YGOPRODeck ("Effect Monster", "Spell Card"…): decide
@@ -1286,6 +1299,59 @@ try {
 }
 
 /*
+ * Ediciones españolas con expansión propia en Cardmarket. La española de
+ * algunos sets antiguos lleva otro prefijo (BIY-S042 = SDY-042, ver
+ * services/codigosEs.ts) y Cardmarket la vende en su propia expansión, con su
+ * precio ("Baraja de Inicio: Yugi"; Card Destruction, BIY-S042, desde 0,04 €).
+ * Se publica con el código español (BIY-S042|Super Rare) y la web lo usa en las
+ * copias en español. Un producto por carta: se casan por nombre. Solo las
+ * expansiones confirmadas por el usuario en Cardmarket.
+ */
+const EXPANSION_ES = [
+  // Baraja de Inicio: Yugi (producto 581787 = Card Destruction BIY-S042, comprobado).
+  { lista: 'Set Card Lists:Starter Deck: Yugi (TCG-SP)', exp: 4425 },
+];
+let preciosEs = 0;
+try {
+  const idDeNombre = new Map(cartas.map((c) => [norm(c.name), c.id]));
+  for (const { lista, exp } of EXPANSION_ES) {
+    const delExp = expansiones.get(exp);
+    if (!delExp) continue;
+    const url = new URL('https://yugipedia.com/api.php');
+    for (const [k, v] of Object.entries({ action: 'query', prop: 'revisions', rvprop: 'content', format: 'json', formatversion: '2', titles: lista })) url.searchParams.set(k, v);
+    const res = await fetch(url, { headers: { 'User-Agent': AGENTE } });
+    if (!res.ok) throw new Error(`Yugipedia respondió ${res.status}`);
+    const texto = (await res.json()).query.pages[0]?.revisions?.[0]?.content ?? '';
+    for (const bloque of texto.split('{{Set list').slice(1)) {
+      const porDefecto = /\|\s*rarities\s*=\s*([^|\n]+)/.exec(bloque)?.[1]?.trim() ?? 'C';
+      for (const linea of bloque.split('\n')) {
+        const [code, nombre, rarezas] = linea.split(';').map((x) => x.split('//')[0].trim());
+        if (!/^[A-Z0-9]+-S\d{3}$/.test(code ?? '') || !nombre) continue;
+        const n = norm(nombre);
+        const id = idDeNombre.get(n);
+        const productosCarta = (delExp.get(n) ?? []).filter((x) => precioProducto.has(x.idProduct));
+        const rarezasLinea = (rarezas || porDefecto).split(',').map((r) => rarezaCompleta(r.trim())).filter(Boolean);
+        // Un producto y una rareza: si no, no se sabe cuál es cuál y se queda sin precio.
+        if (id == null || productosCarta.length !== 1 || rarezasLinea.length !== 1) continue;
+        const producto = productosCarta[0];
+        const clave = `${code}|${rarezasLinea[0]}`;
+        const precio = precioProducto.get(producto.idProduct);
+        for (const m of [deHoy, cifrasDe, productoDe]) if (!m.has(id)) m.set(id, {});
+        if (productoDe.get(id)[clave] != null) continue;
+        deHoy.get(id)[clave] = precio.ref;
+        cifrasDe.get(id)[clave] = precio.cifras;
+        productoDe.get(id)[clave] = producto.idProduct;
+        asignados.add(producto.idProduct);
+        preciosEs++;
+      }
+    }
+    await esperar(1000);
+  }
+} catch (e) {
+  console.warn(`No se pudieron poner los precios de las ediciones españolas: ${e.message}`);
+}
+
+/*
  * Productos sobrantes. A YGOPRODeck le faltan impresiones (p. ej. Number 39:
  * Utopia en la lata TN23, aunque el set sí lo tiene con otras cartas). Esas
  * impresiones están en Cardmarket, en la expansión ya emparejada, pero sin
@@ -1616,5 +1682,5 @@ try {
   // Sin archivo de nombres no hay nada que completar.
 }
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas, ${promosAnadidas} promos de lanzamiento (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${impresionesDeColecciones} impresiones de ${setsDeYugipedia.size} colecciones que YGOPRODeck no tiene; ${otroNombre.size} nombres de Cardmarket casados con su carta.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas, ${promosAnadidas} promos de lanzamiento (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${impresionesDeColecciones} impresiones de ${setsDeYugipedia.size} colecciones que YGOPRODeck no tiene; ${otroNombre.size} nombres de Cardmarket casados con su carta; ${preciosEs} precios de ediciones españolas con expansión propia.`,
 );

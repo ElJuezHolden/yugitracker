@@ -220,7 +220,8 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
             nameColor: ''
           });
           data = { ...data, card_sets: conVariantesEspeciales(data.card_sets ?? []) };
-          setSelectedImg(data.card_images[0].image_url);
+          // Las de la lista extra pueden venir sin imagen: se abren igual, con el dorso.
+          setSelectedImg(data.card_images[0]?.image_url ?? CARD_BACK_IMG);
           setCustomImg('');
           setManualRarity('');
           if (data.card_sets && data.card_sets.length > 0) {
@@ -477,7 +478,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
   // Producto de Cardmarket de la versión elegida, para enlazar directamente a su página.
   const idProductoElegido = selectedSet
     ? preciosCardmarket.productos[
-        resolvePrintingKey(Object.keys(preciosCardmarket.productos), selectedSet.set_code, selectedSet.set_rarity)
+        resolvePrintingKey(Object.keys(preciosCardmarket.productos), selectedSet.set_code, selectedSet.set_rarity, formData.lang)
       ] ??
       leftoverFor(preciosCardmarket.sobrantes, selectedSet.set_code, selectedSet.set_rarity)?.idProduct ??
       null
@@ -745,7 +746,7 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                         {set.set_rarity}
                                                     </div>
                                                     <div className="text-[10px] text-muted font-semibold mt-0.5">
-                                                        {(() => { const v = versionPrice(preciosCardmarket.precios, set, rate, metric, preciosCardmarket.sobrantes); return v ? `≈ ${formatMoney(v.eur)}${v.deTcgplayer ? '*' : ''}` : '—'; })()}
+                                                        {(() => { const v = versionPrice(preciosCardmarket.precios, set, rate, metric, preciosCardmarket.sobrantes, formData.lang); return v ? `≈ ${formatMoney(v.eur)}${v.deTcgplayer ? '*' : ''}` : '—'; })()}
                                                     </div>
                                                 </div>
                                             )) : (

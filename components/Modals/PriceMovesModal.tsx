@@ -93,7 +93,7 @@ export function PriceMovesModal({ onClose, onOpenCard }: Props) {
       const historial = historiales.get(card.apiId) ?? [];
       // Primero con la rareza de la copia; si no, con la de YGOPRODeck (que puede ser una falsa, como "New").
       const claves = new Set(historial.flatMap((p) => Object.keys(p.p)));
-      const propia = resolvePrintingKey(claves, card.setCode, card.rarity);
+      const propia = resolvePrintingKey(claves, card.setCode, card.rarity, card.lang);
       const k = claves.has(propia) || !impresion ? propia : resolvePrintingKey(claves, impresion.code, impresion.rarity);
       const clave = `${card.apiId}|${k}`;
       const ya = porVersion.get(clave);
