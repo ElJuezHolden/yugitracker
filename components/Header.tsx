@@ -48,7 +48,7 @@ export const Header: React.FC<Props> = ({
   const { state, dispatch } = useStore();
   const modoNombres = useNameMode();
   const backup = useBackup();
-  const { view, activeFolderId, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, isTagsPanelOpen, showFoils, showConditionFlags, showEditionFlags, wantedMode } = state.ui;
+  const { view, activeFolderId, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, isTagsPanelOpen, showFoils, showConditionFlags, showEditionFlags, wantedMode, soloIngles } = state.ui;
   const searchContainerRef = useRef<HTMLDivElement>(null);
   
   // Ref for the slider container to attach non-passive wheel listener
@@ -268,6 +268,22 @@ export const Header: React.FC<Props> = ({
                     aria-label="Cartas buscadas (WANTED)"
                 >
                     <Target size={16} className={wantedMode !== 'ocultar' ? (wantedMode === 'solo' ? 'fill-red-400' : 'fill-primary') : ''} />
+                </button>
+                {/* Solo las copias en inglés: la lista de las que comprar en español. */}
+                <button
+                    onClick={() => {
+                        // Desde las carpetas, a la colección completa: lo que se quiere es la lista de todas.
+                        if (!soloIngles && activeFolderId === null) dispatch({ type: 'SET_ACTIVE_FOLDER', payload: ID_ALL });
+                        dispatch({ type: 'TOGGLE_SOLO_INGLES' });
+                    }}
+                    className={`px-1.5 py-1 rounded transition-colors text-[10px] font-black leading-none tracking-tight ${
+                        soloIngles ? 'text-amber-300 bg-amber-500/15' : 'text-main/60 hover:text-main'
+                    }`}
+                    title={soloIngles ? 'Viendo solo las copias en inglés (para comprarlas en español). Clic: verlas todas' : 'Ver solo las copias en inglés, para comprarlas en español'}
+                    aria-label="Copias en inglés para comprar en español"
+                    aria-pressed={soloIngles}
+                >
+                    EN→ES
                 </button>
                 <button 
                     onClick={() => dispatch({ type: 'TOGGLE_EDITION_FLAGS' })}

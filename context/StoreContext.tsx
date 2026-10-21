@@ -25,6 +25,8 @@ interface AppState {
     showEditionFlags: boolean;
     /** Cartas buscadas (WANTED): todas, ocultarlas o ver solo esas. */
     wantedMode: WantedMode;
+    /** Ver solo las copias en inglés (las que cambiar por la española). */
+    soloIngles: boolean;
   };
 }
 
@@ -49,6 +51,7 @@ type Action =
   | { type: 'TOGGLE_EDITION_FLAGS' }
   | { type: 'TOGGLE_WANTED_CARDS' } // Pasa al siguiente modo: todas → solo buscadas → sin buscadas
   | { type: 'SET_WANTED_MODE'; payload: WantedMode }
+  | { type: 'TOGGLE_SOLO_INGLES' }
   // DB Actions
   | { type: 'SAVE_FOLDER'; payload: Folder }
   | { type: 'SET_FOLDER_ALBUM'; payload: { id: string; album: AlbumEstilo | undefined } }
@@ -110,7 +113,8 @@ const INITIAL_STATE: AppState = {
     showFoils: true, // Default enabled
     showConditionFlags: true, // Default enabled
     showEditionFlags: true, // Default enabled
-    wantedMode: 'todas'
+    wantedMode: 'todas',
+    soloIngles: false
   }
 };
 
@@ -251,6 +255,8 @@ const reducer = (state: AppState, action: Action): AppState => {
       const siguiente: Record<WantedMode, WantedMode> = { todas: 'solo', solo: 'ocultar', ocultar: 'todas' };
       return { ...state, ui: { ...state.ui, wantedMode: siguiente[state.ui.wantedMode] } };
     }
+    case 'TOGGLE_SOLO_INGLES':
+      return { ...state, ui: { ...state.ui, soloIngles: !state.ui.soloIngles } };
     case 'SET_WANTED_MODE':
       return { ...state, ui: { ...state.ui, wantedMode: action.payload } };
     case 'SAVE_FOLDER': {

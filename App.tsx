@@ -52,7 +52,7 @@ function App() {
   useCardLevels();
   useProvisionalIds();
   const modoNombres = useNameMode();
-  const { activeFolderId, view, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, wantedMode } = state.ui;
+  const { activeFolderId, view, gridSize, searchQuery, sortFolders, sortFoldersDir, sortCards, sortCardsDir, wantedMode, soloIngles } = state.ui;
 
   // Modals State
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
@@ -100,7 +100,7 @@ function App() {
       langs: []
   });
 
-  const activeFilterCount = filters.cardTypes.length + filters.monsterTypes.length + filters.properties.length + filters.sets.length + filters.rarities.length + filters.langs.length + (wantedMode !== 'todas' ? 1 : 0);
+  const activeFilterCount = filters.cardTypes.length + filters.monsterTypes.length + filters.properties.length + filters.sets.length + filters.rarities.length + filters.langs.length + (wantedMode !== 'todas' ? 1 : 0) + (soloIngles ? 1 : 0);
 
   // Card Modal Data
   const [selectedApiCard, setSelectedApiCard] = useState<ApiCard | null>(null);
@@ -405,6 +405,8 @@ function App() {
         // 0. FILTER: Buscadas (WANTED): ocultarlas o ver solo esas
         if (wantedMode === 'ocultar') list = list.filter(c => !c.isWanted);
         else if (wantedMode === 'solo') list = list.filter(c => c.isWanted);
+        // Copias en inglés que tienes: las que cambiar por la española.
+        if (soloIngles) list = list.filter(c => c.lang === 'EN' && !c.isWanted && !c.personalizado);
 
         // A. FILTER: Types
         if (filters.cardTypes.length > 0 || filters.monsterTypes.length > 0 || filters.properties.length > 0) {
@@ -455,7 +457,7 @@ function App() {
         if (comparar) list.sort(comparar);
         return list;
     }
-  }, [baseData, isHome, sortFolders, sortFoldersDir, sortCards, sortCardsDir, filters, state.db.cards, wantedMode, valueOf, nombresEs, modoNombres]);
+  }, [baseData, isHome, sortFolders, sortFoldersDir, sortCards, sortCardsDir, filters, state.db.cards, wantedMode, soloIngles, valueOf, nombresEs, modoNombres]);
 
   // Derived Values for Selection UI
   const totalSelectable = isHome 
@@ -546,8 +548,9 @@ function App() {
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6">
         {/* Valor de mercado: de toda la colección en la portada, de la carpeta dentro de ella. */}
         <CollectionValue
-          titulo={isHome || activeFolderId === ID_ALL ? 'Tu colección' : 'Esta carpeta'}
-          cards={isHome || activeFolderId === ID_ALL ? state.db.cards : state.db.cards.filter(c => c.folderId === activeFolderId)}
+          titulo={soloIngles && !isHome ? 'En inglés (para comprar en español)' : isHome || activeFolderId === ID_ALL ? 'Tu colección' : 'Esta carpeta'}
+          // Con "EN→ES", lo que se ve: cuántas son y cuánto valen.
+          cards={soloIngles && !isHome ? (finalData as Card[]) : isHome || activeFolderId === ID_ALL ? state.db.cards : state.db.cards.filter(c => c.folderId === activeFolderId)}
         />
 
         {/* FILTERS (Only visible in Card View) */}
