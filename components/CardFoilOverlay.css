@@ -137,6 +137,15 @@
   transform: perspective(600px) rotateY(var(--rotate-x, 0deg)) rotateX(var(--rotate-y, 0deg));
   /* Bordes suaves al inclinarse: sin esto, el canto sale dentado y con líneas. */
   backface-visibility: hidden;
+  /*
+   * Al volver de levantada (escala 1,08 → 1), el navegador repintaba la carta a
+   * cada tamaño intermedio y, si un fotograma no llegaba a tiempo (las capas del
+   * brillo son caras de pintar), enseñaba solo el fondo #111: un parpadeo negro.
+   * Con la capa fija se escala lo ya pintado. Medido grabando los fotogramas:
+   * sin esto salían en 4 de 6 pruebas largas, con esto en ninguna; la nitidez de
+   * la carta levantada no cambia y el rendimiento tampoco.
+   */
+  will-change: transform;
   outline: 1px solid transparent;
   /*
    * El giro va en `transform` y la elevación en `scale` y `translate`, que son
