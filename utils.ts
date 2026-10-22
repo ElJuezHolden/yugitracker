@@ -11,6 +11,25 @@ export const CARD_BACK_IMG = 'https://images.ygoprodeck.com/images/cards/back_hi
  * existe, sin conexión) se pone el reverso en su lugar. Sin esto quedaba un
  * hueco vacío y la cuadrícula se descuadraba.
  */
+/*
+ * Al acabar de cargarse la imagen de una carta, se repinta su capa (.card-tilt).
+ * A veces el navegador no la repintaba al llegar la imagen y la carta se quedaba
+ * negra (solo se veían el brillo y los sellos) hasta pasarle el ratón por
+ * encima, que es lo que la obligaba a repintarse. Se espera a que la imagen esté
+ * decodificada y se cambia un instante el fondo de la capa, imperceptible.
+ */
+export const onCardImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const img = e.currentTarget;
+  const capa = img.closest<HTMLElement>('.card-tilt');
+  if (!capa) return;
+  const repintar = () => {
+    capa.style.backgroundColor = '#121212';
+    requestAnimationFrame(() => requestAnimationFrame(() => capa.style.removeProperty('background-color')));
+  };
+  if (typeof img.decode === 'function') img.decode().then(repintar, repintar);
+  else repintar();
+};
+
 export const onCardImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
   const img = e.currentTarget;
   if (img.src === CARD_BACK_IMG) return; // Evita un bucle si el reverso tampoco carga.
