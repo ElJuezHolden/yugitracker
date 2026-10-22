@@ -95,6 +95,25 @@ if (!Array.isArray(productos) || productos.length < 1000) throw new Error('Cardm
  * regla está en la web, en services/versiones.ts.
  */
 const AGENTE = 'YugiTracker/1.0 (coleccion personal; https://github.com/ElJuezHolden/yugitracker)';
+
+/*
+ * ¿Responde Yugipedia? Muchos pasos dependen de ella (rarezas corregidas, cartas
+ * que YGOPRODeck no tiene, reediciones del 25 aniversario, colecciones que le
+ * faltan, variantes de arte, ediciones españolas, fichas…). Si está caída, el
+ * reparto de hoy sale sin todo eso y es peor que el de ayer: del 21 al 22 de
+ * octubre de 2026 Yugipedia estuvo caída ("temporarily offline", 503) y se
+ * perdió el precio de 1.748 versiones y otras 1.259 cambiaron de producto. Así
+ * que, sin Yugipedia, se mantiene el reparto de ayer (ver "Sin Yugipedia" al
+ * guardar). La marca también la ponen los pasos que fallan por el camino.
+ */
+let yugipediaCaida = false;
+try {
+  const r = await fetch('https://yugipedia.com/api.php?action=query&meta=siteinfo&format=json', { headers: { 'User-Agent': AGENTE } });
+  if (!r.ok) yugipediaCaida = true;
+} catch {
+  yugipediaCaida = true;
+}
+if (yugipediaCaida) console.warn('Yugipedia no responde: se mantiene el reparto de ayer en las cartas que ya lo tenían.');
 const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
 const rarezaFalsa = (r) => !/rare|common|short print/i.test(r);
 const plana = (s) => s.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -186,6 +205,7 @@ try {
   }
 } catch (e) {
   // Sin Yugipedia se sigue con las rarezas tal cual (la web tiene su propio arreglo).
+  yugipediaCaida = true;
   console.warn(`No se pudieron corregir las rarezas con Yugipedia: ${e.message}`);
 }
 
@@ -394,6 +414,7 @@ try {
     });
   }
 } catch (e) {
+  yugipediaCaida = true;
   console.warn(`No se pudieron buscar en Yugipedia las cartas que le faltan a YGOPRODeck: ${e.message}`);
 }
 // Los productos de Cardmarket con otro nombre pasan al de su carta de YGOPRODeck.
@@ -492,6 +513,7 @@ try {
     await esperar(1000);
   }
 } catch (e) {
+  yugipediaCaida = true;
   console.warn(`No se pudieron leer las reediciones del 25 aniversario: ${e.message}`);
 }
 
@@ -581,6 +603,7 @@ try {
     await esperar(1000);
   }
 } catch (e) {
+  yugipediaCaida = true;
   console.warn(`No se pudieron leer las colecciones que le faltan a YGOPRODeck: ${e.message}`);
 }
 
@@ -809,10 +832,13 @@ const PRODUCTO_CONFIRMADO = new Map([
 
 /** Reparto del día anterior: id → (clave → idProduct), para no cambiarlo sin motivo. */
 const repartoAnterior = new Map();
+/** Productos sobrantes del día anterior: id → [[prefijo, set, idProduct, …]] (para el caso sin Yugipedia). */
+const sobrantesAnteriores = new Map();
 for (let i = 0; i < TROZOS; i++) {
   try {
     const previo = JSON.parse(await readFile(join(CARPETA, `actual-${i}.json`), 'utf8'));
     for (const [id, claves] of Object.entries(previo.productos ?? {})) repartoAnterior.set(Number(id), claves);
+    for (const [id, lista] of Object.entries(previo.sobrantes ?? {})) sobrantesAnteriores.set(Number(id), lista);
   } catch {
     // Primera vez o formato antiguo: sin reparto anterior.
   }
@@ -1066,6 +1092,7 @@ try {
     dudasResueltas++;
   }
 } catch (e) {
+  yugipediaCaida = true;
   console.warn(`No se pudieron repasar con Yugipedia las cartas con más rarezas que productos: ${e.message}`);
 }
 
@@ -1172,6 +1199,7 @@ try {
     variantesAnadidas += nuevas.length;
   }
 } catch (e) {
+  yugipediaCaida = true;
   console.warn(`No se pudieron buscar en Yugipedia las variantes de arte: ${e.message}`);
 }
 
@@ -1233,6 +1261,7 @@ try {
     await esperar(1000);
   }
 } catch (e) {
+  yugipediaCaida = true;
   console.warn(`No se pudieron buscar en Yugipedia las promos de lanzamiento: ${e.message}`);
 }
 
@@ -1296,6 +1325,7 @@ try {
     }
   }
 } catch (e) {
+  yugipediaCaida = true;
   console.warn(`No se pudieron separar las Ultra Rare de letras plateadas: ${e.message}`);
 }
 
@@ -1349,6 +1379,7 @@ try {
     await esperar(1000);
   }
 } catch (e) {
+  yugipediaCaida = true;
   console.warn(`No se pudieron poner los precios de las ediciones españolas: ${e.message}`);
 }
 
@@ -1386,6 +1417,43 @@ for (const [nombreSet, exp] of emparejados) {
 // ---------------------------------------------------------------------------
 // Guardar: precio actual e historial
 // ---------------------------------------------------------------------------
+
+/*
+ * Sin Yugipedia: cada carta que ayer tenía reparto se queda con el de ayer (con
+ * los precios de hoy de esos mismos productos), y lo de hoy solo vale para las
+ * cartas nuevas. Una versión cuyo producto ya no tiene precio hoy se queda sin
+ * él, como siempre. Igual con los productos sobrantes.
+ */
+let repartosMantenidos = 0;
+if (yugipediaCaida && repartoAnterior.size) {
+  for (const [id, claves] of repartoAnterior) {
+    const prod = {};
+    const cif = {};
+    const ref = {};
+    for (const [clave, idProduct] of Object.entries(claves)) {
+      const precio = precioProducto.get(idProduct);
+      if (!precio) continue;
+      prod[clave] = idProduct;
+      cif[clave] = precio.cifras;
+      ref[clave] = precio.ref;
+    }
+    if (Object.keys(prod).length) {
+      productoDe.set(id, prod);
+      cifrasDe.set(id, cif);
+      deHoy.set(id, ref);
+    } else {
+      productoDe.delete(id);
+      cifrasDe.delete(id);
+      deHoy.delete(id);
+    }
+    repartosMantenidos++;
+  }
+  for (const [id, lista] of sobrantesAnteriores) {
+    const conPrecio = lista.filter((x) => precioProducto.has(x[2])).map(([prefijo, set, idProduct]) => [prefijo, set, idProduct, ...precioProducto.get(idProduct).cifras]);
+    if (conPrecio.length) sobrantes.set(id, conPrecio);
+    else sobrantes.delete(id);
+  }
+}
 
 await mkdir(CARPETA, { recursive: true });
 const historiales = [];
@@ -1570,9 +1638,10 @@ try {
     }
   }
 } catch (e) {
+  yugipediaCaida = true;
   console.warn(`No se pudo leer la galería de fichas de Yugipedia: ${e.message}`);
 }
-if (cartasExtra.length) await writeFile(join(CARPETA, 'cartas-extra.json'), JSON.stringify({ v: 1, actualizado: hoy, cartas: cartasExtra }));
+if (cartasExtra.length && !yugipediaCaida) await writeFile(join(CARPETA, 'cartas-extra.json'), JSON.stringify({ v: 1, actualizado: hoy, cartas: cartasExtra }));
 
 // El historial apuntado con una rareza falsa pasa a la buena (BLMM-EN038|New → |Ultra Rare).
 for (const [id, cambiosClave] of renombrar) {
@@ -1704,5 +1773,5 @@ try {
   // Sin archivo de nombres no hay nada que completar.
 }
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas, ${promosAnadidas} promos de lanzamiento (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${impresionesDeColecciones} impresiones de ${setsDeYugipedia.size} colecciones que YGOPRODeck no tiene; ${otroNombre.size} nombres de Cardmarket casados con su carta; ${preciosEs} precios de ediciones españolas con expansión propia.`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas, ${promosAnadidas} promos de lanzamiento (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${impresionesDeColecciones} impresiones de ${setsDeYugipedia.size} colecciones que YGOPRODeck no tiene; ${otroNombre.size} nombres de Cardmarket casados con su carta; ${preciosEs} precios de ediciones españolas con expansión propia.${yugipediaCaida ? ` SIN YUGIPEDIA: se mantuvo el reparto de ayer en ${repartosMantenidos} cartas.` : ''}`,
 );
