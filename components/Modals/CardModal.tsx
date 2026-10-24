@@ -270,6 +270,17 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
 
   const avisoRepetida = repetidas.length > 0 && avisoRepetidaEn === carpetaDestino;
 
+  /** Copias de esta carta en OTRAS carpetas (solo al añadir), agrupadas por carpeta: solo se avisa. */
+  const enOtrasCarpetas = useMemo(() => {
+    if (existingCard || !apiData) return [];
+    const porCarpeta = new Map<string, Card[]>();
+    for (const c of state.db.cards) {
+      if (c.apiId !== apiData.id || c.folderId === carpetaDestino) continue;
+      porCarpeta.set(c.folderId, [...(porCarpeta.get(c.folderId) ?? []), c]);
+    }
+    return [...porCarpeta].map(([id, copias]) => ({ nombre: state.db.folders.find(f => f.id === id)?.name ?? 'Otra carpeta', copias }));
+  }, [existingCard, apiData, carpetaDestino, state.db.cards, state.db.folders]);
+
   const handleSave = () => {
     if (!apiData || isSubmitting) return;
     
@@ -678,6 +689,34 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                                                 );
                                             })}
                                             {repetidas.length > 4 && <li className="text-main/60">y {repetidas.length - 4} más</li>}
+                                        </ul>
+                                    </div>
+                                )}
+                                {enOtrasCarpetas.length > 0 && (
+                                    <div className="mt-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1.5 text-xs leading-snug text-sky-300">
+                                        <div className="font-bold">
+                                            También la tienes en {enOtrasCarpetas.length === 1 ? 'otra carpeta' : `${enOtrasCarpetas.length} carpetas más`}
+                                        </div>
+                                        <ul className="mt-0.5 space-y-0.5">
+                                            {enOtrasCarpetas.slice(0, 4).flatMap(({ nombre, copias }) =>
+                                                copias.slice(0, 3).map(r => {
+                                                    const misma = !r.isWanted && !!selectedSet && r.setCode === selectedSet.set_code && r.rarity === (manualRarity || selectedSet.set_rarity);
+                                                    return (
+                                                        <li key={r.uid} className="flex items-center gap-1.5 text-main/80 min-w-0">
+                                                            <span className="font-semibold text-sky-200 truncate max-w-[40%]">{nombre}</span>
+                                                            <LanguageFlag lang={r.lang} size={10} />
+                                                            <span className="font-mono">{r.isWanted ? 'WANTED' : codigoDeCopia(r.setCode, r.lang)}</span>
+                                                            {!r.isWanted && <span className="truncate">{r.rarity} · {r.condition}</span>}
+                                                            {misma && <span className="ml-auto shrink-0 font-bold text-sky-200">misma versión</span>}
+                                                        </li>
+                                                    );
+                                                }),
+                                            )}
+                                            {(enOtrasCarpetas.length > 4 || enOtrasCarpetas.some(g => g.copias.length > 3)) && (
+                                                <li className="text-main/60">
+                                                    y {enOtrasCarpetas.reduce((n, g, i) => n + (i < 4 ? Math.max(0, g.copias.length - 3) : g.copias.length), 0)} más
+                                                </li>
+                                            )}
                                         </ul>
                                     </div>
                                 )}
