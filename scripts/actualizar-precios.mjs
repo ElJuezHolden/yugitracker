@@ -726,7 +726,15 @@ function expansionDe(nombreSet, cartasSet) {
    */
   const antiguas = empatadas.filter((c) => fraccionRelleno(c.id, cartasSet) >= 0.5);
   const entre = antiguas.length ? antiguas : empatadas;
-  if (cartasSet.size < DIMINUTO && entre.length > 1) return null;
+  if (cartasSet.size < DIMINUTO && entre.length > 1) {
+    /*
+     * Salvo que una sea exactamente el set: mismas cartas, ni una más. Duelist
+     * League Series 2 (The Masked Beast y Dark Necrofear) tiene su expansión de
+     * dos cartas, pero las dos están también en Dark Beginning 2 y en otra antigua.
+     */
+    const exactas = entre.filter((c) => c.parecido === 1);
+    return cartasSet.size >= 2 && exactas.length === 1 ? exactas[0].id : null;
+  }
   return entre.reduce((a, b) => (b.parecido > a.parecido ? b : a)).id;
 }
 
