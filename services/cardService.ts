@@ -317,15 +317,31 @@ async function textoDeYugipedia(titulo: string, signal?: AbortSignal): Promise<s
   return texto && texto.includes('CardTable2') ? texto : null;
 }
 
-/** Las impresiones en inglés de la ficha de Yugipedia (campos en_sets, na_sets y eu_sets). */
+/**
+ * Las impresiones en inglés de la ficha de Yugipedia (campos en_sets, na_sets y
+ * eu_sets), y las españolas de sets que solo salieron en España: Dado Grácil
+ * WC4-S002 (World Championship Tournament 2004) no tiene versión inglesa, y
+ * Cardmarket la vende aparte (S02). Las españolas de un set inglés (GLD4-SP037,
+ * BIY-S042) no: esas son la versión inglesa en otro idioma.
+ */
 function impresionesDeTexto(texto: string): Printing[] {
-  const impresiones: Printing[] = [];
-  for (const campo of texto.matchAll(/\|\s*(?:en|na|eu)_sets\s*=([\s\S]*?)(?=\n\s*\||\n\}\})/g)) {
-    for (const linea of campo[1]!.split('\n')) {
-      const [code, set, rarezas] = linea.split(';').map((x) => x.trim());
-      if (!code || !set || !rarezas) continue;
-      for (const rarity of rarezas.split(',').map((r) => r.trim()).filter(Boolean)) impresiones.push({ code, set, rarity });
+  const leer = (campos: string) => {
+    const lista: Printing[] = [];
+    for (const campo of texto.matchAll(new RegExp(`\\|\\s*(?:${campos})_sets\\s*=([\\s\\S]*?)(?=\\n\\s*\\||\\n\\}\\})`, 'g'))) {
+      for (const linea of campo[1]!.split('\n')) {
+        const [code, set, rarezas] = linea.split(';').map((x) => x.trim());
+        if (!code || !set || !rarezas) continue;
+        for (const rarity of rarezas.split(',').map((r) => r.trim()).filter(Boolean)) lista.push({ code, set, rarity });
+      }
     }
+    return lista;
+  };
+  const impresiones = leer('en|na|eu');
+  const setsIngleses = new Set(impresiones.map((p) => p.set));
+  const codigosIng = new Set(impresiones.map((p) => p.code.toUpperCase()));
+  for (const p of leer('sp')) {
+    if (setsIngleses.has(p.set) || codigosIngleses(p.code).some((c) => codigosIng.has(c))) continue;
+    impresiones.push(p);
   }
   return arreglarImpresiones(impresiones, (x) => x, (x, rarity) => ({ ...x, rarity }));
 }
