@@ -3,7 +3,7 @@ import { useStore } from '../context/StoreContext';
 import { NAME_MODES, setNameMode, useNameMode } from './useCardName';
 import { ID_ALL, CARD_BACK_IMG } from '../utils';
 import { useBackup } from '../context/BackupContext';
-import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp, Languages, Printer, Gem, ListChecks, ClipboardList, BarChart3 } from 'lucide-react';
+import { Search, ChevronLeft, Shield, ShieldCheck, Grid, List, Hash, ArrowUp, ArrowDown, Palette, Trash, Filter, BookOpen, Sparkles, Stamp, Award, Target, Monitor, TrendingUp, Languages, Printer, Gem, ListChecks, ClipboardList, BarChart3, LayoutGrid } from 'lucide-react';
 import { TagsPanel } from './TagsPanel';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { FolderSort, CardSort } from '../types';
@@ -114,6 +114,55 @@ export const Header: React.FC<Props> = ({
       dispatch({ type: 'SET_GRID_SIZE', payload: localGridSize });
   };
   
+  /** Posición del menú de herramientas (fijo: la barra puede deslizarse y lo recortaría). */
+  const [menuHerramientas, setMenuHerramientas] = useState<{ top: number; right: number } | null>(null);
+  useEffect(() => {
+    if (!menuHerramientas) return;
+    const cerrar = () => setMenuHerramientas(null);
+    const fuera = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest('[data-menu-herramientas]')) cerrar();
+    };
+    const tecla = (e: KeyboardEvent) => { if (e.key === 'Escape') cerrar(); };
+    document.addEventListener('mousedown', fuera);
+    document.addEventListener('keydown', tecla);
+    window.addEventListener('resize', cerrar);
+    window.addEventListener('scroll', cerrar, true);
+    return () => {
+      document.removeEventListener('mousedown', fuera);
+      document.removeEventListener('keydown', tecla);
+      window.removeEventListener('resize', cerrar);
+      window.removeEventListener('scroll', cerrar, true);
+    };
+  }, [menuHerramientas]);
+  const herramientas = [
+    { icono: TrendingUp, texto: 'Subidas y bajadas de precio', abrir: onOpenPriceMoves },
+    { icono: Printer, texto: 'Hojas de buscadas para imprimir', abrir: onOpenHojasBuscadas },
+    { icono: Gem, texto: 'Cartas para pimpear', abrir: onOpenPimpear },
+    { icono: ClipboardList, texto: 'Wanted para Cardmarket', abrir: onOpenWantedCardmarket },
+    { icono: BarChart3, texto: 'Estadísticas', abrir: onOpenEstadisticas },
+    { icono: Palette, texto: 'Personalizar tema', abrir: onOpenThemeModal },
+  ];
+
+  /*
+   * Si la barra no cabe (ventanas estrechas) se desliza; con el ratón, con la
+   * rueda, porque no tiene barra de desplazamiento a la vista.
+   */
+  const tiraRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = tiraRef.current;
+    if (!el) return;
+    const rueda = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+      // La rueda sobre el deslizador cambia el tamaño de las cartas, no desliza.
+      if (sliderRef.current?.contains(e.target as Node)) return;
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', rueda, { passive: false });
+    return () => el.removeEventListener('wheel', rueda);
+  }, []);
+
   const isFolderView = activeFolderId !== null;
   const currentFolder = isFolderView 
     ? state.db.folders.find(f => f.id === activeFolderId)
@@ -161,7 +210,7 @@ export const Header: React.FC<Props> = ({
       opciones (orden, brillos, WANTED…) que en el móvil ni aparecían.
     */
     <header className="fixed top-0 left-0 right-0 h-[var(--alto-cabecera)] bg-bg-body/95 backdrop-blur-md shadow-sm z-[100] flex flex-wrap md:flex-nowrap items-center content-center justify-between gap-y-2 px-4 sm:px-6 transition-colors duration-500">
-      <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1 md:flex-none md:max-w-[60%] overflow-hidden">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1 md:flex-initial md:shrink-[1000] md:min-w-[110px] md:max-w-[60%] overflow-hidden">
         {isFolderView && (
           <button onClick={handleGoHome} className="p-2 hover:bg-main/10 rounded-lg text-main/60 hover:text-main transition-colors shrink-0">
             <ChevronLeft size={20} />
@@ -175,11 +224,11 @@ export const Header: React.FC<Props> = ({
         >
             <div className="absolute inset-0 -translate-x-[150%] group-hover:translate-x-[150%] bg-gradient-to-r from-transparent via-white/25 to-transparent skew-x-[-25deg] transition-transform duration-1000 ease-in-out z-10 pointer-events-none" />
 
-            <h1 className="text-lg font-bold tracking-tight hidden sm:block relative z-0 text-main transition-all duration-500 group-hover:text-white group-hover:drop-shadow-[0_0_12px_rgba(var(--rgb-primary),0.6)]">
+            <h1 className={`text-lg font-bold tracking-tight hidden ${isFolderView ? 'min-[1800px]:block' : '2xl:block'} relative z-0 text-main transition-all duration-500 group-hover:text-white group-hover:drop-shadow-[0_0_12px_rgba(var(--rgb-primary),0.6)]`}>
                 Yugi-Tracker <span className="text-primary transition-all duration-500 group-hover:brightness-125">Platinum</span>
             </h1>
 
-            <h1 className="text-lg font-bold tracking-tight sm:hidden relative z-0 transition-transform duration-300 group-hover:scale-105">
+            <h1 className={`text-lg font-bold tracking-tight ${isFolderView ? 'min-[1800px]:hidden' : '2xl:hidden'} relative z-0 transition-transform duration-300 group-hover:scale-105`}>
                 <span className="text-primary group-hover:drop-shadow-[0_0_8px_rgba(var(--rgb-primary),0.8)]">YT</span>
             </h1>
         </div>
@@ -214,7 +263,7 @@ export const Header: React.FC<Props> = ({
 
       <div className="md:hidden shrink-0 pl-2">{botonPrincipal}</div>
 
-      <div className="flex items-center gap-2 sm:gap-4 w-full md:w-auto md:flex-1 justify-end min-w-0">
+      <div className="flex items-center gap-2 sm:gap-4 w-full md:w-auto md:flex-auto justify-end min-w-0">
         <div className="relative group w-[42%] shrink-0 md:w-auto" ref={searchContainerRef}>
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-main/50 group-focus-within:text-primary transition-colors">
                 <Search size={16} />
@@ -224,7 +273,7 @@ export const Header: React.FC<Props> = ({
                 value={searchQuery}
                 onChange={handleSearch}
                 placeholder="Buscar..."
-                className="bg-bg-surface border-none text-main rounded-full pl-9 pr-8 py-1.5 w-full md:w-[240px] md:focus:w-[320px] transition-all duration-300 ease-out focus:outline-none focus:ring-1 focus:ring-primary text-sm placeholder:text-main/30"
+                className="bg-bg-surface border-none text-main rounded-full pl-9 pr-8 py-1.5 w-full md:w-[150px] md:focus:w-[260px] 2xl:w-[240px] 2xl:focus:w-[320px] transition-all duration-300 ease-out focus:outline-none focus:ring-1 focus:ring-primary text-sm placeholder:text-main/30"
             />
             <button 
                 onClick={() => dispatch({ type: 'TOGGLE_TAGS_PANEL' })}
@@ -235,11 +284,11 @@ export const Header: React.FC<Props> = ({
             <TagsPanel />
         </div>
 
-        <div className="tira-movil flex items-center gap-2 md:gap-3 min-w-0 flex-1 md:flex-none overflow-x-auto md:overflow-visible [&>*]:shrink-0">
+        <div ref={tiraRef} className="tira-movil flex items-center gap-2 2xl:gap-3 min-w-0 flex-1 md:flex-initial overflow-x-auto [&>*]:shrink-0">
             {view === 'grid' && (
                 <div 
                     ref={sliderRef}
-                    className="relative hidden md:flex items-center bg-bg-surface px-3 py-1 rounded-full border-none h-[34px] transition-colors"
+                    className="relative hidden 2xl:flex items-center bg-bg-surface px-3 py-1 rounded-full border-none h-[34px] transition-colors"
                     title="Scroll para ajustar tamaño"
                 >
                     <input 
@@ -306,9 +355,6 @@ export const Header: React.FC<Props> = ({
                 >
                     <Sparkles size={16} fill={showFoils ? 'currentColor' : 'none'} />
                 </button>
-                <button onClick={onOpenThemeModal} className="p-1.5 hover:text-main text-main/60 hover:bg-main/10 rounded transition-colors" title="Personalizar Tema">
-                    <Palette size={16} />
-                </button>
             </div>
 
             {/* Idioma de los nombres: según cada copia, todo en español o todo en inglés */}
@@ -325,54 +371,24 @@ export const Header: React.FC<Props> = ({
                 <span className="text-[11px] font-bold w-7 text-left">{NAME_MODES.find(m => m.id === modoNombres)!.corto}</span>
             </button>
 
-            {/* Subidas y bajadas de precio de la colección */}
+            {/*
+              Las herramientas que abren una ventana aparte, juntas en un menú: sueltas
+              (cinco botones más) la barra no cabía en pantallas medianas y se montaba
+              encima del logo y del buscador.
+            */}
             <button
-                onClick={onOpenPriceMoves}
-                className="p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
-                title="Subidas y bajadas de precio"
-                aria-label="Subidas y bajadas de precio"
+                onClick={(e) => {
+                    const r = e.currentTarget.getBoundingClientRect();
+                    setMenuHerramientas(prev => (prev ? null : { top: r.bottom + 6, right: Math.max(8, document.documentElement.clientWidth - r.right) }));
+                }}
+                className={`p-2 rounded-lg transition-colors ${menuHerramientas ? 'bg-primary/20 text-primary' : 'bg-bg-surface text-main/60 hover:text-main hover:bg-main/10'}`}
+                title="Herramientas: precios, imprimir, pimpear, wanted, estadísticas y tema"
+                aria-label="Herramientas"
+                aria-haspopup="menu"
+                aria-expanded={menuHerramientas !== null}
+                data-menu-herramientas
             >
-                <TrendingUp size={16} />
-            </button>
-
-            {/* Hojas de cartas buscadas para imprimir */}
-            <button
-                onClick={onOpenHojasBuscadas}
-                className="p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
-                title="Hojas de cartas buscadas para imprimir"
-                aria-label="Hojas de cartas buscadas para imprimir"
-            >
-                <Printer size={16} />
-            </button>
-
-            {/* Cartas que existen en una rareza más alta que la que tienes */}
-            <button
-                onClick={onOpenPimpear}
-                className="p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
-                title="Cartas para pimpear (mejorar de rareza)"
-                aria-label="Cartas para pimpear (mejorar de rareza)"
-            >
-                <Gem size={16} />
-            </button>
-
-            {/* Wanted en el formato de importación de Cardmarket */}
-            <button
-                onClick={onOpenWantedCardmarket}
-                className="p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
-                title="Wanted para Cardmarket (copiar la lista)"
-                aria-label="Wanted para Cardmarket"
-            >
-                <ClipboardList size={16} />
-            </button>
-
-            {/* Estadísticas y valor en el tiempo */}
-            <button
-                onClick={onOpenEstadisticas}
-                className="p-2 bg-bg-surface rounded-lg text-main/60 hover:text-main hover:bg-main/10 transition-colors"
-                title="Estadísticas de la colección"
-                aria-label="Estadísticas de la colección"
-            >
-                <BarChart3 size={16} />
+                <LayoutGrid size={16} />
             </button>
 
             {/*
@@ -525,6 +541,30 @@ export const Header: React.FC<Props> = ({
             )}
         </div>
       </div>
+
+      {menuHerramientas && (
+        <div
+          role="menu"
+          data-menu-herramientas
+          className="fixed z-[110] min-w-[240px] bg-bg-panel border border-main/10 rounded-xl shadow-2xl p-1.5"
+          style={{ top: menuHerramientas.top, right: menuHerramientas.right }}
+        >
+          {herramientas.map(({ icono: Icono, texto, abrir }) => (
+            <button
+              key={texto}
+              role="menuitem"
+              onClick={() => {
+                setMenuHerramientas(null);
+                abrir();
+              }}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-main/80 hover:text-main hover:bg-main/10 transition-colors text-left"
+            >
+              <Icono size={16} className="text-primary shrink-0" />
+              {texto}
+            </button>
+          ))}
+        </div>
+      )}
     </header>
   );
 };
