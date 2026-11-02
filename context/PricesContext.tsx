@@ -71,6 +71,8 @@ interface PricesContextValue {
   priceOf: (card: Card) => CopyPrice | null;
   /** Valor de mercado de una copia, en euros, o `null` si no hay precio. */
   valueOf: (card: Card) => number | null;
+  /** Producto de Cardmarket de la versión de una copia (para enlazar a su página), o `null`. */
+  productoDe: (card: Card) => number | null;
   summarize: (cards: Card[]) => ValueSummary;
   /** Todas las versiones conocidas de una carta (YGOPRODeck y Cardmarket), con su precio. */
   versionesDe: (apiId: number) => VersionCarta[];
@@ -219,6 +221,17 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const valueOf = useCallback((card: Card): number | null => priceOf(card)?.eur ?? null, [priceOf]);
 
+  // Como el botón "Esta versión" de la ficha de la carta.
+  const productoDe = useCallback(
+    (card: Card): number | null => {
+      if (card.personalizado || !card.setCode || card.setCode === '---') return null;
+      const productos = mercado.productos.get(card.apiId) ?? {};
+      const clave = resolvePrintingKey(Object.keys(productos), card.setCode, card.rarity, card.lang);
+      return productos[clave] ?? leftoverFor(mercado.sobrantes.get(card.apiId), card.setCode, card.rarity)?.idProduct ?? null;
+    },
+    [mercado],
+  );
+
   const summarize = useCallback(
     (cards: Card[]): ValueSummary => {
       const resumen: ValueSummary = { eur: 0, priced: 0, unpriced: 0 };
@@ -279,8 +292,8 @@ export const PricesProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const refresh = useCallback(() => setForzar((n) => n + 1), []);
 
   const value = useMemo<PricesContextValue>(
-    () => ({ rate, loading, error, oldestFetch, marketDate: mercado.fecha, priceOf, valueOf, summarize, versionesDe, refresh, metric, setMetric }),
-    [rate, loading, error, oldestFetch, mercado.fecha, priceOf, valueOf, summarize, versionesDe, refresh, metric, setMetric],
+    () => ({ rate, loading, error, oldestFetch, marketDate: mercado.fecha, priceOf, valueOf, productoDe, summarize, versionesDe, refresh, metric, setMetric }),
+    [rate, loading, error, oldestFetch, mercado.fecha, priceOf, valueOf, productoDe, summarize, versionesDe, refresh, metric, setMetric],
   );
 
   return <PricesContext.Provider value={value}>{children}</PricesContext.Provider>;

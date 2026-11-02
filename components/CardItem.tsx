@@ -2,9 +2,9 @@ import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import type { Card, ViewMode } from '../types';
 import { useStore } from '../context/StoreContext';
-import { formatMoney, getConditionMeta, getRarityColor, ID_ALL, onCardImageError, onCardImageLoad } from '../utils';
+import { formatMoney, getCardMarketLink, getCardMarketProductLink, getConditionMeta, getRarityColor, ID_ALL, onCardImageError, onCardImageLoad } from '../utils';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageSquareText, FolderOpen, CheckCircle2, Circle } from 'lucide-react';
+import { MessageSquareText, FolderOpen, CheckCircle2, Circle, ExternalLink } from 'lucide-react';
 import CardFoilOverlay from './CardFoilOverlay';
 import CardWear from './CardWear';
 import EditionHologram from './EditionHologram';
@@ -110,6 +110,45 @@ function abreviarRareza(rareza: string, codigo?: string): string {
 }
 
 /**
+ * Enlaces a Cardmarket de una carta buscada, sin abrir su ficha: para ir
+ * apuntándolas en la lista de deseos de Cardmarket. "Todas" es la página de la
+ * carta (cualquier versión); "Versión", la del producto de la versión elegida.
+ */
+function EnlacesCardmarket({ card, idProduct }: { card: Card; idProduct: number | null }) {
+  // Que el clic abra el enlace y no la ficha de la carta.
+  const sinAbrirFicha = (e: React.MouseEvent) => e.stopPropagation();
+  return (
+    <div
+      className="pointer-events-auto self-start flex items-stretch rounded overflow-hidden text-[11px] @max-[210px]:text-[10px] font-bold text-white bg-[#00b4e2] leading-none max-w-full"
+      onClick={sinAbrirFicha}
+      draggable={false}
+    >
+      <span className="px-1.5 py-1 bg-[#0098c0] flex items-center @max-[210px]:hidden" title="Cardmarket">CM</span>
+      <a
+        href={getCardMarketLink(card.name)}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-1 px-1.5 py-1 hover:bg-[#009ac0] transition-colors"
+        title="Todas las versiones de la carta en Cardmarket"
+      >
+        Todas <ExternalLink size={10} />
+      </a>
+      {idProduct != null && (
+        <a
+          href={getCardMarketProductLink(idProduct)}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-1 px-1.5 py-1 border-l border-white/25 hover:bg-[#009ac0] transition-colors"
+          title={`Solo ${codigoDeCopia(card.setCode, card.lang)} · ${card.rarity} en Cardmarket`}
+        >
+          Versión <ExternalLink size={10} />
+        </a>
+      )}
+    </div>
+  );
+}
+
+/**
  * Etiquetas de la copia: edición (1.ª o Limited) y estado (NM, EX…).
  * En la franja de datos son chips con borde; `sobreCarta` las hace pastillas
  * oscuras y translúcidas para ir encima de la imagen, escaladas con la carta.
@@ -175,7 +214,10 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
   // Valor de mercado de ESTA impresión (set y rareza), en euros; null si no hay precio.
   // Nombre en el idioma de la copia (español si es ES) y, aparte, el otro.
   const { nombre, otro: otroNombre } = useCardName(card);
-  const precioCopia = usePrices().priceOf(card);
+  const { priceOf, productoDe } = usePrices();
+  const precioCopia = priceOf(card);
+  // Las buscadas llevan sus enlaces a Cardmarket a mano (no las personalizadas: no están en Cardmarket).
+  const conEnlaces = card.isWanted && !card.personalizado && !isSelectionMode;
   const valor = precioCopia?.eur ?? null;
   const fuenteValor = precioCopia?.fuente;
   const tituloValor = !precioCopia
@@ -535,6 +577,7 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                             </div>
                         </div>
                     )}
+                    {conEnlaces && <EnlacesCardmarket card={card} idProduct={productoDe(card)} />}
                     {!isSelectionMode && <div className="hidden md:block text-muted opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-full">✏️</div>}
                 </div>
             </motion.div>
@@ -659,6 +702,8 @@ export const CardItem: React.FC<Props> = React.memo(({ card, onPress, viewMode, 
                          </div>
                     )}
                 </div>
+
+                {conEnlaces && <div className="mt-auto flex"><EnlacesCardmarket card={card} idProduct={productoDe(card)} /></div>}
 
                 {!card.isWanted && (
                     <div className="space-y-1 @max-[210px]:space-y-0.5 mt-auto">
