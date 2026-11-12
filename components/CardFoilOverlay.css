@@ -759,6 +759,25 @@
   bottom: 8.6%;
   overflow: hidden;
 }
+/*
+ * Cartas Péndulo: otra maqueta. Un solo marco, más ancho, rodea la ilustración
+ * (que llega casi de lado a lado), la caja del efecto de Péndulo y la de texto.
+ * Con las medidas de las demás cartas, el marco dorado y la zona de foil caían
+ * en mitad de la ilustración. Medidas sobre las imágenes de YGOPRODeck
+ * (813 × 1185): marco de x 44-767 e y 204-1121; ilustración hasta y 737; caja de
+ * Péndulo de 745 a 878; caja de texto de 885 a 1115. Son variables: no crean
+ * contexto de apilamiento (ver la trampa de arriba).
+ */
+.foil--pendulo {
+  --arte-t: 17.8;
+  --arte-b: 37.8;
+  --arte-l: 6.3;
+  --arte-r: 6.4;
+  --mascara-oro: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 421 614' preserveAspectRatio='none'%3E%3Cfilter id='s'%3E%3CfeGaussianBlur stdDeviation='0.7'/%3E%3C/filter%3E%3Cpath fill='white' fill-rule='evenodd' filter='url(%23s)' d='M-2 -2H423V616H-2Z M13.5 13.5V600.5H407.5V13.5Z M22.8 105.7H397.2V580.8H22.8Z M26.4 109.3V381.9H394V109.3Z M26.4 386V454.9H394V386Z M26.4 458.6V577.7H394V458.6Z'/%3E%3C/svg%3E");
+  --mascara-oro-premium: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 421 614' preserveAspectRatio='none'%3E%3Cfilter id='s'%3E%3CfeGaussianBlur stdDeviation='0.7'/%3E%3C/filter%3E%3Cpath fill='white' fill-rule='evenodd' filter='url(%23s)' d='M-2 -2H423V616H-2Z M14.5 14.5V599.5H406.5V14.5Z M21.8 104.7H398.2V581.8H21.8Z M27.2 110.1V381.1H393.2V110.1Z M27.2 386.8V454.1H393.2V386.8Z M27.2 459.4V576.9H393.2V459.4Z'/%3E%3C/svg%3E");
+  --mascara-sin-texto: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 421 614' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H421V614H0Z M26.4 386V577.7H394V386Z'/%3E%3C/svg%3E");
+}
+
 /* En las Péndulo la caja de texto es más baja y más estrecha. */
 .foil--pendulo .foil-sello {
   top: 77%;
