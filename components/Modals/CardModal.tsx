@@ -156,9 +156,17 @@ export const CardModal: React.FC<Props> = ({ isOpen, onClose, initialApiCard, ex
                 ? data.card_sets?.find(s => s.set_code === existingCard.setCode && s.set_rarity_code === existingCard.rarityCode)
                 : undefined);
             // Una versión añadida a mano no está en la API: se reconstruye para no perderla al editar.
+            // Salvo que sea una variante de Cardmarket de una versión que sí está ("Secret
+            // Rare (Reprint)" de la RP02-EN100): esa es de su set, no "añadida a mano".
+            const variante = /^(.+?)\s*\((.+)\)$/.exec(existingCard.rarity);
+            const deBase = !foundSet && variante
+              ? data.card_sets?.find(s => s.set_code === existingCard.setCode && sameRarity(s.set_rarity, variante[1]!))
+              : undefined;
             const aMano: CardSet | null =
               !foundSet && existingCard.setCode && existingCard.setCode !== '---'
-                ? { set_name: 'Añadida a mano', set_code: existingCard.setCode, set_rarity: existingCard.rarity, set_rarity_code: existingCard.rarityCode || '', set_price: '0', origen: 'mano' }
+                ? deBase
+                  ? { set_name: deBase.set_name, set_code: existingCard.setCode, set_rarity: existingCard.rarity, set_rarity_code: '', set_price: '0', origen: 'cardmarket' }
+                  : { set_name: 'Añadida a mano', set_code: existingCard.setCode, set_rarity: existingCard.rarity, set_rarity_code: existingCard.rarityCode || '', set_price: '0', origen: 'mano' }
                 : null;
             setVersionesExtra(aMano ? [aMano] : []);
             setSelectedSet(foundSet || aMano);

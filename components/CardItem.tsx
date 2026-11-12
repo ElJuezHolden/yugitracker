@@ -92,15 +92,19 @@ const RAREZAS_CORTAS: Record<string, string> = {
 };
 /** Reedición del 25 aniversario: se abrevia su rareza y se le añade "25th". */
 const REEDICION_25 = / \(25th Anniversary Edition\)$/i;
+/** Reimpresión de una colección antigua que Cardmarket vende aparte ("Secret Rare (Reprint)"). */
+const REIMPRESION = / \(Reprint\)$/i;
 
 function rarezaMedia(rareza: string): string {
   if (REEDICION_25.test(rareza)) return `${rarezaMedia(rareza.replace(REEDICION_25, ''))} 25th`;
+  if (REIMPRESION.test(rareza)) return `${rarezaMedia(rareza.replace(REIMPRESION, ''))} Reprint`;
   const r = (rareza || 'Common').trim();
   return RAREZAS_CORTAS[r.toLowerCase()] ?? r.replace(/^Duel Terminal /i, 'DT ');
 }
 
 function abreviarRareza(rareza: string, codigo?: string): string {
   if (REEDICION_25.test(rareza)) return `${abreviarRareza(rareza.replace(REEDICION_25, ''), codigo)}·25`;
+  if (REIMPRESION.test(rareza)) return `${abreviarRareza(rareza.replace(REIMPRESION, ''), codigo)}·RE`;
   const r = (rareza || 'Common').toLowerCase().trim();
   if (ABREVIATURAS[r]) return ABREVIATURAS[r];
   const deCodigo = codigo?.replace(/[()]/g, '').trim();

@@ -928,6 +928,41 @@ function repartoRA(impresiones, productosCarta, rarezas) {
   return null;
 }
 
+/*
+ * Colecciones antiguas que se reimprimieron tal cual años después. Cardmarket
+ * vende la reimpresión en la misma expansión, como otra versión de cada carta
+ * (Dreadscythe Harvester RP02-EN100: "V.1" la de 2009, desde 6,98 €, y "V.2",
+ * con el sello "Reprint (2020 ©)", desde 1,80 €). Ni YGOPRODeck ni Yugipedia
+ * las separan: había una rareza y dos productos, y la carta se quedaba con uno
+ * cualquiera (el de ayer o el más barato): en Retro Pack 2, 77 cartas con el
+ * precio de la reimpresión y 24 con el de la original.
+ *
+ * Cuál es cuál sí se sabe: la original es el producto que Cardmarket ya tenía
+ * (fecha de relleno) y la reimpresión, el que dio de alta al salir esta, todas
+ * las cartas el mismo día. La original se queda con la versión de siempre y la
+ * reimpresión se publica aparte, como las variantes: "Secret Rare (Reprint)".
+ *
+ * Solo las comprobadas: la colección tuvo reimpresión (Yugipedia) y la tanda de
+ * Cardmarket es de esas fechas. `desde`: los productos de la reimpresión son
+ * los dados de alta a partir de ese día. Otras tandas (las de octubre de 2021
+ * en LOB, MRD, PSV…) son otra cosa y no van aquí.
+ */
+const REIMPRESIONES = new Map(
+  Object.entries({
+    // Yugi & Kaiba Collector Box (alta en Cardmarket: 13-feb-2024).
+    'Duelist Pack: Yugi': '2024-02-01',
+    'Duelist Pack: Kaiba': '2024-02-01',
+    // Reimpresión europea del 8-ago-2024, con el copyright de 2020.
+    'Light of Destruction': '2024-08-01',
+    // Reimpresión del 23-ago-2024 (alta: 29-ago-2024).
+    'Retro Pack': '2024-08-01',
+    // Reimpresión europea de 2025 (alta: 21-nov-2025). Comprobada por el usuario en Cardmarket.
+    'Retro Pack 2': '2025-11-01',
+  }).map(([set, desde]) => [set, Date.parse(desde)]),
+);
+const SUFIJO_REIMPRESION = ' (Reprint)';
+let reimpresiones = 0;
+
 /**
  * Empareja rarezas y productos en orden: la rareza más alta, el producto más
  * caro (por precio estable). Si ayer se repartieron de otra forma y los precios
@@ -1045,6 +1080,18 @@ for (const [nombreSet, cartasSet] of ordenSets) {
     // como las Lost Art de varias oleadas): los dados de alta más cerca de la
     // salida de este set.
     const numRarezas = new Set(impresiones.map((i) => i.rarity)).size;
+    // Colección reimpresa (ver REIMPRESIONES): los originales por un lado y la
+    // reimpresión por otro, si cada tanda tiene justo un producto por rareza.
+    let reimpresos = [];
+    const desdeReimpresion = REIMPRESIONES.get(nombreSet);
+    if (desdeReimpresion != null) {
+      const originales = productosCarta.filter((x) => x.t <= FECHA_UTIL);
+      const nuevos = productosCarta.filter((x) => x.t >= desdeReimpresion);
+      if (originales.length === numRarezas && nuevos.length === numRarezas && originales.length + nuevos.length === productosCarta.length) {
+        productosCarta = originales;
+        reimpresos = nuevos;
+      }
+    }
     // Solo cuenta la oleada (semanas), no los segundos: las versiones de una carta
     // se dan de alta juntas (las 4 de Magnificent Monsters, en el mismo minuto).
     if (fecha && fecha >= FECHA_FIABLE && productosCarta.length > numRarezas && productosCarta.some((x) => x.t > FECHA_UTIL)) {
@@ -1064,6 +1111,10 @@ for (const [nombreSet, cartasSet] of ordenSets) {
       if (originales.length === numRarezas) productosCarta = originales;
     }
     const rarezas = asignarEnOrden(impresiones, productosCarta, `${exp}|${n}`);
+    if (reimpresos.length) {
+      asignarEnOrden(impresiones.map((imp) => ({ ...imp, rarity: imp.rarity + SUFIJO_REIMPRESION })), reimpresos, `${exp}|${n}`);
+      reimpresiones += reimpresos.length;
+    }
     if (productosCarta.length && productosCarta.length < rarezas && rarezas > 1) dudosas.push({ exp, n, impresiones, productosCarta });
     if (productosCarta.length > rarezas) conVariantes.push({ nombreSet, exp, n, impresiones, productosCarta });
   }
@@ -1661,6 +1712,30 @@ for (const [id, cambiosClave] of renombrar) {
   }
 }
 
+/*
+ * El historial es del producto, no de la clave: si una versión pasa a otro
+ * producto y el que tenía es hoy el de otra versión de la carta que aún no
+ * tiene historial, se lo lleva. Las cartas de una colección reimpresa que
+ * iban con el producto de la reimpresión en la clave de siempre: lo apuntado
+ * pasa a "… (Reprint)" en vez de perderse.
+ */
+for (const [id, precios] of deHoy) {
+  const trozo = historiales[id % TROZOS];
+  const historial = trozo.cartas[id];
+  const productosHistorial = trozo.productos[id];
+  const deLaCarta = productoDe.get(id);
+  if (!historial || !productosHistorial || !deLaCarta) continue;
+  for (const clave of Object.keys(precios)) {
+    const previo = productosHistorial[clave];
+    if (previo == null || deLaCarta[clave] == null || previo === deLaCarta[clave] || !historial[clave]?.length) continue;
+    const suya = Object.keys(precios).find((k) => k !== clave && deLaCarta[k] === previo);
+    if (!suya || historial[suya]?.length || productosHistorial[suya] != null) continue;
+    historial[suya] = historial[clave];
+    productosHistorial[suya] = previo;
+    historial[clave] = [];
+  }
+}
+
 const cambiaDeVerdad = (antes, ahora) => Math.abs(ahora - antes) >= Math.max(0.02, antes * 0.02);
 let cambios = 0;
 for (const [id, precios] of deHoy) {
@@ -1781,5 +1856,5 @@ try {
   // Sin archivo de nombres no hay nada que completar.
 }
 console.log(
-  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas, ${promosAnadidas} promos de lanzamiento (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${impresionesDeColecciones} impresiones de ${setsDeYugipedia.size} colecciones que YGOPRODeck no tiene; ${otroNombre.size} nombres de Cardmarket casados con su carta; ${preciosEs} precios de ediciones españolas con expansión propia.${yugipediaCaida ? ` SIN YUGIPEDIA: se mantuvo el reparto de ayer en ${repartosMantenidos} cartas.` : ''}`,
+  `${conPrecio} de ${versiones} versiones con precio de Cardmarket (${setsSinPareja} sets sin pareja); ${numSobrantes} productos sobrantes; ${cambios} precios nuevos o cambiados; ${rarezasCorregidas} rarezas corregidas con Yugipedia; ${especiales} Ultra Rare de letras plateadas; ${dudasResueltas} de ${dudosas.length} cartas con rarezas de más resueltas con Yugipedia; ${variantesAnadidas} variantes de arte añadidas, ${promosAnadidas} promos de lanzamiento (${conVariantes.length} cartas con más productos que rarezas); ${nombresAlias} nombres en español para artes alternativos; ${cartasExtra.length} cartas que YGOPRODeck no tiene, sacadas de Yugipedia (${fichasGaleria} fichas de su galería, ${fichasConPrecio} con precio); ${reediciones25} versiones de reediciones del 25 aniversario; ${reimpresiones} reimpresiones de ${REIMPRESIONES.size} colecciones separadas de su original; ${impresionesDeColecciones} impresiones de ${setsDeYugipedia.size} colecciones que YGOPRODeck no tiene; ${otroNombre.size} nombres de Cardmarket casados con su carta; ${preciosEs} precios de ediciones españolas con expansión propia.${yugipediaCaida ? ` SIN YUGIPEDIA: se mantuvo el reparto de ayer en ${repartosMantenidos} cartas.` : ''}`,
 );
